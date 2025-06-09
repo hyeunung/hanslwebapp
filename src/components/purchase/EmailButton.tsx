@@ -61,7 +61,7 @@ export default function EmailButton({ onClick, style, inline = false }: EmailBut
           marginLeft: '4px',
           ...style,
         }}
-        className="hover:shadow-md transition-shadow duration-200"
+        className="hover:shadow-sm transition-shadow duration-200"
       >
         <Mail 
           size={18} 
@@ -111,7 +111,7 @@ export default function EmailButton({ onClick, style, inline = false }: EmailBut
         touchAction: 'none',
         ...style,
       }}
-      className="hover:shadow-md transition-shadow duration-200"
+      className="shadow-sm hover:shadow-md transition-shadow duration-200"
     >
       <Mail 
         size={18} 

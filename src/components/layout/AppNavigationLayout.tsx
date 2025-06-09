@@ -31,7 +31,7 @@ export default function AppNavigationLayout() {
   return (
     <div className="min-h-screen bg-background">
       {/* 헤더 */}
-      <header className="bg-white border-b border-border sticky top-0 z-50">
+      <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
         <div className="flex items-center h-16 px-8">
           <Building2 size={24} className="text-primary" />
           <h1 className="text-xl font-semibold text-foreground ml-4">HANSL</h1>
@@ -39,7 +39,7 @@ export default function AppNavigationLayout() {
         </div>
       </header>
       {/* 네비게이션 */}
-      <nav className="bg-white border-b border-border">
+      <nav className="bg-white border-b border-border shadow-sm">
         <div className="flex items-center space-x-8 px-8">
           {navigationItems.map((item) => {
             const Icon = item.icon;

@@ -20,13 +20,13 @@ export default function DashboardMain() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border rounded-lg card-shadow overflow-hidden w-full"
+        className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full"
       >
         <Collapsible open={isPurchaseFormOpen} onOpenChange={setIsPurchaseFormOpen}>
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full h-12 px-6 justify-between hover:bg-muted/50 rounded-none"
+              className="w-full h-12 px-6 justify-between hover:bg-muted/50 rounded-none transition-shadow duration-200"
             >
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 bg-primary/10 rounded-md flex items-center justify-center">
@@ -63,7 +63,7 @@ export default function DashboardMain() {
               animate={{ opacity: 1, x: 0, width: 320 }}
               exit={{ opacity: 0, x: -20, width: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="flex-shrink-0 bg-card border border-border rounded-lg card-shadow flex flex-col overflow-hidden z-20"
+              className="flex-shrink-0 bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden z-20"
               style={{ minWidth: 320, maxWidth: 400 }}
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
@@ -80,7 +80,7 @@ export default function DashboardMain() {
                   variant="ghost"
                   size="sm"
                   onClick={handleEmailToggle}
-                  className="w-7 h-7 p-0 rounded-md hover:bg-muted"
+                  className="w-7 h-7 p-0 rounded-md hover:bg-muted hover:shadow-sm transition-shadow duration-200"
                 >
                   <LogOut className="w-4 h-4 text-muted-foreground" />
                 </Button>

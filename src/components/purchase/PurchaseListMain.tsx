@@ -51,7 +51,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   };
 
   return (
-    <Card className="h-full flex flex-col bg-card border-border rounded-lg card-shadow overflow-hidden w-full">
+    <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
       {/* Professional Header - 더 넓은 패딩 */}
       <CardHeader className="pb-4 bg-muted/20 border-b border-border">
         <div className="flex justify-between items-center mb-4">
@@ -72,7 +72,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-md h-8 px-3">
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-md h-8 px-3 hover:shadow-sm transition-shadow duration-200">
               <Filter className="w-4 h-4" />
               <span className="hidden sm:inline">필터</span>
             </Button>
@@ -81,7 +81,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         
         {/* Professional Stats Cards - 더 넓은 공간 활용 */}
         <div className="grid grid-cols-3 gap-6">
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-primary/30 transition-colors">
+          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-primary/30 shadow hover:shadow-sm transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground font-medium">전체 발주</span>
               <div className="w-3 h-3 rounded-sm bg-primary"></div>
@@ -90,7 +90,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             <p className="text-xs text-muted-foreground mt-1">Total Orders</p>
           </div>
           
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-warning/30 transition-colors">
+          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-warning/30 shadow hover:shadow-sm transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground font-medium">승인 대기</span>
               <div className="w-3 h-3 rounded-sm bg-warning"></div>
@@ -99,7 +99,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             <p className="text-xs text-muted-foreground mt-1">Pending Approval</p>
           </div>
           
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-success/30 transition-colors">
+          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-success/30 shadow hover:shadow-sm transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground font-medium">승인 완료</span>
               <div className="w-3 h-3 rounded-sm bg-success"></div>
@@ -116,7 +116,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-4 mb-0 p-1">
             <TabsTrigger 
               value="all" 
-              className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8"
+              className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm"
             >
               전체목록
             </TabsTrigger>
@@ -138,7 +138,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           <div className="px-6 py-4 border-b border-border bg-background">
             <div className="flex gap-4 items-center">
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md">
+                <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm transition-shadow duration-200">
                   <SelectValue placeholder="직원선택" />
                 </SelectTrigger>
                 <SelectContent className="rounded-md">
@@ -155,7 +155,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                   placeholder="발주번호, 품목명, 요청자로 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-9 text-sm bg-background border-border rounded-md focus-ring"
+                  className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
                 />
               </div>
             </div>
@@ -202,7 +202,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">{item.date}</td>
                       <td className="px-6 py-4">
-                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0 rounded-md hover:bg-muted">
+                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0 rounded-md hover:bg-muted hover:shadow-sm transition-shadow duration-200">
                           <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                         </Button>
                       </td>

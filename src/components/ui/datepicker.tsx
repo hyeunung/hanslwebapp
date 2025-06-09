@@ -1,13 +1,13 @@
 import * as React from "react";
 import { Calendar } from "./calendar";
 
-export function DatePicker({ value, onChange }: { value: Date; onChange: (date: Date) => void }) {
+export function DatePicker({ value, onChange, className }: { value: Date; onChange: (date: Date) => void; className?: string }) {
   const [open, setOpen] = React.useState(false);
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <button
         type="button"
-        className="h-9 px-3 border rounded-md bg-background text-sm"
+        className={`h-8 px-3 border rounded-md bg-background text-xs w-full ${className || ""}`}
         onClick={() => setOpen((v) => !v)}
       >
         {value ? value.toLocaleDateString() : "날짜 선택"}

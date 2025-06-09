@@ -26,7 +26,7 @@ export function MultiSelect({
             : options.filter(o => value.includes(o.value)).map(o => o.label).join(", ")}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
+      <DropdownMenuContent className="w-full" sideOffset={0} align="start">
         {options.map((option) => (
           <DropdownMenuCheckboxItem
             key={option.value}

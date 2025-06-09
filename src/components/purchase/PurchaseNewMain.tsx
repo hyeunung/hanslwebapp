@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, Save, Calculator } from "lucide-react";
+import { Plus, X, Save, Calculator, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multiselect";
 import { DatePicker } from "@/components/ui/datepicker";
@@ -15,6 +15,9 @@ import { useRouter } from "next/navigation";
 import { useColumnResize } from "@/hooks/useColumnResize";
 import { ColumnResizer } from "@/hooks/ColumnResizer";
 import { useForm as useFormRH, Controller, useFieldArray } from "react-hook-form";
+import dynamic from 'next/dynamic';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+const ReactSelect = dynamic(() => import('react-select'), { ssr: false });
 
 interface Item {
   line_number: number;
@@ -49,7 +52,7 @@ export default function PurchaseNewMain() {
   const { user } = useAuth();
   const router = useRouter();
   const [vendors, setVendors] = useState<{ id: number; vendor_name: string }[]>([]);
-  const [contacts, setContacts] = useState<{ id: number; contact_name: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: number; contact_name: string; contact_email: string; contact_phone: string; position: string }[]>([]);
   const [vendor, setVendor] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [requester, setRequester] = useState(user?.user_metadata?.name || "");
@@ -60,6 +63,10 @@ export default function PurchaseNewMain() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [addCount, setAddCount] = useState(1);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [contactDraft, setContactDraft] = useState<{ id?: number; contact_name: string; contact_email: string; contact_phone: string; position: string }>({ contact_name: '', contact_email: '', contact_phone: '', position: '' });
+  const [contactEditMode, setContactEditMode] = useState<'add' | 'edit'>('add');
+  const [contactEditTarget, setContactEditTarget] = useState<number | null>(null);
 
   const userId = user?.id || 'guest';
   const storageKey = `purchase_colwidths_${userId}`;
@@ -155,9 +162,9 @@ export default function PurchaseNewMain() {
 
   useEffect(() => {
     if (selectedVendor) {
-      supabase.from('vendor_contacts').select('id, contact_name').eq('vendor_id', selectedVendor).then(({ data }) => {
-      if (data) setContacts(data);
-    });
+      supabase.from('vendor_contacts').select('id, contact_name, contact_email, contact_phone, position').eq('vendor_id', selectedVendor).then(({ data }) => {
+        if (data) setContacts(data);
+      });
     } else {
       setContacts([]);
       setValue('contacts', []);
@@ -196,6 +203,7 @@ export default function PurchaseNewMain() {
         progress_type: watch('progress_type'),
         payment_category: watch('payment_category'),
         po_template_type: watch('po_template_type'),
+        contacts: watch('contacts'),
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
@@ -225,111 +233,251 @@ export default function PurchaseNewMain() {
 
   const totalAmount = fields.reduce((sum, item) => sum + item.amount_value, 0);
 
-  return (
-    <div className="space-y-6">
-      {/* Professional Basic Info Section */}
-      <div className="bg-muted/20 border border-border rounded-lg p-5 space-y-4">
-        <div className="flex flex-col justify-center mb-2">
-          <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
-          <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>업체명</Label>
-            <Select value={vendor} onValueChange={setVendor}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="업체를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendors.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.vendor_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>구매요구자</Label>
-            <Input value={requester} onChange={e => setRequester(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>담당자</Label>
-            <MultiSelect
-              options={contacts.map(c => ({ value: c.id.toString(), label: c.contact_name }))}
-              value={watch('contacts')}
-              onChange={val => setValue('contacts', val)}
-              placeholder="담당자를 선택하세요"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>청구일</Label>
-            <DatePicker value={watch('request_date') ? new Date(watch('request_date')) : new Date()} onChange={date => setValue('request_date', date ? date.toISOString().slice(0, 10) : '')} />
-          </div>
-          <div className="space-y-2">
-            <Label>입고 요청일</Label>
-            <DatePicker value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : new Date()} onChange={date => setValue('delivery_request_date', date ? date.toISOString().slice(0, 10) : '')} />
-          </div>
-          <div className="space-y-2">
-            <Label>요청 유형</Label>
-            <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="요청 유형을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="원자재">원자재</SelectItem>
-                <SelectItem value="소모품">소모품</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>수주번호</Label>
-            <Input value={watch('sales_order_number')} onChange={(e) => setValue('sales_order_number', e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>PJ업체</Label>
-            <Input value={watch('project_vendor')} onChange={(e) => setValue('project_vendor', e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Item</Label>
-            <Input value={watch('project_item')} onChange={(e) => setValue('project_item', e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>진행 종류</Label>
-            <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="진행 종류를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="일반">일반</SelectItem>
-                <SelectItem value="선진행">선진행</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>결제 종류</Label>
-            <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="결제 종류를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="발주">발주</SelectItem>
-                <SelectItem value="구매 요청">구매 요청</SelectItem>
-                <SelectItem value="현장 결제">현장 결제</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>발주서 템플릿</Label>
-            <Select value={watch('po_template_type')} onValueChange={(value) => setValue('po_template_type', value)}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="발주서 템플릿을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="일반">일반</SelectItem>
-                <SelectItem value="PCB">PCB</SelectItem>
-                <SelectItem value="개별">개별</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+  const openAddContact = () => {
+    setContactDraft({ contact_name: '', contact_email: '', contact_phone: '', position: '' });
+    setContactEditMode('add');
+    setIsContactDialogOpen(true);
+  };
+
+  const openEditContact = (c: { id: number; contact_name: string; contact_email: string; contact_phone: string; position: string }) => {
+    setContactDraft({ ...c });
+    setContactEditMode('edit');
+    setContactEditTarget(c.id);
+    setIsContactDialogOpen(true);
+  };
+
+  const handleContactSave = async () => {
+    if (!selectedVendor) return;
+    if (!contactDraft.contact_name.trim() || !contactDraft.contact_email.trim()) return;
+    if (contactEditMode === 'add') {
+      await supabase.from('vendor_contacts').insert({
+        vendor_id: selectedVendor,
+        contact_name: contactDraft.contact_name,
+        contact_email: contactDraft.contact_email,
+        contact_phone: contactDraft.contact_phone,
+        position: contactDraft.position,
+      });
+    } else if (contactEditMode === 'edit' && contactEditTarget) {
+      await supabase.from('vendor_contacts').update({
+        contact_name: contactDraft.contact_name,
+        contact_email: contactDraft.contact_email,
+        contact_phone: contactDraft.contact_phone,
+        position: contactDraft.position,
+      }).eq('id', contactEditTarget);
+    }
+    const { data } = await supabase.from('vendor_contacts').select('id, contact_name, contact_email, contact_phone, position').eq('vendor_id', selectedVendor);
+    if (data) setContacts(data);
+    setIsContactDialogOpen(false);
+  };
+
+  const handleContactDelete = async (id: number) => {
+    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    await supabase.from('vendor_contacts').delete().eq('id', id);
+    const { data } = await supabase.from('vendor_contacts').select('id, contact_name, contact_email, contact_phone, position').eq('vendor_id', selectedVendor);
+    if (data) setContacts(data);
+  };
+
+      return (
+     <div className="space-y-6">
+       {/* 발주 기본 정보 */}
+       <div className="bg-muted/20 border border-border rounded-lg p-5 space-y-4">
+         <div className="flex flex-col justify-center mb-4">
+           <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
+           <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
+         </div>
+
+         <div className="space-y-4">
+           {/* 요청 설정 */}
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+             <div>
+               <Label className="mb-1 block">요청 유형</Label>
+               <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
+                 <SelectTrigger className="h-9 bg-white border border-[#d2d2d7] rounded-md">
+                   <SelectValue placeholder="요청 유형을 선택하세요" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="원자재">원자재</SelectItem>
+                   <SelectItem value="소모품">소모품</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+             <div>
+               <Label className="mb-1 block">진행 종류</Label>
+               <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
+                 <SelectTrigger className="h-9 bg-white border border-[#d2d2d7] rounded-md">
+                   <SelectValue placeholder="진행 종류를 선택하세요" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="일반">일반</SelectItem>
+                   <SelectItem value="선진행">선진행</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+             <div>
+               <Label className="mb-1 block">결제 종류</Label>
+               <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
+                 <SelectTrigger className="h-9 bg-white border border-[#d2d2d7] rounded-md">
+                   <SelectValue placeholder="결제 종류를 선택하세요" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="발주">발주</SelectItem>
+                   <SelectItem value="구매 요청">구매 요청</SelectItem>
+                   <SelectItem value="현장 결제">현장 결제</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+           </div>
+
+           {/* 업체 정보 */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+             <div>
+               <Label className="mb-1 block">업체명</Label>
+               <ReactSelect
+                 options={vendors.map(v => ({ value: v.id.toString(), label: v.vendor_name }))}
+                 value={vendors.find(v => v.id.toString() === vendor) ? { value: vendor, label: vendors.find(v => v.id.toString() === vendor)?.vendor_name } : null}
+                 onChange={(option, _action) => {
+                   const opt = option as { value: string; label: string } | null;
+                   if (opt) {
+                     setVendor(opt.value);
+                     setValue('vendor_id', Number(opt.value));
+                   } else {
+                     setVendor('');
+                     setValue('vendor_id', 0);
+                   }
+                 }}
+                 placeholder="업체를 검색/선택하세요"
+                 isClearable
+                 isSearchable
+                 closeMenuOnSelect={true}
+                 classNamePrefix="vendor-select"
+                 styles={{
+                   container: base => ({ ...base, width: '100%' }),
+                   control: base => ({ ...base, height: 36, minHeight: 36, background: '#fff', border: '1px solid #d2d2d7', borderRadius: 6 }),
+                   valueContainer: base => ({ ...base, height: 36, padding: '0 12px' }),
+                   input: base => ({ ...base, margin: 0, padding: 0 }),
+                   indicatorsContainer: base => ({ ...base, height: 36 }),
+                   menuPortal: base => ({ ...base, zIndex: 1400 })
+                 }}
+               />
+             </div>
+             <div>
+               <div className="flex items-center gap-2 mb-1">
+                 <Label>담당자</Label>
+                 <span
+                   className="text-primary text-xs cursor-pointer hover:underline select-none"
+                   onClick={openAddContact}
+                 >
+                   +수정/추가
+                 </span>
+               </div>
+               <MultiSelect
+                 options={contacts.map(c => ({ value: c.id.toString(), label: c.contact_name || c.contact_email || c.contact_phone || c.position || '' }))}
+                 value={watch('contacts')}
+                 onChange={val => setValue('contacts', val)}
+                 placeholder="담당자를 선택하세요"
+               />
+               {/* 담당자 추가/수정 모달 */}
+               <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+                 <DialogContent>
+                   <DialogHeader>
+                     <DialogTitle>{contactEditMode === 'add' ? '담당자 추가' : '담당자 수정'}</DialogTitle>
+                   </DialogHeader>
+                   {/* 담당자 목록 */}
+                   {contacts.length > 0 && (
+                     <div className="flex flex-wrap gap-2 mb-2">
+                       {contacts.map(c => (
+                         <div key={c.id} className="flex items-center gap-1 px-2 py-1 bg-muted rounded border text-xs">
+                           <span>{c.contact_name || c.contact_email || c.contact_phone || c.position || ''}</span>
+                           <Button type="button" size="icon" variant="ghost" className="w-5 h-5 p-0" onClick={() => {
+                             setContactDraft({ ...c });
+                             setContactEditMode('edit');
+                             setContactEditTarget(c.id);
+                           }}><Pencil className="w-3 h-3" /></Button>
+                           <Button type="button" size="icon" variant="ghost" className="w-5 h-5 p-0" onClick={() => handleContactDelete(c.id)}><Trash2 className="w-3 h-3 text-destructive" /></Button>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                   <div className="space-y-2">
+                     <Label>이름*</Label>
+                     <Input value={contactDraft.contact_name} onChange={e => setContactDraft(d => ({ ...d, contact_name: e.target.value }))} />
+                     <Label>이메일*</Label>
+                     <Input value={contactDraft.contact_email} onChange={e => setContactDraft(d => ({ ...d, contact_email: e.target.value }))} />
+                     <Label>전화</Label>
+                     <Input value={contactDraft.contact_phone} onChange={e => setContactDraft(d => ({ ...d, contact_phone: e.target.value }))} />
+                     <Label>직급</Label>
+                     <Input value={contactDraft.position} onChange={e => setContactDraft(d => ({ ...d, position: e.target.value }))} />
+                   </div>
+                   <DialogFooter>
+                     <Button onClick={handleContactSave}>{contactEditMode === 'add' ? '추가' : '저장'}</Button>
+                     <DialogClose asChild>
+                       <Button variant="outline">취소</Button>
+                     </DialogClose>
+                   </DialogFooter>
+                 </DialogContent>
+               </Dialog>
+             </div>
+           </div>
+
+           {/* 일정 정보 */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+             <div>
+               <Label className="mb-1 block">청구일</Label>
+               <DatePicker 
+                 value={watch('request_date') ? new Date(watch('request_date')) : new Date()} 
+                 onChange={date => setValue('request_date', date ? date.toISOString().slice(0, 10) : '')} 
+               />
+             </div>
+             <div>
+               <Label className="mb-1 block">입고 요청일</Label>
+               <DatePicker 
+                 value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : new Date()} 
+                 onChange={date => setValue('delivery_request_date', date ? date.toISOString().slice(0, 10) : '')} 
+               />
+             </div>
+           </div>
+
+           {/* 프로젝트 정보 */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+             <div>
+               <Label className="mb-1 block">구매요구자</Label>
+               <Input 
+                 type="text" 
+                 value={requester} 
+                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRequester(e.target.value)} 
+                 className="bg-white border border-[#d2d2d7] rounded-md"
+               />
+             </div>
+             <div>
+               <Label className="mb-1 block">PJ업체</Label>
+               <Input 
+                 type="text" 
+                 value={watch('project_vendor')} 
+                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue('project_vendor', e.target.value)} 
+                 className="bg-white border border-[#d2d2d7] rounded-md"
+               />
+             </div>
+             <div>
+               <Label className="mb-1 block">수주번호</Label>
+               <Input 
+                 type="text" 
+                 value={watch('sales_order_number')} 
+                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue('sales_order_number', e.target.value)} 
+                 className="bg-white border border-[#d2d2d7] rounded-md"
+               />
+             </div>
+             <div>
+               <Label className="mb-1 block">Item</Label>
+               <Input 
+                 type="text" 
+                 value={watch('project_item')} 
+                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue('project_item', e.target.value)} 
+                 className="bg-white border border-[#d2d2d7] rounded-md"
+               />
+             </div>
+           </div>
+         </div>
+       </div>
 
       {/* Professional Items Section */}
       <div className="space-y-4">
@@ -404,49 +552,49 @@ export default function PurchaseNewMain() {
               <span className="px-2 py-2 border-r border-border text-center" style={{ width: colWidths.number }}>{idx + 1}</span>
               <Input
                 value={item.item_name}
-                onChange={(e) => update(idx, { ...item, item_name: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, item_name: e.target.value })}
                 placeholder="품명"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.name }}
               />
               <Input
                 value={item.specification}
-                onChange={(e) => update(idx, { ...item, specification: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, specification: e.target.value })}
                 placeholder="규격"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.spec }}
               />
               <Input
                 type="text"
                 value={item.quantity || ''}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const newQty = Number(e.target.value.replace(/[^0-9]/g, ''));
                   update(idx, { ...item, quantity: newQty, amount_value: newQty * item.unit_price_value });
                 }}
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.quantity }}
               />
               <Input
                 type="text"
-                value={item.unit_price_value ? item.unit_price_value.toLocaleString() : ''}
-                onChange={(e) => {
+                value={item.unit_price_value || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const newPrice = Number(e.target.value.replace(/[^0-9]/g, ''));
                   update(idx, { ...item, unit_price_value: newPrice, amount_value: item.quantity * newPrice });
                 }}
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.price }}
               />
               <Input
                 value={item.amount_value ? item.amount_value.toLocaleString() : ''}
                 disabled
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.total }}
               />
               <Input
                 value={item.remark}
-                onChange={(e) => update(idx, { ...item, remark: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, remark: e.target.value })}
                 placeholder="비고(용도)"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
+                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
                 style={{ width: colWidths.note }}
               />
               <Button

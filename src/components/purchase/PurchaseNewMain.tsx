@@ -14,32 +14,48 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useColumnResize } from "@/hooks/useColumnResize";
 import { ColumnResizer } from "@/hooks/ColumnResizer";
+import { useForm as useFormRH, Controller, useFieldArray } from "react-hook-form";
 
-interface ItemRow {
-  id: string;
-  name: string;
-  spec: string;
+interface Item {
+  line_number: number;
+  item_name: string;
+  specification: string;
   quantity: number;
-  price: number;
-  total: number;
-  note: string;
+  unit_price_value: number;
+  unit_price_currency: string;
+  amount_value: number;
+  amount_currency: string;
+  remark: string;
+}
+
+interface FormValues {
+  vendor_id: number;
+  contacts: string[];
+  purchase_order_number: string;
+  sales_order_number: string;
+  project_vendor: string;
+  project_item: string;
+  delivery_request_date: string;
+  progress_type: string;
+  payment_category: string;
+  currency: string;
+  po_template_type: string;
+  request_type: string;
+  request_date: string;
+  items: Item[];
 }
 
 export default function PurchaseNewMain() {
   const { user } = useAuth();
   const router = useRouter();
-  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
-  const [contacts, setContacts] = useState<{ id: string; name: string }[]>([]);
+  const [vendors, setVendors] = useState<{ id: number; vendor_name: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: number; contact_name: string }[]>([]);
   const [vendor, setVendor] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [requester, setRequester] = useState(user?.user_metadata?.name || "");
   const [billingDate, setBillingDate] = useState(new Date());
-  const [orderNumber, setOrderNumber] = useState("");
   const [arrivalDate, setArrivalDate] = useState(new Date());
   const [currency, setCurrency] = useState("KRW");
-  const [items, setItems] = useState<ItemRow[]>([
-    { id: "1", name: "", spec: "", quantity: 1, price: 0, total: 0, note: "" }
-  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -72,15 +88,15 @@ export default function PurchaseNewMain() {
       default: return '';
     }
   };
-  const getDataTexts = (col: string) => items.map(item => {
+  const getDataTexts = (col: string) => fields.map(item => {
     switch (col) {
-      case 'number': return String(items.indexOf(item) + 1);
-      case 'name': return item.name || '';
-      case 'spec': return item.spec || '';
+      case 'number': return String(fields.indexOf(item) + 1);
+      case 'name': return item.item_name || '';
+      case 'spec': return item.specification || '';
       case 'quantity': return item.quantity ? item.quantity.toString() : '';
-      case 'price': return item.price ? item.price.toLocaleString() : '';
-      case 'total': return item.total ? item.total.toLocaleString() : '';
-      case 'note': return item.note || '';
+      case 'price': return item.unit_price_value ? item.unit_price_value.toLocaleString() : '';
+      case 'total': return item.amount_value ? item.amount_value.toLocaleString() : '';
+      case 'note': return item.remark || '';
       default: return '';
     }
   });
@@ -94,61 +110,70 @@ export default function PurchaseNewMain() {
     disableResizeCols: ['action'],
   });
 
-  const addItem = () => {
-    const newItem: ItemRow = {
-      id: Date.now().toString(),
-      name: "",
-      spec: "",
-      quantity: 0,
-      price: 0,
-      total: 0,
-      note: ""
-    };
-    setItems([...items, newItem]);
-  };
+  const { control, handleSubmit: rhHandleSubmit, watch, setValue, reset } = useFormRH<FormValues>({
+    defaultValues: {
+      progress_type: "일반",
+      payment_category: "발주",
+      currency: "KRW",
+      po_template_type: "일반",
+      request_type: "원자재",
+      contacts: [],
+      purchase_order_number: '',
+      sales_order_number: '',
+      project_vendor: '',
+      project_item: '',
+      delivery_request_date: '',
+      vendor_id: 0,
+      items: [
+        {
+          line_number: 1,
+          item_name: "",
+          specification: "",
+          quantity: 1,
+          unit_price_value: 0,
+          unit_price_currency: "KRW",
+          amount_value: 0,
+          amount_currency: "KRW",
+          remark: "",
+        },
+      ],
+      request_date: new Date().toISOString().slice(0, 10),
+    },
+  });
 
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter(item => item.id !== id));
-    }
-  };
+  const { fields, append, remove, update } = useFieldArray<FormValues, 'items'>({
+    control,
+    name: 'items',
+  });
 
-  const updateItem = (id: string, field: keyof ItemRow, value: string | number) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updated = { ...item, [field]: value };
-        if (field === 'quantity' || field === 'price') {
-          updated.total = updated.quantity * updated.price;
-        }
-        return updated;
-      }
-      return item;
-    }));
-  };
-
+  const selectedVendor = watch('vendor_id');
   useEffect(() => {
-    supabase.from("vendors").select("id, vendor_name").then(({ data }) => {
-      if (data) setVendors(data.map((v: any) => ({ id: v.id.toString(), name: v.vendor_name })));
+    supabase.from('vendors').select('id, vendor_name').then(({ data }) => {
+      if (data) setVendors(data);
     });
   }, []);
 
   useEffect(() => {
-    if (vendor) {
-      supabase.from("vendor_contacts").select("id, contact_name").eq("vendor_id", vendor).then(({ data }) => {
-        if (data) setContacts(data.map((c: any) => ({ id: c.id.toString(), name: c.contact_name })));
-      });
+    if (selectedVendor) {
+      supabase.from('vendor_contacts').select('id, contact_name').eq('vendor_id', selectedVendor).then(({ data }) => {
+      if (data) setContacts(data);
+    });
     } else {
       setContacts([]);
-      setSelectedContacts([]);
+      setValue('contacts', []);
     }
-  }, [vendor]);
+  }, [selectedVendor]);
+
+  useEffect(() => {
+    fields.forEach((item, idx) => update(idx, { ...item, unit_price_currency: currency, amount_currency: currency }));
+  }, [currency]);
 
   const handleSubmit = async () => {
     if (!user) {
       setError("로그인이 필요합니다.");
       return;
     }
-    if (!vendor || items.length === 0) {
+    if (!vendor || fields.length === 0) {
       setError("업체와 품목을 입력하세요.");
       return;
     }
@@ -160,26 +185,32 @@ export default function PurchaseNewMain() {
         requester_id: user.id,
         requester_name: user.user_metadata?.name,
         vendor_id: vendor,
-        purchase_order_number: orderNumber,
-        request_date: billingDate.toISOString().slice(0, 10),
-        delivery_request_date: arrivalDate.toISOString().slice(0, 10),
+        request_date: watch('request_date'),
+        delivery_request_date: watch('delivery_request_date'),
         currency,
-        total_amount: items.reduce((sum, i) => sum + i.total, 0),
+        total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),
+        request_type: watch('request_type'),
+        sales_order_number: watch('sales_order_number'),
+        project_vendor: watch('project_vendor'),
+        project_item: watch('project_item'),
+        progress_type: watch('progress_type'),
+        payment_category: watch('payment_category'),
+        po_template_type: watch('po_template_type'),
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
-      for (const [idx, item] of items.entries()) {
+      for (const [idx, item] of fields.entries()) {
         const { error: itemErr } = await supabase.from("purchase_request_items").insert({
           purchase_request_id: prId,
           line_number: idx + 1,
-          item_name: item.name,
-          specification: item.spec,
+          item_name: item.item_name,
+          specification: item.specification,
           quantity: item.quantity,
-          unit_price_value: item.price,
+          unit_price_value: item.unit_price_value,
           unit_price_currency: currency,
-          amount_value: item.total,
+          amount_value: item.amount_value,
           amount_currency: currency,
-          remark: item.note,
+          remark: item.remark,
         });
         if (itemErr) throw itemErr;
       }
@@ -192,15 +223,15 @@ export default function PurchaseNewMain() {
     }
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+  const totalAmount = fields.reduce((sum, item) => sum + item.amount_value, 0);
 
   return (
     <div className="space-y-6">
       {/* Professional Basic Info Section */}
       <div className="bg-muted/20 border border-border rounded-lg p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">발주 기본 정보</h3>
-          <Badge variant="outline" className="text-xs">Basic Information</Badge>
+        <div className="flex flex-col justify-center mb-2">
+          <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
+          <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
@@ -210,7 +241,7 @@ export default function PurchaseNewMain() {
                 <SelectValue placeholder="업체를 선택하세요" />
               </SelectTrigger>
               <SelectContent>
-                {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                {vendors.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.vendor_name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -221,23 +252,81 @@ export default function PurchaseNewMain() {
           <div className="space-y-2">
             <Label>담당자</Label>
             <MultiSelect
-              options={contacts.map(c => ({ value: c.id, label: c.name }))}
-              value={selectedContacts}
-              onChange={setSelectedContacts}
+              options={contacts.map(c => ({ value: c.id.toString(), label: c.contact_name }))}
+              value={watch('contacts')}
+              onChange={val => setValue('contacts', val)}
               placeholder="담당자를 선택하세요"
             />
           </div>
           <div className="space-y-2">
             <Label>청구일</Label>
-            <DatePicker value={billingDate} onChange={setBillingDate} />
-          </div>
-          <div className="space-y-2">
-            <Label>발주번호</Label>
-            <Input value={orderNumber} onChange={e => setOrderNumber(e.target.value)} placeholder="자동/수동" />
+            <DatePicker value={watch('request_date') ? new Date(watch('request_date')) : new Date()} onChange={date => setValue('request_date', date ? date.toISOString().slice(0, 10) : '')} />
           </div>
           <div className="space-y-2">
             <Label>입고 요청일</Label>
-            <DatePicker value={arrivalDate} onChange={setArrivalDate} />
+            <DatePicker value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : new Date()} onChange={date => setValue('delivery_request_date', date ? date.toISOString().slice(0, 10) : '')} />
+          </div>
+          <div className="space-y-2">
+            <Label>요청 유형</Label>
+            <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="요청 유형을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="원자재">원자재</SelectItem>
+                <SelectItem value="소모품">소모품</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>수주번호</Label>
+            <Input value={watch('sales_order_number')} onChange={(e) => setValue('sales_order_number', e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>PJ업체</Label>
+            <Input value={watch('project_vendor')} onChange={(e) => setValue('project_vendor', e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Item</Label>
+            <Input value={watch('project_item')} onChange={(e) => setValue('project_item', e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>진행 종류</Label>
+            <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="진행 종류를 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="일반">일반</SelectItem>
+                <SelectItem value="선진행">선진행</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>결제 종류</Label>
+            <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="결제 종류를 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="발주">발주</SelectItem>
+                <SelectItem value="구매 요청">구매 요청</SelectItem>
+                <SelectItem value="현장 결제">현장 결제</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>발주서 템플릿</Label>
+            <Select value={watch('po_template_type')} onValueChange={(value) => setValue('po_template_type', value)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="발주서 템플릿을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="일반">일반</SelectItem>
+                <SelectItem value="PCB">PCB</SelectItem>
+                <SelectItem value="개별">개별</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -306,23 +395,23 @@ export default function PurchaseNewMain() {
             </div>
           </div>
           {/* 데이터 행 */}
-          {items.map((item, idx) => (
+          {fields.map((item, idx) => (
             <div
               key={item.id}
-              className={`grid items-center text-xs bg-background ${idx !== items.length - 1 ? 'border-b border-border' : ''}`}
+              className={`grid items-center text-xs bg-background ${idx !== fields.length - 1 ? 'border-b border-border' : ''}`}
               style={{ gridTemplateColumns: `${colWidths.number}px ${colWidths.name}px ${colWidths.spec}px ${colWidths.quantity}px ${colWidths.price}px ${colWidths.total}px ${colWidths.note}px 40px` }}
             >
               <span className="px-2 py-2 border-r border-border text-center" style={{ width: colWidths.number }}>{idx + 1}</span>
               <Input
-                value={item.name}
-                onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                value={item.item_name}
+                onChange={(e) => update(idx, { ...item, item_name: e.target.value })}
                 placeholder="품명"
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.name }}
               />
               <Input
-                value={item.spec}
-                onChange={(e) => updateItem(item.id, 'spec', e.target.value)}
+                value={item.specification}
+                onChange={(e) => update(idx, { ...item, specification: e.target.value })}
                 placeholder="규격"
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.spec }}
@@ -330,32 +419,32 @@ export default function PurchaseNewMain() {
               <Input
                 type="text"
                 value={item.quantity || ''}
-                onChange={e => {
-                  const value = e.target.value.replace(/[^0-9]/g, '');
-                  updateItem(item.id, 'quantity', value ? parseInt(value) : 0);
+                onChange={(e) => {
+                  const newQty = Number(e.target.value.replace(/[^0-9]/g, ''));
+                  update(idx, { ...item, quantity: newQty, amount_value: newQty * item.unit_price_value });
                 }}
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.quantity }}
               />
               <Input
                 type="text"
-                value={item.price ? item.price.toLocaleString() : ''}
-                onChange={e => {
-                  const value = e.target.value.replace(/[^0-9]/g, '');
-                  updateItem(item.id, 'price', value ? parseInt(value) : 0);
+                value={item.unit_price_value ? item.unit_price_value.toLocaleString() : ''}
+                onChange={(e) => {
+                  const newPrice = Number(e.target.value.replace(/[^0-9]/g, ''));
+                  update(idx, { ...item, unit_price_value: newPrice, amount_value: item.quantity * newPrice });
                 }}
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.price }}
               />
               <Input
-                value={item.total ? item.total.toLocaleString() : ''}
+                value={item.amount_value ? item.amount_value.toLocaleString() : ''}
                 disabled
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.total }}
               />
               <Input
-                value={item.note}
-                onChange={(e) => updateItem(item.id, 'note', e.target.value)}
+                value={item.remark}
+                onChange={(e) => update(idx, { ...item, remark: e.target.value })}
                 placeholder="비고(용도)"
                 className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs"
                 style={{ width: colWidths.note }}
@@ -364,8 +453,8 @@ export default function PurchaseNewMain() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => removeItem(item.id)}
-                disabled={items.length === 1}
+                onClick={() => remove(idx)}
+                disabled={fields.length === 1}
                 className="w-6 h-6 p-0 rounded-none hover:bg-destructive/10 hover:text-destructive disabled:opacity-30 text-xs bg-background"
                 style={{ width: 40, right: 0, position: 'sticky', zIndex: 1 }}
               >
@@ -388,7 +477,7 @@ export default function PurchaseNewMain() {
                   {currency === "KRW" ? "₩" : "$"}{totalAmount.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {items.filter(item => item.name).length}개 품목
+                  {fields.filter(item => item.item_name).length}개 품목
                 </div>
               </div>
             </div>
@@ -412,10 +501,17 @@ export default function PurchaseNewMain() {
             className="text-primary text-xs cursor-pointer hover:underline select-none"
             onClick={() => {
               const newItems = Array.from({ length: addCount }, () => ({
-                id: Date.now().toString() + Math.random().toString(36).slice(2),
-                name: '', spec: '', quantity: 1, price: 0, total: 0, note: ''
+                line_number: fields.length + 1,
+                item_name: '',
+                specification: '',
+                quantity: 1,
+                unit_price_value: 0,
+                unit_price_currency: currency,
+                amount_value: 0,
+                amount_currency: currency,
+                remark: '',
               }));
-              setItems([...items, ...newItems]);
+              append(newItems);
             }}
           >
             품목 추가
@@ -426,7 +522,9 @@ export default function PurchaseNewMain() {
             variant="outline" 
             size="sm" 
             className="rounded-md px-4 text-muted-foreground hover:text-foreground"
-            onClick={() => setItems([{ id: Date.now().toString(), name: '', spec: '', quantity: 1, price: 0, total: 0, note: '' }])}
+            onClick={() => {
+              for (let i = fields.length - 1; i >= 0; i--) remove(i);
+            }}
           >
             전체 삭제
           </Button>

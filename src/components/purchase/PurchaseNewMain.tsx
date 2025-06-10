@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X, Save, Calculator, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MultiSelect } from "@/components/ui/multiselect";
+import { MultiSelect } from "../ui/multiselect";
 import { DatePicker } from "@/components/ui/datepicker";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
@@ -503,13 +503,22 @@ export default function PurchaseNewMain() {
                    <span className="-translate-y-px">+</span><span className="ml-1">추가/수정</span>
                  </span>
           </div>
-               <div className="shadow-sm hover:shadow-md transition-shadow duration-200">
-            <MultiSelect
-                   options={contacts.map(c => ({ value: c.id.toString(), label: c.contact_name || c.contact_email || c.contact_phone || c.position || '' }))}
-                   value={watch('contacts')}
-                   onChange={val => setValue('contacts', val)}
-                   placeholder="담당자 선택"
-                 />
+               <div className="space-y-2 -mt-px">
+                 <Select
+                   value={watch('contacts')[0] || ''}
+                   onValueChange={val => setValue('contacts', [val])}
+                 >
+                   <SelectTrigger className="h-[34px] bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                     <SelectValue placeholder="담당자 선택" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {contacts.map(c => (
+                       <SelectItem key={c.id} value={c.id.toString()}>
+                         {c.contact_name || c.contact_email || c.contact_phone || c.position || ''}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
                </div>
                {/* 담당자 관리 모달 */}
                <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>

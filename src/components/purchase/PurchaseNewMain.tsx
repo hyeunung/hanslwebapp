@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +54,7 @@ interface EmployeeOption {
 }
 
 export default function PurchaseNewMain() {
+
   const { user } = useAuth();
   const router = useRouter();
   const [employeeName, setEmployeeName] = useState<string>("");
@@ -157,7 +158,7 @@ export default function PurchaseNewMain() {
     price: 80,
     total: 80,
     note: 80,
-    action: 40
+    action: 40,
   };
   const defaultWidths = minWidths;
   const getHeaderText = (col: string) => {
@@ -182,9 +183,20 @@ export default function PurchaseNewMain() {
       case 'price': return item.unit_price_value ? item.unit_price_value.toLocaleString() : '';
       case 'total': return item.amount_value ? item.amount_value.toLocaleString() : '';
       case 'note': return item.remark || '';
+      case 'action': return '';
       default: return '';
     }
   });
+  const tableRef = useRef<HTMLDivElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
+  useLayoutEffect(() => {
+    function updateWidth() {
+      if (tableRef.current) setTableWidth(tableRef.current.offsetWidth);
+    }
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
   const { colWidths, getResizerProps } = useColumnResize({
     columns,
     minWidths,
@@ -192,7 +204,8 @@ export default function PurchaseNewMain() {
     storageKey,
     getHeaderText,
     getDataTexts,
-    disableResizeCols: ['action'],
+    disableResizeCols: ['number', 'action'],
+    maxTotalWidth: tableWidth || undefined,
   });
 
   const { control, handleSubmit: rhHandleSubmit, watch, setValue, reset } = useFormRH<FormValues>({
@@ -397,8 +410,8 @@ export default function PurchaseNewMain() {
     }
   };
 
-      return (
-     <div className="space-y-6">
+  return (
+    <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
        <div className="w-1/4 bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
          <div className="flex flex-col justify-center mb-4">
@@ -432,20 +445,20 @@ export default function PurchaseNewMain() {
                    <SelectItem value="선진행">선진행</SelectItem>
                  </SelectContent>
                </Select>
-             </div>
+        </div>
              <div>
                <Label className="mb-1 block text-xs">결제 종류</Label>
                <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
-                 </SelectTrigger>
-                 <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                    <SelectItem value="발주">발주</SelectItem>
                    <SelectItem value="구매 요청">구매 요청</SelectItem>
                    <SelectItem value="현장 결제">현장 결제</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
+              </SelectContent>
+            </Select>
+          </div>
            </div>
 
            {/* 업체 정보 */}
@@ -489,9 +502,9 @@ export default function PurchaseNewMain() {
                  >
                    <span className="-translate-y-px">+</span><span className="ml-1">추가/수정</span>
                  </span>
-               </div>
+          </div>
                <div className="shadow-sm hover:shadow-md transition-shadow duration-200">
-                 <MultiSelect
+            <MultiSelect
                    options={contacts.map(c => ({ value: c.id.toString(), label: c.contact_name || c.contact_email || c.contact_phone || c.position || '' }))}
                    value={watch('contacts')}
                    onChange={val => setValue('contacts', val)}
@@ -801,8 +814,8 @@ export default function PurchaseNewMain() {
                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue('project_vendor', e.target.value)} 
                  placeholder="입력"
                  className="h-8 w-full bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200"
-               />
-             </div>
+            />
+          </div>
              <div className="flex-1">
                <Label className="mb-1 block text-xs">수주번호</Label>
                <Input 
@@ -812,7 +825,7 @@ export default function PurchaseNewMain() {
                  placeholder="입력"
                  className="h-8 w-full bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200"
                />
-             </div>
+          </div>
              <div className="flex-1">
                <Label className="mb-1 block text-xs">Item</Label>
                <Input 
@@ -822,13 +835,13 @@ export default function PurchaseNewMain() {
                  placeholder="입력"
                  className="h-8 w-full bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200"
                />
-             </div>
-           </div>
-         </div>
-       </div>
+          </div>
+          </div>
+        </div>
+      </div>
 
-      {/* Professional Items Section */}
-      <div className="space-y-4">
+       {/* Professional Items Section - 우측 3/4 폭 */}
+       <div className="w-3/4 space-y-4">
         <div className="flex items-center mb-2">
           <div className="flex flex-col justify-center">
             <h4 className="font-semibold text-foreground">품목 목록</h4>
@@ -847,193 +860,51 @@ export default function PurchaseNewMain() {
           </div>
         </div>
         {/* DB 스타일 테이블 박스 */}
-        <div className="rounded-lg border border-border shadow-sm overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <div ref={tableRef} className="rounded-lg border border-border shadow-sm overflow-hidden min-w-fit">
           {/* 헤더 */}
-          <div className="grid bg-muted/10 text-xs text-muted-foreground font-medium" style={{ gridTemplateColumns: `${colWidths.number}px ${colWidths.name}px ${colWidths.spec}px ${colWidths.quantity}px ${colWidths.price}px ${colWidths.total}px ${colWidths.note}px 40px` }}>
-            {/* 번호 */}
-            <div className="px-2 py-3 border-r border-border text-center relative group" style={{ width: colWidths.number }}>
-              번호
-              <ColumnResizer {...getResizerProps('number')} />
+            <div className="grid bg-muted/10 text-xs text-muted-foreground font-medium relative" style={{ gridTemplateColumns: columns.map(col => colWidths[col] + 'px').join(' '), width: '100%' }}>
+              {columns.map((col, idx) => (
+                <div key={col} className={`px-2 py-3 min-w-0 ${idx !== columns.length - 1 ? 'border-r border-border' : ''} ${col === 'number' || col === 'action' ? 'text-center' : col === 'price' || col === 'total' ? 'text-right' : ''} relative group ${col === 'action' ? 'sticky right-0 z-20 bg-muted/10' : ''}`}>
+                  {getHeaderText(col)}
+                  {['name','spec','quantity','price','total','note'].includes(col) && idx !== columns.length - 1 && (
+                    <ColumnResizer {...getResizerProps(col)} />
+                  )}
             </div>
-            {/* 품명 */}
-            <div className="px-2 py-3 border-r border-border relative group" style={{ width: colWidths.name }}>
-              품명
-              <ColumnResizer {...getResizerProps('name')} />
-            </div>
-            {/* 규격 */}
-            <div className="px-2 py-3 border-r border-border relative group" style={{ width: colWidths.spec }}>
-              규격
-              <ColumnResizer {...getResizerProps('spec')} />
-            </div>
-            {/* 수량 */}
-            <div className="px-2 py-3 border-r border-border text-center relative group" style={{ width: colWidths.quantity }}>
-              수량
-              <ColumnResizer {...getResizerProps('quantity')} />
-            </div>
-            {/* 단가 */}
-            <div className="px-2 py-3 border-r border-border text-right relative group" style={{ width: colWidths.price }}>
-              단가({currency === 'KRW' ? '₩' : '$'})
-              <ColumnResizer {...getResizerProps('price')} />
-            </div>
-            {/* 금액 */}
-            <div className="px-2 py-3 border-r border-border text-right relative group" style={{ width: colWidths.total }}>
-              금액({currency === 'KRW' ? '₩' : '$'})
-              <ColumnResizer {...getResizerProps('total')} />
-            </div>
-            {/* 비고 */}
-            <div className="px-2 py-3 border-r border-border relative group" style={{ width: colWidths.note }}>
-              비고
-              <ColumnResizer {...getResizerProps('note')} />
-            </div>
-            {/* 삭제(X) - 맨 오른쪽, border-r 없음 */}
-            <div className="px-2 py-3 text-center relative group bg-muted/10" style={{ width: 40, right: 0, position: 'sticky', zIndex: 2 }}>
-              삭제
-            </div>
+              ))}
           </div>
           {/* 데이터 행 */}
-          {fields.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`grid items-center text-xs bg-background ${idx !== fields.length - 1 ? 'border-b border-border' : ''}`}
-              style={{ gridTemplateColumns: `${colWidths.number}px ${colWidths.name}px ${colWidths.spec}px ${colWidths.quantity}px ${colWidths.price}px ${colWidths.total}px ${colWidths.note}px 40px` }}
-            >
-              <span className="px-2 py-2 border-r border-border text-center" style={{ width: colWidths.number }}>{idx + 1}</span>
-              <Input
-                value={item.item_name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, item_name: e.target.value })}
-                placeholder="품명"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.name }}
-              />
-              <Input
-                value={item.specification}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, specification: e.target.value })}
-                placeholder="규격"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.spec }}
-              />
-              <Input
-                type="text"
-                value={item.quantity || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const newQty = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  update(idx, { ...item, quantity: newQty, amount_value: newQty * item.unit_price_value });
-                }}
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.quantity }}
-              />
-              <Input
-                type="text"
-                value={item.unit_price_value || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const newPrice = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  update(idx, { ...item, unit_price_value: newPrice, amount_value: item.quantity * newPrice });
-                }}
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.price }}
-              />
-              <Input
-                value={item.amount_value ? item.amount_value.toLocaleString() : ''}
-                disabled
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.total }}
-              />
-              <Input
-                value={item.remark}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(idx, { ...item, remark: e.target.value })}
-                placeholder="비고(용도)"
-                className="h-8 px-2 border-0 border-r border-border shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-                style={{ width: colWidths.note }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => remove(idx)}
-                disabled={fields.length === 1}
-                className="w-6 h-6 p-0 rounded-none hover:bg-destructive/10 hover:text-destructive disabled:opacity-30 text-xs bg-background"
-                style={{ width: 40, right: 0, position: 'sticky', zIndex: 1 }}
+            {fields.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                className={`grid items-center text-xs bg-background ${idx !== fields.length - 1 ? 'border-b border-border' : ''}`}
+                style={{ gridTemplateColumns: columns.map(col => colWidths[col] + 'px').join(' ') }}
               >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        {/* Professional Total Summary */}
-        {totalAmount > 0 && (
-          <div className="bg-primary/5 border border-primary/20 rounded-lg shadow hover:shadow-sm transition-shadow duration-300 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">총 발주 금액</span>
+                {columns.map((col, cidx) => {
+                  if (col === 'number') return <div key={col} className="text-center border-r border-border min-w-0 overflow-hidden">{idx + 1}</div>;
+                  if (col === 'name') return <div key={col} className="border-r border-border min-w-0 overflow-hidden"><Input value={item.item_name} onChange={e => update(idx, { ...item, item_name: e.target.value })} placeholder="품명" className="h-8 px-2 text-xs w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'spec') return <div key={col} className="border-r border-border min-w-0 overflow-hidden"><Input value={item.specification} onChange={e => update(idx, { ...item, specification: e.target.value })} placeholder="규격" className="h-8 px-2 text-xs w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'quantity') return <div key={col} className="text-center border-r border-border min-w-0 overflow-hidden"><Input type="text" value={item.quantity} onChange={e => update(idx, { ...item, quantity: Number(e.target.value) })} className="h-8 px-2 text-xs text-center w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'price') return <div key={col} className="text-right border-r border-border min-w-0 overflow-hidden"><Input type="text" value={item.unit_price_value} onChange={e => update(idx, { ...item, unit_price_value: Number(e.target.value), amount_value: item.quantity * Number(e.target.value) })} className="h-8 px-2 text-xs text-right w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'total') return <div key={col} className="text-right border-r border-border min-w-0 overflow-hidden"><Input value={item.amount_value ? item.amount_value.toLocaleString() : '0'} disabled className="h-8 px-2 text-xs text-right w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'note') return <div key={col} className="border-r border-border min-w-0 overflow-hidden"><Input value={item.remark} onChange={e => update(idx, { ...item, remark: e.target.value })} placeholder="비고(용도)" className="h-8 px-2 text-xs w-full min-w-0 max-w-full block" /></div>;
+                  if (col === 'action') return <div key={col} className="flex items-center justify-center min-w-0 overflow-hidden sticky right-0 z-20 bg-background" style={{ minWidth: 40 }}><Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => remove(idx)}><X className="h-3 w-3" /></Button></div>;
+                  return null;
+                })}
               </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-primary">
-                  {currency === "KRW" ? "₩" : "$"}{totalAmount.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {fields.filter(item => item.item_name).length}개 품목
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* Professional Action Bar */}
-      <div className="flex justify-between items-center pt-4 border-t border-border">
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            min={1}
-            max={1000}
-            value={addCount}
-            onChange={e => setAddCount(Math.max(1, Math.min(1000, Number(e.target.value))))}
-            className="w-14 h-8 text-xs border border-border rounded-md px-2 shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200 focus:ring-0 focus:outline-none"
-            style={{ width: '4.5rem' }}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary text-xs h-8 px-3 hover:bg-primary/10 shadow-sm hover:shadow-md transition-shadow duration-200"
-            onClick={() => {
-              const newItems = Array.from({ length: addCount }, () => ({
-                line_number: fields.length + 1,
-                item_name: '',
-                specification: '',
-                quantity: 1,
-                unit_price_value: 0,
-                unit_price_currency: currency,
-                amount_value: 0,
-                amount_currency: currency,
-                remark: '',
-              }));
-              append(newItems);
-            }}
-          >
-            + 품목 추가
-          </Button>
+        </div>
+        <hr className="mt-4 mb-4 border-t border-border" />
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <input type="number" min={1} max={1000} value={addCount} onChange={e => setAddCount(Math.max(1, Math.min(1000, Number(e.target.value))))} className="w-14 h-8 text-xs border border-border rounded-md px-2 shadow-sm" />
+            <Button variant="ghost" size="sm" className="text-primary text-xs h-8 px-3 shadow-sm" onClick={() => { const newItems = Array.from({ length: addCount }, () => ({ line_number: fields.length + 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '', })); append(newItems); }}>+ 품목 추가</Button>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="rounded-md px-4 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md transition-shadow duration-200"
-            onClick={() => {
-              for (let i = fields.length - 1; i >= 0; i--) remove(i);
-            }}
-          >
-            전체 삭제
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            size="sm" 
-            className="gap-2 rounded-md px-6 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-shadow duration-200"
-          >
-            <Save className="w-3.5 h-3.5" />
-            발주 요청
-          </Button>
+            <Button variant="outline" size="sm" className="rounded-md px-4 text-muted-foreground shadow-sm" onClick={() => { for (let i = fields.length - 1; i >= 0; i--) remove(i); }}>전체 삭제</Button>
+            <Button onClick={handleSubmit} size="sm" className="gap-2 rounded-md px-6 bg-primary hover:bg-primary/90 shadow-md"> <Save className="w-3.5 h-3.5" /> 발주 요청 </Button>
+          </div>
         </div>
       </div>
     </div>

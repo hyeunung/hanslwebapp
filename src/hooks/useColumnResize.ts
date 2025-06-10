@@ -8,6 +8,7 @@ export interface UseColumnResizeOptions {
   getHeaderText: (col: string) => string;
   getDataTexts: (col: string) => string[];
   disableResizeCols?: string[];
+  maxTotalWidth?: number;
 }
 
 export function useColumnResize({
@@ -18,6 +19,7 @@ export function useColumnResize({
   getHeaderText,
   getDataTexts,
   disableResizeCols = [],
+  maxTotalWidth,
 }: UseColumnResizeOptions) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
@@ -44,7 +46,16 @@ export function useColumnResize({
     const diff = e.clientX - startX.current;
     setColWidths((prev: Record<string, number>) => {
       const col = resizingCol.current as string;
-      const next = { ...prev, [col]: Math.max(minWidths[col], startWidth.current + diff) };
+      let next = { ...prev, [col]: Math.max(minWidths[col], startWidth.current + diff) };
+      // maxTotalWidth 제한 적용
+      if (maxTotalWidth) {
+        const total = columns.reduce((sum, c) => sum + next[c], 0);
+        if (total > maxTotalWidth) {
+          // 남은 폭까지만 늘리기
+          const allowed = maxTotalWidth - (total - next[col]);
+          next[col] = Math.max(minWidths[col], allowed);
+        }
+      }
       localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
     });

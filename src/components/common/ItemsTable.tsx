@@ -1,14 +1,13 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFieldArray, Control } from 'react-hook-form';
-import { X, Calculator, Save } from 'lucide-react';
-import { useColumnResize } from '@/hooks/useColumnResize';
+import { Calculator, Save, X } from 'lucide-react';
+import { nanoid } from 'nanoid';
 
 interface Item {
+  id: string;
   line_number: number;
   item_name: string;
   specification: string;
@@ -20,12 +19,22 @@ interface Item {
   remark: string;
 }
 
+interface ExtraRow {
+  id: string;
+  item_name: string;
+  specification: string;
+  quantity: string;
+  unit_price: string;
+  amount: string;
+  remark: string;
+}
+
 interface ItemsTableProps {
-  control: Control<any>;
+  items: Item[];
+  setItems: (items: Item[]) => void;
   currency: string;
   onCurrencyChange: (currency: string) => void;
   onSubmit?: () => void;
-  userId?: string;
   submitButtonText?: string;
   showSubmitButton?: boolean;
   showTotalSummary?: boolean;
@@ -34,86 +43,258 @@ interface ItemsTableProps {
 }
 
 export default function ItemsTable({
-  control,
+  items,
+  setItems,
   currency,
   onCurrencyChange,
   onSubmit,
-  userId = 'guest',
   submitButtonText = '저장',
   showSubmitButton = true,
   showTotalSummary = true,
   showCurrencySelector = true,
-  className = ''
+  className = '',
 }: ItemsTableProps) {
-  const [addCount, setAddCount] = useState(1);
-
-  const { fields, append, remove, update } = useFieldArray<{ items: Item[] }, 'items'>({
-    control,
-    name: 'items',
-  });
-
-  const storageKey = `items_table_colwidths_${userId}`;
-  const columns = ['number','name','spec','quantity','price','total','note'];
-  const minWidths: Record<string, number> = {
-    number: 40,
-    name: 80,
-    spec: 60,
-    quantity: 50,
-    price: 80,
-    total: 80,
-    note: 80
-  };
-  const defaultWidths = minWidths;
-
-  const getHeaderText = (col: string) => {
-    switch (col) {
-      case 'number': return '번호';
-      case 'name': return '품명';
-      case 'spec': return '규격';
-      case 'quantity': return '수량';
-      case 'price': return `단가(${currency === 'KRW' ? '₩' : '$'})`;
-      case 'total': return `금액(${currency === 'KRW' ? '₩' : '$'})`;
-      case 'note': return '비고';
-      default: return '';
-    }
-  };
-
-  const getDataTexts = (col: string) => fields.map(item => {
-    switch (col) {
-      case 'number': return String(fields.indexOf(item) + 1);
-      case 'name': return item.item_name || '';
-      case 'spec': return item.specification || '';
-      case 'quantity': return item.quantity ? item.quantity.toString() : '';
-      case 'price': return item.unit_price_value ? item.unit_price_value.toLocaleString() : '';
-      case 'total': return item.amount_value ? item.amount_value.toLocaleString() : '';
-      case 'note': return item.remark || '';
-      default: return '';
-    }
-  });
-
-  const { colWidths, getResizerProps } = useColumnResize({
-    columns,
-    minWidths,
-    defaultWidths,
-    storageKey,
-    getHeaderText,
-    getDataTexts,
-    disableResizeCols: [],
-  });
-
-  const totalAmount = fields.reduce((sum, item) => sum + (item.amount_value || 0), 0);
-
-  const ColumnResizer = ({ onMouseDown, onTouchStart }: any) => (
-    <div
-      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
-    />
+  const columns = useMemo<ColumnDef<Item, any>[]>(
+    () => [
+      {
+        header: () => <div className="text-center">번호</div>,
+        accessorKey: 'line_number',
+        cell: ({ row }) => <div className="text-center">{row.index + 1}</div>,
+        size: 24,
+        minSize: 24,
+        maxSize: 24,
+        enableResizing: false,
+        meta: { sticky: 'left', align: 'center' },
+      },
+      {
+        header: () => <div className="text-left">품명</div>,
+        accessorKey: 'item_name',
+        cell: ({ row, getValue }) => (
+          <Input
+            value={getValue() ?? ''}
+            onChange={e => handleItemChange(row.index, 'item_name', e.target.value)}
+            placeholder="품명"
+            className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
+          />
+        ),
+        size: 120,
+        minSize: 80,
+        enableResizing: true,
+        meta: { align: 'left' },
+      },
+      {
+        header: () => <div className="text-left">규격</div>,
+        accessorKey: 'specification',
+        cell: ({ row, getValue }) => (
+          <Input
+            value={getValue() ?? ''}
+            onChange={e => handleItemChange(row.index, 'specification', e.target.value)}
+            placeholder="규격"
+            className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
+          />
+        ),
+        size: 100,
+        minSize: 60,
+        enableResizing: true,
+        meta: { align: 'left' },
+      },
+      {
+        header: () => <div className="text-center">수량</div>,
+        accessorKey: 'quantity',
+        cell: ({ row, getValue }) => (
+          <div className="flex justify-center">
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={getValue() ?? ''}
+              onChange={e => handleItemChange(row.index, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
+              className="h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-16 min-w-[56px] max-w-[70px]"
+            />
+          </div>
+        ),
+        size: 70,
+        minSize: 56,
+        maxSize: 80,
+        enableResizing: true,
+        meta: { align: 'center' },
+      },
+      {
+        header: () => <div className="text-right">단가 ({currency})</div>,
+        accessorKey: 'unit_price_value',
+        cell: ({ row, getValue }) => (
+          <Input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={getValue() ?? ''}
+            onChange={e => handleItemChange(row.index, 'unit_price_value', e.target.value.replace(/[^0-9]/g, ''))}
+            className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0 text-right"
+          />
+        ),
+        size: 100,
+        minSize: 80,
+        maxSize: 120,
+        enableResizing: true,
+        meta: { align: 'right' },
+      },
+      {
+        header: () => <div className="text-right">금액({currency === 'KRW' ? '₩' : '$'})</div>,
+        accessorKey: 'amount_value',
+        cell: ({ row }) => {
+          const item = items[row.index];
+          const quantity = String(item.quantity) === '' ? 0 : Number(item.quantity);
+          const unitPrice = String(item.unit_price_value) === '' ? 0 : Number(item.unit_price_value);
+          const amount = quantity * unitPrice;
+          return (
+            <Input
+              value={amount ? amount.toLocaleString() : '0'}
+              disabled
+              className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0 text-right"
+            />
+          );
+        },
+        size: 110,
+        minSize: 90,
+        maxSize: 130,
+        enableResizing: true,
+        meta: { align: 'right' },
+      },
+      {
+        header: () => <div className="text-left">비고</div>,
+        accessorKey: 'remark',
+        cell: ({ row, getValue }) => (
+          <Input
+            value={getValue() ?? ''}
+            onChange={e => handleItemChange(row.index, 'remark', e.target.value)}
+            placeholder="비고(용도)"
+            className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
+          />
+        ),
+        size: 120,
+        minSize: 80,
+        enableResizing: true,
+        meta: { align: 'left' },
+      },
+      {
+        header: () => <div className="text-center">삭제</div>,
+        id: 'delete',
+        cell: ({ row }) => (
+          <div className="flex justify-center">
+            <Button variant="ghost" size="sm" className="h-7 w-14 min-w-[24px] max-w-[24px] p-0 text-xs" onClick={() => handleRemove(row.index)}>
+              삭제
+            </Button>
+          </div>
+        ),
+        size: 24,
+        minSize: 24,
+        maxSize: 24,
+        enableResizing: false,
+        meta: { sticky: 'right', align: 'center' },
+      },
+    ],
+    [currency, items]
   );
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: 'onChange',
+    debugTable: false,
+    enableColumnResizing: true,
+    columnResizeDirection: 'ltr',
+  });
+
+  const [extraRows, setExtraRows] = useState<ExtraRow[]>([]);
+
+  function handleItemChange(index: number, key: keyof Item, value: any) {
+    const newItems = [...items];
+    let newValue = value;
+    if (key === 'quantity' || key === 'unit_price_value') {
+      newValue = String(value) === '' ? '' : String(value).replace(/^0+(?=\d)/, '');
+    }
+    newItems[index] = {
+      ...newItems[index],
+      [key]: newValue,
+      amount_value:
+        key === 'quantity' || key === 'unit_price_value'
+          ? ((key === 'quantity' ? (String(value) === '' ? 0 : Number(value)) : (String(newItems[index].quantity) === '' ? 0 : Number(newItems[index].quantity))) *
+            (key === 'unit_price_value' ? (String(value) === '' ? 0 : Number(value)) : (String(newItems[index].unit_price_value) === '' ? 0 : Number(newItems[index].unit_price_value))))
+          : newItems[index].amount_value,
+    };
+    setItems(newItems);
+  }
+
+  function handleRemove(index: number) {
+    const newItems = [...items];
+    newItems.splice(index, 1);
+    setItems(newItems);
+  }
+
+  function handleAdd(count: number) {
+    const newItems = [
+      ...items,
+      ...Array.from({ length: count }, (_, i) => ({
+        id: nanoid(),
+        line_number: items.length + i + 1,
+        item_name: '',
+        specification: '',
+        quantity: 1,
+        unit_price_value: 0,
+        unit_price_currency: currency,
+        amount_value: 0,
+        amount_currency: currency,
+        remark: '',
+      })),
+    ];
+    setItems(newItems);
+  }
+
+  function handleExtraChange(index: number, key: keyof ExtraRow, value: string) {
+    const newRows = [...extraRows];
+    newRows[index] = {
+      ...newRows[index],
+      [key]: value,
+      amount:
+        key === 'quantity' || key === 'unit_price'
+          ? String(
+              (key === 'quantity' ? Number(value || '0') : Number(newRows[index].quantity || '0')) *
+              (key === 'unit_price' ? Number(value || '0') : Number(newRows[index].unit_price || '0'))
+            )
+          : newRows[index].amount,
+    };
+    setExtraRows(newRows);
+  }
+
+  function handleExtraAdd() {
+    setExtraRows([
+      ...extraRows,
+      {
+        id: nanoid(),
+        item_name: '',
+        specification: '',
+        quantity: '',
+        unit_price: '',
+        amount: '',
+        remark: '',
+      },
+    ]);
+  }
+
+  function handleExtraRemove(index: number) {
+    const newRows = [...extraRows];
+    newRows.splice(index, 1);
+    setExtraRows(newRows);
+  }
+
+  const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price_value), 0);
+
+  // 합계 계산
+  const extraSum = extraRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* 통화 선택 */}
       {showCurrencySelector && (
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">통화:</label>
@@ -128,145 +309,74 @@ export default function ItemsTable({
           </Select>
         </div>
       )}
-
-      {/* 테이블 */}
-      <div className="rounded-lg border border-border shadow-sm overflow-hidden">
-        {/* 헤더 */}
-        <div className="grid bg-muted/10 text-xs text-muted-foreground font-medium" style={{ gridTemplateColumns: `${colWidths.number}px ${colWidths.name}px ${colWidths.spec}px ${colWidths.quantity}px ${colWidths.price}px ${colWidths.total}px ${colWidths.note}px` }}>
-          {/* 번호 */}
-          <div className="px-2 py-3 text-center relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.number }}>
-            번호
-            <ColumnResizer {...getResizerProps('number')} />
-          </div>
-          {/* 품명 */}
-          <div className="px-2 py-3 relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.name }}>
-            품명
-            <ColumnResizer {...getResizerProps('name')} />
-          </div>
-          {/* 규격 */}
-          <div className="px-2 py-3 relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.spec }}>
-            규격
-            <ColumnResizer {...getResizerProps('spec')} />
-          </div>
-          {/* 수량 */}
-          <div className="px-2 py-3 text-center relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.quantity }}>
-            수량
-            <ColumnResizer {...getResizerProps('quantity')} />
-          </div>
-          {/* 단가 */}
-          <div className="px-2 py-3 text-right relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.price }}>
-            단가({currency === 'KRW' ? '₩' : '$'})
-            <ColumnResizer {...getResizerProps('price')} />
-          </div>
-          {/* 금액 */}
-          <div className="px-2 py-3 text-right relative group after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.total }}>
-            금액({currency === 'KRW' ? '₩' : '$'})
-            <ColumnResizer {...getResizerProps('total')} />
-          </div>
-          {/* 비고 */}
-          <div className="px-2 py-3 relative group" style={{ width: colWidths.note }}>
-            비고
-            <ColumnResizer {...getResizerProps('note')} />
-          </div>
-        </div>
-
-        {/* 데이터 행 */}
-        {fields.map((item, idx) => (
-          <div
-            key={item.id}
-            className={`grid items-center text-xs bg-background ${idx !== fields.length - 1 ? 'border-b border-border' : ''}`}
-            style={{ gridTemplateColumns: `${colWidths.number}px ${colWidths.name}px ${colWidths.spec}px ${colWidths.quantity}px ${colWidths.price}px ${colWidths.total}px ${colWidths.note}px` }}
-          >
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.number }}>
-              <span className="px-2 py-2 text-center block">{idx + 1}</span>
-            </div>
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.name }}>
-              <Input
-                value={item.item_name}
-                onChange={(e) => update(idx, { ...item, item_name: e.target.value })}
-                placeholder="품명"
-                className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.spec }}>
-              <Input
-                value={item.specification}
-                onChange={(e) => update(idx, { ...item, specification: e.target.value })}
-                placeholder="규격"
-                className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.quantity }}>
-              <Input
-                type="text"
-                value={item.quantity || ''}
-                onChange={(e) => {
-                  const newQty = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  update(idx, { ...item, quantity: newQty, amount_value: newQty * item.unit_price_value });
-                }}
-                className="h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.price }}>
-              <Input
-                type="text"
-                value={item.unit_price_value || '0'}
-                onChange={(e) => {
-                  const newPrice = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  update(idx, { ...item, unit_price_value: newPrice, amount_value: item.quantity * newPrice });
-                }}
-                className="h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-            <div className="relative after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border" style={{ width: colWidths.total }}>
-              <Input
-                value={item.amount_value ? item.amount_value.toLocaleString() : '0'}
-                disabled
-                className="h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-            <div className="relative" style={{ width: colWidths.note }}>
-              <Input
-                value={item.remark}
-                onChange={(e) => update(idx, { ...item, remark: e.target.value })}
-                placeholder="비고(용도)"
-                className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white"
-              />
-            </div>
-          </div>
-        ))}
+      <div className="rounded-lg border border-border shadow-sm overflow-x-auto">
+        <table className="w-full min-w-fit">
+          <thead>
+            <tr className="bg-[#f5f5f7] text-xs text-muted-foreground font-medium">
+              <th className="text-center px-4 py-3 border-l border-[#e5e7eb]">번호</th>
+              <th className="text-left px-4 py-3 border-l border-[#e5e7eb]">품명</th>
+              <th className="text-left px-4 py-3 border-l border-[#e5e7eb]">규격</th>
+              <th className="text-center px-4 py-3 border-l border-[#e5e7eb] text-center">수량</th>
+              <th className="text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
+              <th className="text-right px-4 py-3 border-l border-[#e5e7eb]">합계 ({currency})</th>
+              <th className="text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
+              <th className="text-center px-4 py-3 border-l border-r border-[#e5e7eb]"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {extraRows.map((row, idx) => (
+              <tr key={row.id} className={`text-xs bg-background border-b border-border${idx === extraRows.length - 1 ? ' last:border-b-0' : ''}`}>
+                <td className="text-center px-4 border-l border-[#e5e7eb]">{idx + 1}</td>
+                <td className="text-left px-4 border-l border-[#e5e7eb]">
+                  <Input value={row.item_name} onChange={e => handleExtraChange(idx, 'item_name', e.target.value)} placeholder="품명" className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0" />
+                </td>
+                <td className="text-left px-4 border-l border-[#e5e7eb]">
+                  <Input value={row.specification} onChange={e => handleExtraChange(idx, 'specification', e.target.value)} placeholder="규격" className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0" />
+                </td>
+                <td className="text-center px-4 border-l border-[#e5e7eb] text-center">
+                  <Input value={row.quantity} onChange={e => handleExtraChange(idx, 'quantity', e.target.value.replace(/[^0-9]/g, ''))} placeholder="수량" className="h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0" />
+                </td>
+                <td className="text-right px-4 border-l border-[#e5e7eb]">
+                  <div className="flex items-center justify-end gap-1">
+                    <Input value={row.unit_price ? Number(row.unit_price).toLocaleString() : ''} onChange={e => handleExtraChange(idx, 'unit_price', e.target.value.replace(/[^0-9]/g, ''))} placeholder="단가" className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0 text-right" />
+                    <span className="text-xs text-gray-500">{currency}</span>
+                  </div>
+                </td>
+                <td className="text-right px-4 border-l border-[#e5e7eb] text-black">
+                  <div className="flex items-center justify-end gap-1">
+                    <Input value={row.amount ? Number(row.amount).toLocaleString() : '0'} readOnly className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0 text-right text-black" />
+                    <span className="text-xs text-gray-500">{currency}</span>
+                  </div>
+                </td>
+                <td className="text-left px-4 border-l border-[#e5e7eb]">
+                  <Input value={row.remark} onChange={e => handleExtraChange(idx, 'remark', e.target.value)} placeholder="비고(용도)" className="h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none text-xs bg-white w-full min-w-0" />
+                </td>
+                <td className="text-center px-4 border-l border-r border-[#e5e7eb]">
+                  <Button size="sm" variant="ghost" onClick={() => handleExtraRemove(idx)} className="h-7 w-14 min-w-[24px] max-w-[24px] p-0 text-xs text-red-500">삭제</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-[#f5f5f7] text-xs font-medium" style={{ borderTop: '4px solid #f5f5f7', borderBottom: '4px solid #f5f5f7' }}>
+              <td className="text-center px-4 font-semibold border-l border-[#e5e7eb] min-w-[64px] w-[64px]">총 합계</td>
+              <td className="px-4 border-l border-[#e5e7eb]" colSpan={4}></td>
+              <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{extraSum ? extraSum.toLocaleString() : ''} <span className="text-xs text-gray-500">({currency})</span></td>
+              <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-
-      {/* 총합 표시 */}
-      {showTotalSummary && totalAmount > 0 && (
-        <div className="bg-primary/5 border border-primary/20 rounded-lg shadow hover:shadow-sm transition-shadow duration-300 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calculator className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">총 금액</span>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-semibold text-primary">
-                {currency === "KRW" ? "₩" : "$"}{totalAmount.toLocaleString()}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {fields.filter(item => item.item_name).length}개 품목
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 액션 바 */}
-      <div className="flex justify-between items-center pt-4 border-t border-border">
-        <div className="flex items-center gap-3">
+      <div className="border-t border-border mt-2" />
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center gap-2">
           <input
             type="number"
             min={1}
             max={1000}
-            value={addCount}
-            onChange={e => setAddCount(Math.max(1, Math.min(1000, Number(e.target.value))))}
-            className="w-14 h-8 text-xs border border-border rounded-md px-2 shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200 focus:ring-0 focus:outline-none"
+            defaultValue={1}
+            id="extra-add-count"
+            className="w-14 h-8 text-xs text-right border border-border rounded-md px-2 shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-200 focus:ring-0 focus:outline-none"
             style={{ width: '4.5rem' }}
           />
           <Button
@@ -274,46 +384,32 @@ export default function ItemsTable({
             size="sm"
             className="text-primary text-xs h-8 px-3 hover:bg-primary/10 shadow-sm hover:shadow-md transition-shadow duration-200"
             onClick={() => {
-              const newItems = Array.from({ length: addCount }, () => ({
-                line_number: fields.length + 1,
-                item_name: '',
-                specification: '',
-                quantity: 1,
-                unit_price_value: 0,
-                unit_price_currency: currency,
-                amount_value: 0,
-                amount_currency: currency,
-                remark: '',
-              }));
-              append(newItems);
+              const input = document.getElementById('extra-add-count');
+              const count = input ? Math.max(1, Math.min(1000, Number((input as HTMLInputElement).value))) : 1;
+              for (let i = 0; i < count; i++) handleExtraAdd();
             }}
           >
             + 품목 추가
           </Button>
         </div>
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
             className="rounded-md px-4 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md transition-shadow duration-200"
-            onClick={() => {
-              for (let i = fields.length - 1; i >= 0; i--) remove(i);
-            }}
+            onClick={() => setExtraRows([{ id: nanoid(), item_name: '', specification: '', quantity: '', unit_price: '', amount: '', remark: '' }])}
           >
             전체 삭제
           </Button>
-          {showSubmitButton && onSubmit && (
-            <Button 
-              onClick={onSubmit} 
-              size="sm" 
-              className="gap-2 rounded-md px-6 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-shadow duration-200"
-            >
-              <Save className="w-3.5 h-3.5" />
-              {submitButtonText}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className="gap-2 rounded-md px-6 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-shadow duration-200 text-white"
+            onClick={() => {/* TODO: 발주 요청 기능 구현 */}}
+          >
+            발주 요청
+          </Button>
         </div>
       </div>
     </div>
   );
-} 
+}

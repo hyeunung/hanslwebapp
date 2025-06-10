@@ -1,0 +1,16 @@
+/* react-datepicker 팝업 테두리 제거, 그림자 추가 */
+.react-datepicker-popper,
+.react-datepicker__portal {
+  border: none !important;
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.18), 0 1.5px 6px 0 rgba(0,0,0,0.10) !important;
+}
+.react-datepicker {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-datepicker,
+.react-datepicker__portal,
+.react-datepicker-popper {
+  border-radius: 0.75rem !important; /* rounded-xl (12px) */
+} 

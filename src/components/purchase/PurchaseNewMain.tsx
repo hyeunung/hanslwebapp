@@ -407,7 +407,7 @@ export default function PurchaseNewMain() {
   return (
     <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
-       <div className="w-1/4 bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
+       <div className="w-1/4 relative bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
          <div className="flex flex-col justify-center mb-4">
            <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
            <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
@@ -422,7 +422,7 @@ export default function PurchaseNewMain() {
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
                  </SelectTrigger>
-                 <SelectContent>
+                 <SelectContent position="popper" className="z-[9999]">
                    <SelectItem value="원자재">원자재</SelectItem>
                    <SelectItem value="소모품">소모품</SelectItem>
                  </SelectContent>
@@ -434,7 +434,7 @@ export default function PurchaseNewMain() {
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
                  </SelectTrigger>
-                 <SelectContent>
+                 <SelectContent position="popper" className="z-[9999]">
                    <SelectItem value="일반">일반</SelectItem>
                    <SelectItem value="선진행">선진행</SelectItem>
                  </SelectContent>
@@ -446,7 +446,7 @@ export default function PurchaseNewMain() {
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="z-[9999]">
                    <SelectItem value="발주">발주</SelectItem>
                    <SelectItem value="구매 요청">구매 요청</SelectItem>
                    <SelectItem value="현장 결제">현장 결제</SelectItem>
@@ -505,7 +505,7 @@ export default function PurchaseNewMain() {
                    <SelectTrigger className="h-[34px] bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                      <SelectValue placeholder="담당자 선택" />
                    </SelectTrigger>
-                   <SelectContent>
+                   <SelectContent position="popper" className="z-[9999]">
                      {contacts.map(c => (
                        <SelectItem key={c.id} value={c.id.toString()}>
                          {c.contact_name || c.contact_email || c.contact_phone || c.position || ''}

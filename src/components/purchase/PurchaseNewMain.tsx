@@ -12,11 +12,10 @@ import { DatePicker } from "@/components/ui/datepicker";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useRouter } from "next/navigation";
-import ItemsTable from "@/components/common/ItemsTable";
-
 import { useForm as useFormRH, Controller, useFieldArray } from "react-hook-form";
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 const ReactSelect = dynamic(() => import('react-select'), { ssr: false });
 
 interface Item {
@@ -352,6 +351,59 @@ export default function PurchaseNewMain() {
     }
   };
 
+  // 커스텀 품목 테이블 상태
+  const [customItems, setCustomItems] = useState([
+    { item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" },
+  ]);
+
+  const handleCustomChange = (idx: number, key: string, value: string) => {
+    setCustomItems(items => {
+      const newItems = [...items];
+      newItems[idx] = {
+        ...newItems[idx],
+        [key]: value,
+        amount:
+          key === "quantity" || key === "unit_price"
+            ? String(
+                Number(key === "quantity" ? value : newItems[idx].quantity) *
+                  Number(key === "unit_price" ? value : newItems[idx].unit_price) || 0
+              )
+            : newItems[idx].amount,
+      };
+      return newItems;
+    });
+  };
+
+  const handleCustomAdd = () => {
+    setCustomItems(items => {
+      const newItems = Array.from({ length: addCount }, () => ({ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }));
+      return [...items, ...newItems];
+    });
+  };
+
+  const handleCustomRemove = (idx: number) => {
+    setCustomItems(items => {
+      if (items.length === 1) {
+        // 한 행만 남았을 때는 내용만 비움
+        return [{ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }];
+      }
+      return items.filter((_, i) => i !== idx);
+    });
+  };
+
+  const handleCustomRemoveAll = () => {
+    setCustomItems([{ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }]);
+  };
+
+  const handleCustomOrderRequest = () => {
+    alert("발주 요청 기능은 추후 구현 예정입니다.");
+  };
+
+  const customTotalAmount = customItems.reduce(
+    (sum, item) => sum + (Number(item.quantity) * Number(item.unit_price) || 0),
+    0
+  );
+
   return (
     <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
@@ -484,7 +536,7 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_name} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
-                                     className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
                                    />
                                  </div>
                                  <div>
@@ -492,7 +544,7 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_email} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
-                                     className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
                                    />
                                  </div>
                                </div>
@@ -502,7 +554,7 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_phone} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_phone', e.target.value)}
-                                     className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
                                    />
                                  </div>
                                  <div className="flex items-end gap-2">
@@ -511,7 +563,7 @@ export default function PurchaseNewMain() {
                                      <Input 
                                        value={contact.position} 
                                        onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'position', e.target.value)}
-                                       className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
                                      />
                                    </div>
                                    <Button 
@@ -549,7 +601,7 @@ export default function PurchaseNewMain() {
                                  <Input 
                                    value={contact.contact_name} 
                                    onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
-                                   className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
                                    placeholder="담당자 이름"
                                  />
                                </div>
@@ -558,7 +610,7 @@ export default function PurchaseNewMain() {
                                  <Input 
                                    value={contact.contact_email} 
                                    onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
-                                   className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
                                    placeholder="이메일 주소"
                                  />
                                </div>
@@ -569,7 +621,7 @@ export default function PurchaseNewMain() {
                                  <Input 
                                    value={contact.contact_phone} 
                                    onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_phone', e.target.value)}
-                                   className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
                                    placeholder="전화번호"
                                  />
                                </div>
@@ -579,7 +631,7 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.position} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'position', e.target.value)}
-                                     className="h-8 text-xs hover:shadow-sm focus:shadow-sm transition-shadow duration-200"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
                                      placeholder="직급"
                                    />
                                  </div>
@@ -800,7 +852,7 @@ export default function PurchaseNewMain() {
           </div>
           <div className="ml-[15px]">
             <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger className="w-20 h-8 text-xs border-border rounded-md shadow-sm hover:shadow-md transition-shadow duration-200">
+              <SelectTrigger className="w-20 h-8 text-xs border-border rounded-md shadow-sm hover:shadow-md transition-shadow duration-200 bg-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-md">
@@ -810,21 +862,117 @@ export default function PurchaseNewMain() {
             </Select>
           </div>
         </div>
-        {/* react-table 기반 품목 테이블 */}
-        <ItemsTable
-          items={fields}
-          setItems={newItems => {
-            setValue('items', newItems);
-          }}
-          currency={currency}
-          onCurrencyChange={setCurrency}
-          onSubmit={handleSubmit}
-          submitButtonText="발주 요청"
-          showSubmitButton={true}
-          showTotalSummary={true}
-          showCurrencySelector={false}
-        />
-        
+        {/* 커스텀 품목 테이블 (디자인/UX 기존과 동일) */}
+        <div className="space-y-4 mt-6">
+          <div className="rounded-lg border border-border shadow-sm overflow-x-auto">
+            <table className="w-full min-w-fit table-fixed">
+              <thead>
+                <tr className="bg-[#f5f5f7] text-xs text-muted-foreground font-medium">
+                  <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-[#e5e7eb]">번호</th>
+                  <th className="w-[121px] text-left px-4 py-3 border-l border-[#e5e7eb]">품명</th>
+                  <th className="w-[217px] text-left px-4 py-3 border-l border-[#e5e7eb]">규격</th>
+                  <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-[#e5e7eb]">수량</th>
+                  <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
+                  <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">금액 ({currency})</th>
+                  <th className="w-[160px] text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
+                  <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-r border-[#e5e7eb]">삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customItems.map((item, idx) => (
+                  <tr key={idx} className="text-xs bg-background border-b border-border">
+                    <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-[#e5e7eb] align-middle">{idx + 1}</td>
+                    <td className="w-[121px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                      <Input
+                        value={item.item_name}
+                        onChange={e => handleCustomChange(idx, "item_name", e.target.value)}
+                        placeholder="품명"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                      />
+                    </td>
+                    <td className="w-[217px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                      <Input
+                        value={item.specification}
+                        onChange={e => handleCustomChange(idx, "specification", e.target.value)}
+                        placeholder="규격"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                      />
+                    </td>
+                    <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-[#e5e7eb] text-center">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.quantity}
+                        onChange={e => handleCustomChange(idx, "quantity", e.target.value)}
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white"
+                      />
+                    </td>
+                    <td className="w-[89px] text-right px-4 border-l border-[#e5e7eb] text-black break-words whitespace-normal">
+                      <div className="flex items-center justify-end w-full">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.unit_price ? Number(item.unit_price).toLocaleString() : ""}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/,/g, "");
+                            handleCustomChange(idx, "unit_price", raw);
+                          }}
+                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white overflow-x-hidden"
+                          placeholder="단가"
+                        />
+                        <span className="ml-1 text-xs text-muted-foreground">{currency === "KRW" ? "₩" : "$"}</span>
+                      </div>
+                    </td>
+                    <td className="w-[89px] text-right px-4 border-l border-[#e5e7eb] text-black break-words whitespace-normal">
+                      <span>
+                        {item.amount ? Number(item.amount).toLocaleString() : "0"}
+                        <span className="ml-1 text-xs text-muted-foreground">{currency === "KRW" ? "₩" : "$"}</span>
+                      </span>
+                    </td>
+                    <td className="w-[160px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                      <Input
+                        value={item.remark}
+                        onChange={e => handleCustomChange(idx, "remark", e.target.value)}
+                        placeholder="비고(용도)"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                      />
+                    </td>
+                    <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
+                      <Button size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => handleCustomRemove(idx)}>
+                        삭제
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[#f5f5f7] text-xs font-medium" style={{ borderTop: '4px solid #f5f5f7', borderBottom: '4px solid #f5f5f7' }}>
+                  <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 font-semibold border-l border-[#e5e7eb]">총 합계</td>
+                  <td className="px-4 border-l border-[#e5e7eb]" colSpan={4}></td>
+                  <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{customTotalAmount ? customTotalAmount.toLocaleString() : ''}</td>
+                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <Separator className="my-4" />
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                value={addCount}
+                onChange={e => setAddCount(Math.max(1, Number(e.target.value.replace(/[^0-9]/g, ''))))}
+                className="w-16 h-8 text-xs shadow-md hover:shadow-lg border border-[#d2d2d7] bg-white"
+              />
+              <Button size="sm" variant="ghost" onClick={handleCustomAdd} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={handleCustomRemoveAll}>전체삭제</Button>
+              <Button size="sm" onClick={handleCustomOrderRequest}>발주 요청</Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

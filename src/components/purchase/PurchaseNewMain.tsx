@@ -207,6 +207,16 @@ export default function PurchaseNewMain() {
     fields.forEach((item, idx) => update(idx, { ...item, unit_price_currency: currency, amount_currency: currency }));
   }, [currency]);
 
+  useEffect(() => {
+    fields.forEach((item, idx) => {
+      const calcAmount = Number(item.quantity) * Number(item.unit_price_value);
+      if (item.amount_value !== calcAmount) {
+        update(idx, { ...item, amount_value: calcAmount });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.map(f => `${f.quantity}-${f.unit_price_value}`).join(",")]);
+
   const handleSubmit = async () => {
     if (!user) {
       setError("로그인이 필요합니다.");
@@ -350,59 +360,6 @@ export default function PurchaseNewMain() {
       console.error('담당자 삭제 중 오류:', error);
     }
   };
-
-  // 커스텀 품목 테이블 상태
-  const [customItems, setCustomItems] = useState([
-    { item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" },
-  ]);
-
-  const handleCustomChange = (idx: number, key: string, value: string) => {
-    setCustomItems(items => {
-      const newItems = [...items];
-      newItems[idx] = {
-        ...newItems[idx],
-        [key]: value,
-        amount:
-          key === "quantity" || key === "unit_price"
-            ? String(
-                Number(key === "quantity" ? value : newItems[idx].quantity) *
-                  Number(key === "unit_price" ? value : newItems[idx].unit_price) || 0
-              )
-            : newItems[idx].amount,
-      };
-      return newItems;
-    });
-  };
-
-  const handleCustomAdd = () => {
-    setCustomItems(items => {
-      const newItems = Array.from({ length: addCount }, () => ({ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }));
-      return [...items, ...newItems];
-    });
-  };
-
-  const handleCustomRemove = (idx: number) => {
-    setCustomItems(items => {
-      if (items.length === 1) {
-        // 한 행만 남았을 때는 내용만 비움
-        return [{ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }];
-      }
-      return items.filter((_, i) => i !== idx);
-    });
-  };
-
-  const handleCustomRemoveAll = () => {
-    setCustomItems([{ item_name: "", specification: "", quantity: "1", unit_price: "", amount: "", remark: "" }]);
-  };
-
-  const handleCustomOrderRequest = () => {
-    alert("발주 요청 기능은 추후 구현 예정입니다.");
-  };
-
-  const customTotalAmount = customItems.reduce(
-    (sum, item) => sum + (Number(item.quantity) * Number(item.unit_price) || 0),
-    0
-  );
 
   return (
     <div className="flex gap-6">
@@ -873,19 +830,19 @@ export default function PurchaseNewMain() {
                   <th className="w-[217px] text-left px-4 py-3 border-l border-[#e5e7eb]">규격</th>
                   <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-[#e5e7eb]">수량</th>
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
-                  <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">금액 ({currency})</th>
+                  <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">합계 ({currency})</th>
                   <th className="w-[160px] text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
                   <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-r border-[#e5e7eb]">삭제</th>
                 </tr>
               </thead>
               <tbody>
-                {customItems.map((item, idx) => (
+                {fields.map((item, idx) => (
                   <tr key={idx} className="text-xs bg-background border-b border-border">
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-[#e5e7eb] align-middle">{idx + 1}</td>
                     <td className="w-[121px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
                       <Input
                         value={item.item_name}
-                        onChange={e => handleCustomChange(idx, "item_name", e.target.value)}
+                        onChange={e => update(idx, { ...item, item_name: e.target.value })}
                         placeholder="품명"
                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
                       />
@@ -893,7 +850,7 @@ export default function PurchaseNewMain() {
                     <td className="w-[217px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
                       <Input
                         value={item.specification}
-                        onChange={e => handleCustomChange(idx, "specification", e.target.value)}
+                        onChange={e => update(idx, { ...item, specification: e.target.value })}
                         placeholder="규격"
                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
                       />
@@ -903,7 +860,7 @@ export default function PurchaseNewMain() {
                         type="text"
                         inputMode="numeric"
                         value={item.quantity}
-                        onChange={e => handleCustomChange(idx, "quantity", e.target.value)}
+                        onChange={e => update(idx, { ...item, quantity: Number(e.target.value) })}
                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white"
                       />
                     </td>
@@ -912,10 +869,10 @@ export default function PurchaseNewMain() {
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={item.unit_price ? Number(item.unit_price).toLocaleString() : ""}
+                          value={item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : ""}
                           onChange={e => {
                             const raw = e.target.value.replace(/,/g, "");
-                            handleCustomChange(idx, "unit_price", raw);
+                            update(idx, { ...item, unit_price_value: Number(raw) });
                           }}
                           className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white overflow-x-hidden"
                           placeholder="단가"
@@ -925,20 +882,20 @@ export default function PurchaseNewMain() {
                     </td>
                     <td className="w-[89px] text-right px-4 border-l border-[#e5e7eb] text-black break-words whitespace-normal">
                       <span>
-                        {item.amount ? Number(item.amount).toLocaleString() : "0"}
+                        {item.amount_value ? Number(item.amount_value).toLocaleString() : "0"}
                         <span className="ml-1 text-xs text-muted-foreground">{currency === "KRW" ? "₩" : "$"}</span>
                       </span>
                     </td>
                     <td className="w-[160px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
                       <Input
                         value={item.remark}
-                        onChange={e => handleCustomChange(idx, "remark", e.target.value)}
+                        onChange={e => update(idx, { ...item, remark: e.target.value })}
                         placeholder="비고(용도)"
                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
                       />
                     </td>
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
-                      <Button size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => handleCustomRemove(idx)}>
+                      <Button size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
                         삭제
                       </Button>
                     </td>
@@ -949,7 +906,7 @@ export default function PurchaseNewMain() {
                 <tr className="bg-[#f5f5f7] text-xs font-medium" style={{ borderTop: '4px solid #f5f5f7', borderBottom: '4px solid #f5f5f7' }}>
                   <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 font-semibold border-l border-[#e5e7eb]">총 합계</td>
                   <td className="px-4 border-l border-[#e5e7eb]" colSpan={4}></td>
-                  <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{customTotalAmount ? customTotalAmount.toLocaleString() : ''}</td>
+                  <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{totalAmount ? totalAmount.toLocaleString() : ''}</td>
                   <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
                 </tr>
               </tfoot>
@@ -965,11 +922,11 @@ export default function PurchaseNewMain() {
                 onChange={e => setAddCount(Math.max(1, Number(e.target.value.replace(/[^0-9]/g, ''))))}
                 className="w-16 h-8 text-xs shadow-md hover:shadow-lg border border-[#d2d2d7] bg-white"
               />
-              <Button size="sm" variant="ghost" onClick={handleCustomAdd} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
+              <Button size="sm" variant="ghost" onClick={() => append({ line_number: fields.length + 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' })} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={handleCustomRemoveAll}>전체삭제</Button>
-              <Button size="sm" onClick={handleCustomOrderRequest}>발주 요청</Button>
+              <Button size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_, idx) => remove(fields.length - idx - 1)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' }); }}>전체삭제</Button>
+              <Button size="sm" onClick={handleSubmit}>발주 요청</Button>
             </div>
           </div>
         </div>

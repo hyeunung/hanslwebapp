@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, MoreHorizontal, Mail, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Search, Filter, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -9,18 +9,28 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import EmailButton from "@/components/purchase/EmailButton";
-import EmailDrawer from "@/components/purchase/EmailDrawer";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/app/providers/AuthProvider";
 
-const purchaseData = [
-  { id: "PO-001", item: "사무용품", requester: "김철수", amount: "₩150,000", status: "승인완료", date: "2024-01-15" },
-  { id: "PO-002", item: "IT장비", requester: "이영희", amount: "₩2,500,000", status: "승인대기", date: "2024-01-14" },
-  { id: "PO-003", item: "청소용품", requester: "박민수", amount: "₩80,000", status: "승인완료", date: "2024-01-13" },
-  { id: "PO-004", item: "사무용 의자", requester: "정수진", amount: "₩450,000", status: "승인대기", date: "2024-01-12" },
-  { id: "PO-005", item: "프린터 토너", requester: "김철수", amount: "₩120,000", status: "승인완료", date: "2024-01-11" },
-  { id: "PO-006", item: "회의실 테이블", requester: "박민수", amount: "₩800,000", status: "승인대기", date: "2024-01-10" },
-  { id: "PO-007", item: "모니터", requester: "이영희", amount: "₩650,000", status: "승인완료", date: "2024-01-09" },
-  { id: "PO-008", item: "키보드 & 마우스", requester: "김철수", amount: "₩95,000", status: "승인완료", date: "2024-01-08" }
-];
+interface Purchase {
+  id: number;
+  purchase_order_number?: string;
+  request_date: string;
+  delivery_request_date: string;
+  vendor_name: string;
+  vendor_payment_schedule: string;
+  requester_name: string;
+  item_name: string;
+  specification: string;
+  quantity: number;
+  unit_price_value: number;
+  amount_value: number;
+  remark: string;
+  pj_vendor: string;
+  order_number: string;
+  item: string;
+  // 기타 기존 필드 생략
+}
 
 interface PurchaseListMainProps {
   onEmailToggle?: () => void;
@@ -28,26 +38,78 @@ interface PurchaseListMainProps {
 }
 
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
+  const { user } = useAuth();
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
 
-  const filteredData = purchaseData.filter(item => {
-    const matchesSearch = item.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.requester.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEmployee = selectedEmployee === "all" || item.requester === selectedEmployee;
+  useEffect(() => {
+    if (user?.id) loadMyRequests();
+    // eslint-disable-next-line
+  }, [user?.id]);
+
+  async function loadMyRequests() {
+    if (!user) return;
+    const { data } = await supabase
+      .from('purchase_view')
+      .select(`
+        purchase_request_id,
+        purchase_order_number,
+        request_date,
+        delivery_request_date,
+        vendor_name,
+        vendor_payment_schedule,
+        requester_name,
+        item_name,
+        specification,
+        quantity,
+        unit_price_value,
+        amount_value,
+        remark
+      `)
+      .eq('requester_id', user.id);
+    if (data) {
+      setPurchases(
+        (data as Array<Record<string, unknown>>).map((row) => {
+          return {
+            id: row.purchase_request_id as number,
+            purchase_order_number: row.purchase_order_number as string,
+            request_date: row.request_date as string,
+            delivery_request_date: row.delivery_request_date as string,
+            vendor_name: row.vendor_name as string,
+            vendor_payment_schedule: row.vendor_payment_schedule as string,
+            requester_name: row.requester_name as string,
+            item_name: row.item_name as string,
+            specification: row.specification as string,
+            quantity: row.quantity as number,
+            unit_price_value: row.unit_price_value as number,
+            amount_value: row.amount_value as number,
+            remark: row.remark as string,
+            pj_vendor: '', // PJ업체(추후 데이터 연동)
+            order_number: '', // 수주번호(추후 데이터 연동)
+            item: row.item_name as string,
+          } as Purchase;
+        })
+      );
+    }
+  }
+
+  const filteredData = purchases.filter(item => {
+    const matchesSearch = item.purchase_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.item_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesEmployee = selectedEmployee === "all" || item.requester_name === selectedEmployee;
     const matchesTab = activeTab === "all" || 
-                      (activeTab === "pending" && item.status === "승인대기") ||
-                      (activeTab === "approved" && item.status === "승인완료");
+                      (activeTab === "pending" && item.delivery_request_date === "승인대기") ||
+                      (activeTab === "approved" && item.delivery_request_date === "승인완료");
     
     return matchesSearch && matchesEmployee && matchesTab;
   });
 
   const stats = {
-    total: purchaseData.length,
-    pending: purchaseData.filter(item => item.status === "승인대기").length,
-    approved: purchaseData.filter(item => item.status === "승인완료").length,
+    total: purchases.length,
+    pending: purchases.filter(item => item.delivery_request_date === "승인대기").length,
+    approved: purchases.filter(item => item.delivery_request_date === "승인완료").length,
   };
 
   return (
@@ -168,12 +230,20 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 <thead className="bg-muted/10 sticky top-0">
                   <tr>
                     <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">발주번호</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">품목</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">요청자</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">금액</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">상태</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">일자</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">작업</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">구매업체</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">청구일</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">구매요구자</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">품명</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">규격</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">수량</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">단가</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">합계</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">비고</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">PJ업체</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">수주번호</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">item</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">지출예정일</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,27 +255,21 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                       transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
                       className="border-b border-border hover:bg-muted/10 transition-colors"
                     >
-                      <td className="px-6 py-4 text-sm text-foreground font-medium">{item.id}</td>
+                      <td className="px-6 py-4 text-sm text-foreground font-medium">{item.purchase_order_number}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.vendor_name}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.request_date}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.delivery_request_date}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.requester_name}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.item_name}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.specification}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.quantity}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.unit_price_value}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.amount_value}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.remark}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.pj_vendor}</td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.order_number}</td>
                       <td className="px-6 py-4 text-sm text-foreground">{item.item}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.requester}</td>
-                      <td className="px-6 py-4 text-sm text-foreground font-medium">{item.amount}</td>
-                      <td className="px-6 py-4">
-                        <Badge 
-                          className={`text-xs border rounded-md px-3 py-1 ${
-                            item.status === "승인완료" 
-                              ? "bg-success/10 text-success border-success/20 hover:bg-success/20" 
-                              : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
-                          }`}
-                        >
-                          {item.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{item.date}</td>
-                      <td className="px-6 py-4">
-                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0 rounded-md hover:bg-muted hover:shadow-sm transition-shadow duration-200">
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">{item.vendor_payment_schedule}</td>
                     </motion.tr>
                   ))}
                 </tbody>

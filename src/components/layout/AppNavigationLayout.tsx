@@ -6,6 +6,7 @@ import PurchaseNewMain from "@/components/purchase/PurchaseNewMain";
 import PurchaseListMain from "@/components/purchase/PurchaseListMain";
 import ApproveMain from "@/components/purchase/ApproveMain";
 import VendorListMain from "@/components/vendor/VendorListMain";
+import LogoutButton from "./LogoutButton";
 
 // 네비게이션 항목 정의
 const navigationItems = [
@@ -32,10 +33,13 @@ export default function AppNavigationLayout() {
     <div className="min-h-screen bg-background">
       {/* 헤더 */}
       <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
-        <div className="flex items-center h-16 px-8">
-          <Building2 size={24} className="text-primary" />
-          <h1 className="text-xl font-semibold text-foreground ml-4">HANSL</h1>
-          <span className="text-sm text-muted-foreground ml-2">구매 관리 시스템</span>
+        <div className="flex items-center h-16 px-8 justify-between">
+          <div className="flex items-center">
+            <Building2 size={24} className="text-primary" />
+            <h1 className="text-xl font-semibold text-foreground ml-4">HANSL</h1>
+            <span className="text-sm text-muted-foreground ml-2">구매 관리 시스템</span>
+          </div>
+          <LogoutButton />
         </div>
       </header>
       {/* 네비게이션 */}

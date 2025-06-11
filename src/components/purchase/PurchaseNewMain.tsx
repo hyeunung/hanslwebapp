@@ -57,7 +57,7 @@ export default function PurchaseNewMain() {
   const { user } = useAuth();
   const router = useRouter();
   const [employeeName, setEmployeeName] = useState<string>("");
-  const [employees, setEmployees] = useState<{email: string; name: string; department?: string; position?: string}[]>([]);
+  const [employees, setEmployees] = useState<{email: string; name: string; department?: string; position?: string; phone?: string; address?: string}[]>([]);
   
     // 직원 목록 로드 및 현재 사용자 설정
   useEffect(() => {
@@ -77,28 +77,33 @@ export default function PurchaseNewMain() {
     // 직원 목록 설정
     setEmployees(employeeList);
 
-    // DB에서 추가 직원 목록 가져오기 (테이블이 있다면)
-    supabase
-      .from('employees')
-      .select('name, email, department, position')
-      .then(({ data, error }) => {
-        if (data && !error && data.length > 0) {
-          // DB에서 가져온 직원들을 기존 목록과 합치기 (DB 우선)
-          const mergedEmployees = data.map(dbEmp => ({
-            email: dbEmp.email,
-            name: dbEmp.name,
-            department: dbEmp.department,
-            position: dbEmp.position
-          }));
-          
-          // 기본 목록에서 DB에 없는 직원들만 추가
-          const additionalEmployees = employeeList.filter(listEmp => 
-            !data.some(dbEmp => dbEmp.email === listEmp.email)
-          );
-          
-          setEmployees([...mergedEmployees, ...additionalEmployees]);
-        }
-      });
+    // DB에서 직원 목록 가져오기
+    const loadEmployees = async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('name, email, department, position, phone, address');
+      
+      if (data && !error && data.length > 0) {
+        // DB에서 가져온 직원들을 기존 목록과 합치기 (DB 우선)
+        const mergedEmployees = data.map(dbEmp => ({
+          email: dbEmp.email,
+          name: dbEmp.name,
+          department: dbEmp.department,
+          position: dbEmp.position,
+          phone: dbEmp.phone,
+          address: dbEmp.address
+        }));
+        
+        // 기본 목록에서 DB에 없는 직원들만 추가
+        const additionalEmployees = employeeList.filter(listEmp => 
+          !data.some(dbEmp => dbEmp.email === listEmp.email)
+        );
+        
+        setEmployees([...mergedEmployees, ...additionalEmployees]);
+      }
+    };
+    
+    loadEmployees();
 
     // 현재 로그인한 사용자의 이름을 기본값으로 설정
     if (user?.email) {
@@ -217,40 +222,121 @@ export default function PurchaseNewMain() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields.map(f => `${f.quantity}-${f.unit_price_value}`).join(",")]);
 
-  const handleSubmit = async () => {
+  // 필수 항목 체크 함수
+  const checkRequiredFields = () => {
+    const requestType = watch('request_type');
+    const progressType = watch('progress_type');
+    const paymentCategory = watch('payment_category');
+    
+    return !!(requestType && progressType && paymentCategory && vendor && vendor !== "0" && fields.length > 0);
+  };
+
+  // 실시간 필수항목 체크를 위한 state
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  // 필수항목 변경 감지
+  useEffect(() => {
+    setIsFormValid(checkRequiredFields());
+  }, [watch('request_type'), watch('progress_type'), watch('payment_category'), vendor, fields.length, checkRequiredFields]);
+
+  const handleSubmit = async (data: FormValues) => {
+    
     if (!user) {
       setError("로그인이 필요합니다.");
       return;
     }
-    if (!vendor || fields.length === 0) {
-      setError("업체와 품목을 입력하세요.");
-      return;
+    
+    // 필수 항목이 모두 채워져 있는지 재확인
+    if (!checkRequiredFields()) {
+      return; // 버튼이 비활성화되어 있어야 하므로 별도 오류 메시지 없이 그냥 리턴
     }
     setLoading(true);
     setError("");
     setSuccess("");
+    
+
+    
     try {
+      // 현재 사용자의 직원 정보 찾기
+      const currentEmployee = employees.find(emp => emp.email === user.email);
+      
+      // 발주번호 자동 생성 (F20250612_001 형식)
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+      const prefix = `F${dateStr}_`;
+      
+      console.log('🔍 발주번호 생성 시작:', { today, dateStr, prefix });
+      
+      // 오늘 날짜로 시작하는 발주번호들 조회 (유효한 숫자 형식만)
+      const { data: existingOrders, error: queryError } = await supabase
+        .from('purchase_requests')
+        .select('purchase_order_number')
+        .like('purchase_order_number', `${prefix}%`)
+        .order('purchase_order_number', { ascending: false });
+      
+      if (queryError) {
+        console.error('발주번호 조회 오류:', queryError);
+      }
+      
+      console.log('🔍 기존 발주번호 조회 결과:', { existingOrders, queryError });
+      
+      // 다음 순번 계산 (숫자인 시퀀스만 찾기)
+      let nextNumber = 1;
+      let maxSequence = 0;
+      
+      if (existingOrders && existingOrders.length > 0) {
+        // 모든 발주번호를 확인하여 가장 큰 유효한 숫자 시퀀스 찾기
+        for (const order of existingOrders) {
+          const orderNumber = order.purchase_order_number;
+          console.log('🔍 확인 중인 발주번호:', orderNumber);
+          
+          // 발주번호 형식: F20250612_001
+          const parts = orderNumber.split('_');
+          if (parts.length >= 2) {
+            const sequenceStr = parts[1];
+            const sequence = parseInt(sequenceStr, 10);
+            
+            console.log('🔍 시퀀스 파싱:', { sequenceStr, sequence, isValid: !isNaN(sequence) });
+            
+            // 유효한 숫자이고 현재 최대값보다 크면 업데이트
+            if (!isNaN(sequence) && sequence > maxSequence) {
+              maxSequence = sequence;
+            }
+          }
+        }
+        
+        nextNumber = maxSequence + 1;
+        console.log('🔍 계산된 다음 번호:', { maxSequence, nextNumber });
+      }
+      
+      // 3자리 패딩으로 발주번호 생성 (nextNumber가 NaN이 아닌지 다시 한번 확인)
+      const safeNextNumber = isNaN(nextNumber) ? 1 : nextNumber;
+      const purchaseOrderNumber = `${prefix}${String(safeNextNumber).padStart(3, '0')}`;
+      
+      console.log('🔍 최종 발주번호 생성:', { nextNumber, safeNextNumber, purchaseOrderNumber });
+
+      
       const { data: pr, error: prError } = await supabase.from("purchase_requests").insert({
         requester_id: user.id,
-        requester_name: watch('requester_name'),
-        requester_phone: user.user_metadata?.phone,
-        requester_fax: user.user_metadata?.fax,
-        requester_address: user.user_metadata?.address,
-        vendor_id: vendor,
-        sales_order_number: watch('sales_order_number'),
-        project_vendor: watch('project_vendor'),
-        project_item: watch('project_item'),
-        request_date: watch('request_date'),
-        delivery_request_date: watch('delivery_request_date'),
-        request_type: watch('request_type'),
-        progress_type: watch('progress_type'),
+        purchase_order_number: purchaseOrderNumber,
+        requester_name: data.requester_name,
+        requester_phone: currentEmployee?.phone,
+        requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
+        requester_address: currentEmployee?.address,
+        vendor_id: Number(vendor),
+        sales_order_number: data.sales_order_number,
+        project_vendor: data.project_vendor,
+        project_item: data.project_item,
+        request_date: data.request_date,
+        delivery_request_date: data.delivery_request_date,
+        request_type: data.request_type,
+        progress_type: data.progress_type,
         payment_status: '대기',
-        payment_category: watch('payment_category'),
+        payment_category: data.payment_category,
         currency,
         total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),
         unit_price_currency: fields[0]?.unit_price_currency || currency,
-        po_template_type: watch('po_template_type'),
-        contacts: watch('contacts'),
+        po_template_type: data.po_template_type,
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
@@ -269,8 +355,8 @@ export default function PurchaseNewMain() {
         });
         if (itemErr) throw itemErr;
       }
-      setSuccess("발주 요청이 성공적으로 등록되었습니다.");
-      setTimeout(() => router.push("/purchase/list"), 1000);
+      setSuccess(`발주 요청이 성공적으로 등록되었습니다. (발주번호: ${purchaseOrderNumber})`);
+      setTimeout(() => router.push("/purchase/list"), 2000);
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
     } finally {
@@ -362,7 +448,11 @@ export default function PurchaseNewMain() {
   };
 
   return (
-    <div className="flex gap-6">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      rhHandleSubmit(handleSubmit)(e);
+    }}>
+      <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
        <div className="w-1/4 relative bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
          <div className="flex flex-col justify-center mb-4">
@@ -374,7 +464,7 @@ export default function PurchaseNewMain() {
            {/* 요청 설정 */}
            <div className="grid grid-cols-3 gap-2">
              <div>
-               <Label className="mb-1 block text-xs">요청 유형</Label>
+               <Label className="mb-1 block text-xs">요청 유형<span className="text-red-500 ml-1">*</span></Label>
                <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
@@ -386,7 +476,7 @@ export default function PurchaseNewMain() {
                </Select>
              </div>
              <div>
-               <Label className="mb-1 block text-xs">진행 종류</Label>
+               <Label className="mb-1 block text-xs">진행 종류<span className="text-red-500 ml-1">*</span></Label>
                <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
@@ -398,7 +488,7 @@ export default function PurchaseNewMain() {
                </Select>
         </div>
              <div>
-               <Label className="mb-1 block text-xs">결제 종류</Label>
+               <Label className="mb-1 block text-xs">결제 종류<span className="text-red-500 ml-1">*</span></Label>
                <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
                  <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                    <SelectValue placeholder="선택" />
@@ -415,7 +505,7 @@ export default function PurchaseNewMain() {
            {/* 업체 정보 */}
            <div className="grid grid-cols-2 gap-2">
              <div>
-               <Label className="mb-1 block text-xs">업체명</Label>
+               <Label className="mb-1 block text-xs">업체명<span className="text-red-500 ml-1">*</span></Label>
                <ReactSelect
                  options={vendors.map(v => ({ value: v.id.toString(), label: v.vendor_name }))}
                  value={vendors.find(v => v.id.toString() === vendor) ? { value: vendor, label: vendors.find(v => v.id.toString() === vendor)?.vendor_name } : null}
@@ -610,11 +700,11 @@ export default function PurchaseNewMain() {
                    </div>
 
                    <DialogFooter>
-                     <Button onClick={handleSaveAllContacts} disabled={!hasChanges} className="hover:shadow-sm transition-shadow duration-200">
+                     <Button type="button" onClick={handleSaveAllContacts} disabled={!hasChanges} className="hover:shadow-sm transition-shadow duration-200">
                        모든 변경사항 저장
                      </Button>
                      <DialogClose asChild>
-                       <Button variant="outline" className="hover:shadow-sm transition-shadow duration-200">취소</Button>
+                       <Button type="button" variant="outline" className="hover:shadow-sm transition-shadow duration-200">취소</Button>
                      </DialogClose>
                    </DialogFooter>
                  </DialogContent>
@@ -755,9 +845,10 @@ export default function PurchaseNewMain() {
              <div className="flex-1">
                <Label className="mb-1 block text-xs">입고 요청일</Label>
                <DatePicker 
-                 value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : new Date()} 
+                 value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : undefined} 
                  onChange={date => setValue('delivery_request_date', date ? date.toISOString().slice(0, 10) : '')} 
                  className="h-[30px] border-[#d2d2d7] bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
+                 placeholder="선택하세요"
                />
              </div>
            </div>
@@ -895,7 +986,7 @@ export default function PurchaseNewMain() {
                       />
                     </td>
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
-                      <Button size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
+                      <Button type="button" size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
                         삭제
                       </Button>
                     </td>
@@ -913,6 +1004,18 @@ export default function PurchaseNewMain() {
             </table>
           </div>
           <Separator className="my-4" />
+          {/* Error and Success Messages */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+              {success}
+            </div>
+          )}
+          
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
               <Input
@@ -922,15 +1025,26 @@ export default function PurchaseNewMain() {
                 onChange={e => setAddCount(Math.max(1, Number(e.target.value.replace(/[^0-9]/g, ''))))}
                 className="w-16 h-8 text-xs shadow-md hover:shadow-lg border border-[#d2d2d7] bg-white"
               />
-              <Button size="sm" variant="ghost" onClick={() => append({ line_number: fields.length + 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' })} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => append({ line_number: fields.length + 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' })} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_, idx) => remove(fields.length - idx - 1)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' }); }}>전체삭제</Button>
-              <Button size="sm" onClick={handleSubmit}>발주 요청</Button>
+              <Button type="button" size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_, idx) => remove(fields.length - idx - 1)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' }); }}>전체삭제</Button>
+              <Button 
+                type="submit" 
+                size="sm" 
+                disabled={loading || !isFormValid}
+                onClick={(e) => {
+                  // form submit이 자동으로 처리됨
+                }}
+                className={`${!isFormValid && !loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {loading ? "처리 중..." : "발주 요청"}
+              </Button>
             </div>
           </div>
         </div>
       </div>
     </div>
+    </form>
   );
 }

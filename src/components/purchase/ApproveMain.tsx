@@ -44,17 +44,14 @@ export default function ApproveMain() {
   const [statusFilter, setStatusFilter] = useState("pending");
 
   const handleApprove = (id: string) => {
-    console.log("승인:", id);
     alert(`발주서 ${id}가 승인되었습니다.`);
   };
 
   const handleReject = (id: string) => {
-    console.log("반려:", id);
     alert(`발주서 ${id}가 반려되었습니다.`);
   };
 
   const handleViewDetail = (id: string) => {
-    console.log("상세보기:", id);
     alert(`발주서 ${id} 상세보기`);
   };
 

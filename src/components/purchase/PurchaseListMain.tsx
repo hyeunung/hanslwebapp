@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, MoreHorizontal } from "lucide-react";
+import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -11,14 +11,24 @@ import { Button } from "@/components/ui/button";
 import EmailButton from "@/components/purchase/EmailButton";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
+import { generatePurchaseOrderExcel, generateSimpleTestExcel } from "@/utils/excelGenerator";
 
 interface Purchase {
   id: number;
+  unique_row_id: string;
   purchase_order_number?: string;
   request_date: string;
   delivery_request_date: string;
+  progress_type: string;
+  payment_status: string;
+  payment_category: string;
+  currency: string;
+  request_type: string;
   vendor_name: string;
   vendor_payment_schedule: string;
+  vendor_phone?: string;
+  vendor_fax?: string;
+  vendor_contact_name?: string;
   requester_name: string;
   item_name: string;
   specification: string;
@@ -26,10 +36,15 @@ interface Purchase {
   unit_price_value: number;
   amount_value: number;
   remark: string;
-  pj_vendor: string;
-  order_number: string;
-  item: string;
-  // 기타 기존 필드 생략
+  project_vendor: string;
+  sales_order_number: string;
+  project_item: string;
+  line_number: number;
+}
+
+interface Employee {
+  name: string;
+  email: string;
 }
 
 interface PurchaseListMainProps {
@@ -40,71 +55,352 @@ interface PurchaseListMainProps {
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
   const { user } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [selectedEmployee, setSelectedEmployee] = useState(""); // 초기값 비워두고 로딩 후 설정
   const [activeTab, setActiveTab] = useState("all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
 
   useEffect(() => {
-    if (user?.id) loadMyRequests();
+    if (user?.id) {
+      console.log('전체 사용자 정보:', {
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+        app_metadata: user.app_metadata
+      });
+      loadMyRequests();
+      loadEmployees();
+    }
     // eslint-disable-next-line
   }, [user?.id]);
 
+  // 초기 로딩 시 현재 사용자로 자동 설정
+  useEffect(() => {
+    if (currentUserName && !selectedEmployee) {
+      console.log('현재 사용자로 설정:', currentUserName);
+      setSelectedEmployee(currentUserName);
+    }
+  }, [currentUserName]);
+
   async function loadMyRequests() {
     if (!user) return;
-    const { data } = await supabase
-      .from('purchase_view')
-      .select(`
-        purchase_request_id,
-        purchase_order_number,
-        request_date,
-        delivery_request_date,
-        vendor_name,
-        vendor_payment_schedule,
-        requester_name,
-        item_name,
-        specification,
-        quantity,
-        unit_price_value,
-        amount_value,
-        remark
-      `)
-      .eq('requester_id', user.id);
-    if (data) {
-      setPurchases(
-        (data as Array<Record<string, unknown>>).map((row) => {
-          return {
-            id: row.purchase_request_id as number,
-            purchase_order_number: row.purchase_order_number as string,
-            request_date: row.request_date as string,
-            delivery_request_date: row.delivery_request_date as string,
-            vendor_name: row.vendor_name as string,
-            vendor_payment_schedule: row.vendor_payment_schedule as string,
-            requester_name: row.requester_name as string,
-            item_name: row.item_name as string,
-            specification: row.specification as string,
-            quantity: row.quantity as number,
-            unit_price_value: row.unit_price_value as number,
-            amount_value: row.amount_value as number,
-            remark: row.remark as string,
-            pj_vendor: '', // PJ업체(추후 데이터 연동)
-            order_number: '', // 수주번호(추후 데이터 연동)
-            item: row.item_name as string,
-          } as Purchase;
-        })
-      );
+    
+    setIsLoadingPurchases(true);
+    console.log('발주 데이터 로딩 시작');
+    
+    try {
+      // 전체 발주 데이터를 가져오도록 수정 (필터링은 프론트엔드에서 처리)
+      const { data, error } = await supabase
+        .from('purchase_request_view')
+        .select(`
+          purchase_request_id,
+          unique_row_id,
+          purchase_order_number,
+          request_date,
+          delivery_request_date,
+          progress_type,
+          payment_status,
+          payment_category,
+          currency,
+          request_type,
+          vendor_name,
+          vendor_payment_schedule,
+          requester_name,
+          item_name,
+          specification,
+          quantity,
+          unit_price_value,
+          amount_value,
+          remark,
+          project_vendor,
+          sales_order_number,
+          project_item,
+          line_number
+        `);
+        
+      console.log('발주 데이타 조회 결과:', { dataCount: data?.length, error });
+        
+      if (data) {
+        setPurchases(
+          (data as Array<Record<string, unknown>>).map((row) => {
+            return {
+              id: row.purchase_request_id as number,
+              unique_row_id: row.unique_row_id as string,
+              purchase_order_number: row.purchase_order_number as string,
+              request_date: row.request_date as string,
+              delivery_request_date: row.delivery_request_date as string,
+              progress_type: row.progress_type as string,
+              payment_status: row.payment_status as string,
+              payment_category: row.payment_category as string,
+              currency: row.currency as string,
+              request_type: row.request_type as string,
+              vendor_name: row.vendor_name as string,
+              vendor_payment_schedule: row.vendor_payment_schedule as string,
+              requester_name: row.requester_name as string,
+              item_name: row.item_name as string,
+              specification: row.specification as string,
+              quantity: row.quantity as number,
+              unit_price_value: row.unit_price_value as number,
+              amount_value: row.amount_value as number,
+              remark: row.remark as string,
+              project_vendor: row.project_vendor as string,
+              sales_order_number: row.sales_order_number as string,
+              project_item: row.project_item as string,
+              line_number: row.line_number as number,
+            } as Purchase;
+          })
+        );
+      }
+    } catch (error) {
+      console.error('발주 데이터 로딩 오류:', error);
+    } finally {
+      setIsLoadingPurchases(false);
+    }
+  }
+
+  async function loadEmployees() {
+    if (!user) {
+      console.log('사용자 정보가 없습니다');
+      setIsLoadingEmployees(false);
+      return;
+    }
+    
+    setIsLoadingEmployees(true);
+    console.log('직원 정보 로딩 시작, user.id:', user.id);
+    
+    try {
+      // 현재 로그인한 사용자 정보 가져오기 (ID로 먼저 찾기)
+      let { data: currentUser, error: userError } = await supabase
+        .from('employees')
+        .select('name, email')
+        .eq('id', user.id)
+        .single();
+      
+      console.log('ID로 사용자 조회 결과:', { currentUser, userError });
+      
+      // ID로 찾을 수 없으면 이메일로 다시 시도
+      if (!currentUser && user.email) {
+        console.log('이메일로 사용자 찾기 시도:', user.email);
+        const { data: userByEmail, error: emailError } = await supabase
+          .from('employees')
+          .select('name, email')
+          .eq('email', user.email)
+          .single();
+        
+        console.log('이메일로 사용자 조회 결과:', { userByEmail, emailError });
+        currentUser = userByEmail;
+        userError = emailError;
+      }
+      
+      console.log('최종 사용자 조회 결과:', { currentUser, userError });
+      
+      if (currentUser) {
+        console.log('현재 사용자명 설정:', currentUser.name);
+        setCurrentUserName(currentUser.name);
+      } else {
+        console.log('현재 사용자를 찾을 수 없습니다. user.email로 대체 시도:', user.email);
+        // fallback: user.email에서 이름 추출 또는 기본값 설정
+        if (user.email) {
+          const nameFromEmail = user.email.split('@')[0];
+          setCurrentUserName(nameFromEmail);
+          console.log('이메일에서 추출한 이름:', nameFromEmail);
+        } else {
+          // 마지막 방법: 기본값 설정
+          setCurrentUserName('기본사용자');
+          console.log('기본사용자로 설정');
+        }
+      }
+
+      // 모든 직원 목록 가져오기
+      const { data: employeeList, error: listError } = await supabase
+        .from('employees')
+        .select('name, email')
+        .order('name');
+      
+      console.log('직원 목록 조회 결과:', { employeeCount: employeeList?.length, listError });
+      
+      if (employeeList && employeeList.length > 0) {
+        setEmployees(employeeList);
+      } else {
+        // 직원 목록을 가져올 수 없는 경우 기본값 설정
+        console.log('직원 목록이 비어있음. 기본 목록 사용');
+        setEmployees([{ name: currentUserName || '기본사용자', email: user.email || '' }]);
+      }
+    } catch (error) {
+      console.error('직원 정보를 불러오는데 실패했습니다:', error);
+      // 오류 발생 시 기본값 설정
+      setCurrentUserName(user.email?.split('@')[0] || '기본사용자');
+      setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '' }]);
+    } finally {
+      setIsLoadingEmployees(false);
     }
   }
 
   const filteredData = purchases.filter(item => {
     const matchesSearch = item.purchase_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.item_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEmployee = selectedEmployee === "all" || item.requester_name === selectedEmployee;
+    const matchesEmployee = selectedEmployee === "all" || !selectedEmployee || item.requester_name === selectedEmployee;
     const matchesTab = activeTab === "all" || 
                       (activeTab === "pending" && item.delivery_request_date === "승인대기") ||
                       (activeTab === "approved" && item.delivery_request_date === "승인완료");
     
     return matchesSearch && matchesEmployee && matchesTab;
   });
+
+  // 발주번호별로 그룹핑
+  const groupedData = filteredData.reduce((groups, item) => {
+    const key = item.purchase_order_number || 'no-number';
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(item);
+    return groups;
+  }, {} as Record<string, Purchase[]>);
+
+  // 표시할 데이터 생성 (그룹 헤더 + 펼쳐진 항목들)
+  const displayData: (Purchase & { isGroupHeader?: boolean; groupSize?: number; isSubItem?: boolean; isLastSubItem?: boolean })[] = [];
+  
+  Object.entries(groupedData).forEach(([orderNumber, items]) => {
+    if (items.length > 1) {
+      // 여러 항목이 있는 경우 그룹 헤더 추가
+      const headerItem = { 
+        ...items[0], 
+        isGroupHeader: true, 
+        groupSize: items.length 
+      };
+      displayData.push(headerItem);
+      
+      // 그룹이 펼쳐진 경우 하위 항목들 추가
+      if (expandedGroups.has(orderNumber)) {
+        items.forEach((item, index) => {
+          displayData.push({ 
+            ...item, 
+            isSubItem: true,
+            isLastSubItem: index === items.length - 1 // 마지막 하위 항목 표시
+          });
+        });
+      }
+    } else {
+      // 단일 항목인 경우 그대로 추가
+      displayData.push(items[0]);
+    }
+  });
+
+  // 그룹 토글 함수
+  const toggleGroup = (orderNumber: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(orderNumber)) {
+      newExpanded.delete(orderNumber);
+    } else {
+      newExpanded.add(orderNumber);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  // Excel 발주서 생성 함수
+  const generateExcelForOrder = async (orderNumber: string) => {
+    const orderItems = purchases.filter(item => item.purchase_order_number === orderNumber);
+    if (orderItems.length === 0) {
+      alert('해당 발주번호의 데이터를 찾을 수 없습니다.');
+      return;
+    }
+
+    const firstItem = orderItems[0];
+    
+    // 업체 상세 정보 및 담당자 정보 조회
+    let vendorInfo = {
+      vendor_name: firstItem.vendor_name,
+      vendor_phone: '',
+      vendor_fax: '',
+      vendor_contact_name: ''
+    };
+
+    try {
+      // purchase_requests 테이블에서 vendor_id 조회
+      const { data: prData, error: prError } = await supabase
+        .from('purchase_requests')
+        .select('vendor_id')
+        .eq('purchase_order_number', orderNumber)
+        .single();
+
+      if (prData && !prError) {
+        const vendorId = prData.vendor_id;
+        
+        // vendor 정보 조회
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('vendors')
+          .select('vendor_phone, vendor_fax')
+          .eq('id', vendorId)
+          .single();
+
+        if (vendorData && !vendorError) {
+          vendorInfo.vendor_phone = vendorData.vendor_phone || '';
+          vendorInfo.vendor_fax = vendorData.vendor_fax || '';
+        }
+
+        // vendor_contacts에서 첫 번째 담당자 정보 조회
+        const { data: contactData, error: contactError } = await supabase
+          .from('vendor_contacts')
+          .select('contact_name')
+          .eq('vendor_id', vendorId)
+          .limit(1);
+
+        if (contactData && !contactError && contactData.length > 0) {
+          vendorInfo.vendor_contact_name = contactData[0].contact_name || '';
+        }
+      }
+    } catch (error) {
+      console.warn('업체 정보 조회 중 오류:', error);
+      // 오류가 발생해도 기본 데이터로 계속 진행
+    }
+
+    const excelData = {
+      purchase_order_number: firstItem.purchase_order_number || '',
+      request_date: firstItem.request_date,
+      delivery_request_date: firstItem.delivery_request_date,
+      requester_name: firstItem.requester_name,
+      vendor_name: vendorInfo.vendor_name,
+      vendor_contact_name: vendorInfo.vendor_contact_name,
+      vendor_phone: vendorInfo.vendor_phone,
+      vendor_fax: vendorInfo.vendor_fax,
+      project_vendor: firstItem.project_vendor,
+      sales_order_number: firstItem.sales_order_number,
+      project_item: firstItem.project_item,
+      items: orderItems.map(item => ({
+        line_number: item.line_number,
+        item_name: item.item_name,
+        specification: item.specification,
+        quantity: item.quantity,
+        unit_price_value: item.unit_price_value,
+        amount_value: item.amount_value,
+        remark: item.remark,
+        currency: item.currency
+      }))
+    };
+
+    try {
+      await generatePurchaseOrderExcel(excelData);
+    } catch (error) {
+      console.error('Excel 생성 오류:', error);
+      alert('Excel 파일 생성 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 테스트 Excel 생성 함수
+  const generateTestExcel = async () => {
+    try {
+      console.log('테스트 Excel 생성 시작');
+      await generateSimpleTestExcel();
+      alert('테스트 Excel 파일이 성공적으로 생성되었습니다!');
+    } catch (error) {
+      console.error('테스트 Excel 생성 오류:', error);
+      alert('테스트 Excel 파일 생성 중 오류가 발생했습니다.');
+    }
+  };
 
   const stats = {
     total: purchases.length,
@@ -114,9 +410,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   return (
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
-      {/* Professional Header - 더 넓은 패딩 */}
+      {/* Professional Header */}
       <CardHeader className="pb-4 bg-muted/20 border-b border-border">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
               <h2 className="font-semibold text-foreground">발주 현황</h2>
@@ -125,49 +421,52 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             {showEmailButton && (
               <EmailButton 
                 onClick={() => {
-                  console.log('EmailButton clicked! onEmailToggle:', !!onEmailToggle);
                   if (onEmailToggle) onEmailToggle();
                 }}
                 inline={true}
                 style={{ marginLeft: '8px' }}
               />
             )}
+            
+            {/* Compact Stats */}
+            <div className="flex items-center gap-6 ml-6">
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary"></div>
+                  <span className="text-sm text-muted-foreground">전체</span>
+                </div>
+                <span className="text-sm font-semibold text-foreground">{stats.total}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-warning"></div>
+                  <span className="text-sm text-muted-foreground">대기</span>
+                </div>
+                <span className="text-sm font-semibold text-warning">{stats.pending}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-success"></div>
+                  <span className="text-sm text-muted-foreground">완료</span>
+                </div>
+                <span className="text-sm font-semibold text-success">{stats.approved}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={generateTestExcel}
+              className="gap-1.5 rounded-md h-8 px-3 hover:shadow-sm transition-shadow duration-200 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">테스트 Excel</span>
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 rounded-md h-8 px-3 hover:shadow-sm transition-shadow duration-200">
               <Filter className="w-4 h-4" />
               <span className="hidden sm:inline">필터</span>
             </Button>
-          </div>
-        </div>
-        
-        {/* Professional Stats Cards - 더 넓은 공간 활용 */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-primary/30 shadow hover:shadow-sm transition-all duration-300">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground font-medium">전체 발주</span>
-              <div className="w-3 h-3 rounded-sm bg-primary"></div>
-            </div>
-            <div className="text-2xl font-semibold text-foreground leading-none">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total Orders</p>
-          </div>
-          
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-warning/30 shadow hover:shadow-sm transition-all duration-300">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground font-medium">승인 대기</span>
-              <div className="w-3 h-3 rounded-sm bg-warning"></div>
-            </div>
-            <div className="text-2xl font-semibold text-warning leading-none">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground mt-1">Pending Approval</p>
-          </div>
-          
-          <div className="bg-background px-6 py-4 rounded-lg border border-border hover:border-success/30 shadow hover:shadow-sm transition-all duration-300">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground font-medium">승인 완료</span>
-              <div className="w-3 h-3 rounded-sm bg-success"></div>
-            </div>
-            <div className="text-2xl font-semibold text-success leading-none">{stats.approved}</div>
-            <p className="text-xs text-muted-foreground mt-1">Approved</p>
           </div>
         </div>
       </CardHeader>
@@ -175,7 +474,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       <CardContent className="flex-1 overflow-hidden p-0">
         {/* Professional Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-4 mb-0 p-1">
+          <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-2 mb-2 p-1">
             <TabsTrigger 
               value="all" 
               className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm"
@@ -196,19 +495,24 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             </TabsTrigger>
           </TabsList>
 
-          {/* Professional Filters - 더 넓은 패딩 */}
-          <div className="px-6 py-4 border-b border-border bg-background">
+          {/* Professional Filters - 균형있는 패딩 */}
+          <div className="px-6 py-3 border-b border-border bg-background">
             <div className="flex gap-4 items-center">
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                 <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm transition-shadow duration-200">
-                  <SelectValue placeholder="직원선택" />
+                  <SelectValue placeholder={
+                    isLoadingEmployees ? "로딩 중..." : 
+                    currentUserName ? currentUserName : 
+                    "직원 선택"
+                  } />
                 </SelectTrigger>
                 <SelectContent className="rounded-md">
-                  <SelectItem value="all">전체 직원</SelectItem>
-                  <SelectItem value="김철수">김철수</SelectItem>
-                  <SelectItem value="이영희">이영희</SelectItem>
-                  <SelectItem value="박민수">박민수</SelectItem>
-                  <SelectItem value="정수진">정수진</SelectItem>
+                  <SelectItem value="all">전체 보기</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.email} value={employee.name}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <div className="relative flex-1 max-w-md">
@@ -226,56 +530,186 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           {/* Professional Table - 더 넓은 테이블 */}
           <TabsContent value={activeTab} className="flex-1 overflow-auto m-0">
             <div className="overflow-auto">
-              <table className="w-full">
+              {/* Year indicator */}
+              <div className="px-6 py-2 text-xs text-muted-foreground bg-muted/5 border-b border-border">
+                <span className="font-medium">2024</span>
+              </div>
+              <table className="w-full min-w-max">
                 <thead className="bg-muted/10 sticky top-0">
-                  <tr>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">발주번호</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">구매업체</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">청구일</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">구매요구자</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">품명</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">규격</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">수량</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">단가</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">합계</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">비고</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">PJ업체</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">수주번호</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">item</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground border-b border-border">지출예정일</th>
+                  <tr className="h-12">
+                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">발주번호/액션</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">규격</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
+                    <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
+                    <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((item, index) => (
-                    <motion.tr
-                      key={item.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
-                      className="border-b border-border hover:bg-muted/10 transition-colors"
-                    >
-                      <td className="px-6 py-4 text-sm text-foreground font-medium">{item.purchase_order_number}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.vendor_name}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.request_date}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.delivery_request_date}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.requester_name}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.item_name}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.specification}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.quantity}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.unit_price_value}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.amount_value}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.remark}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.pj_vendor}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.order_number}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.item}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">{item.vendor_payment_schedule}</td>
-                    </motion.tr>
-                  ))}
+                  {displayData.map((item, index) => {
+                    
+                    // 날짜 포맷팅 (월-일만 표시)
+                    const formatDate = (dateStr: string) => {
+                      if (!dateStr) return '';
+                      const date = new Date(dateStr);
+                      return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    };
+                    
+                    // 통화 포맷팅
+                    const formatCurrency = (value: number, currency: string) => {
+                      const formatter = new Intl.NumberFormat('ko-KR');
+                      const currencySymbols: { [key: string]: string } = {
+                        'KRW': '₩',
+                        'USD': '$',
+                        'EUR': '€',
+                        'JPY': '¥',
+                        'CNY': '¥'
+                      };
+                      const symbol = currencySymbols[currency] || currency;
+                      return `${formatter.format(value)} ${symbol}`;
+                    };
+                    
+                    // 전체 데이터 디버깅 (처음 3개만 로그)
+                    if (index < 3) {
+                      console.log(`데이터 ${index + 1}:`, {
+                        purchase_order: item.purchase_order_number,
+                        progress_type: item.progress_type,
+                        progress_type_length: item.progress_type?.length,
+                        progress_type_chars: item.progress_type?.split('').map(char => char.charCodeAt(0))
+                      });
+                    }
+                    
+                    // 선진행건 여부 확인 (여러 방법으로 체크)
+                    const isAdvancePayment = item.progress_type === '선진행' || 
+                                            item.progress_type?.trim() === '선진행' ||
+                                            item.progress_type?.includes('선진행');
+                    
+                    // 선진행건 발견 시 로그
+                    if (isAdvancePayment) {
+                      console.log('🔴 선진행건 발견!', {
+                        purchase_order: item.purchase_order_number,
+                        progress_type: item.progress_type,
+                        raw_value: JSON.stringify(item.progress_type)
+                      });
+                    }
+                    
+                    // 그룹 헤더인지 하위 항목인지 확인
+                    const isGroupHeader = item.isGroupHeader;
+                    const isSubItem = item.isSubItem;
+                    const isLastSubItem = item.isLastSubItem;
+                    const isExpanded = expandedGroups.has(item.purchase_order_number || '');
+                    
+                    return (
+                      <motion.tr
+                        key={`${item.unique_row_id}-${isGroupHeader ? 'header' : isSubItem ? 'sub' : 'single'}`}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
+                        className={`transition-colors h-12 relative border-b border-border ${
+                          isAdvancePayment 
+                            ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100' 
+                            : isSubItem 
+                            ? isLastSubItem 
+                              ? 'bg-gray-50 hover:bg-blue-50 cursor-pointer'
+                              : 'bg-gray-50 hover:bg-gray-100'
+                            : isGroupHeader 
+                            ? isExpanded 
+                              ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer'
+                              : 'hover:bg-blue-50 cursor-pointer'
+                            : 'hover:bg-muted/10'
+                        }`}
+                        style={{
+                          backgroundColor: isAdvancePayment ? '#ffe4e6' : undefined,
+                          // 펼쳐진 그룹 굵은 테두리 인라인 스타일로 강제 적용
+                          ...(isGroupHeader && isExpanded && {
+                            borderLeft: '4px solid #3b82f6',
+                            borderRight: '4px solid #3b82f6',
+                            borderTop: '4px solid #3b82f6'
+                          }),
+                          ...(isSubItem && !isLastSubItem && {
+                            borderLeft: '4px solid #3b82f6',
+                            borderRight: '4px solid #3b82f6'
+                          }),
+                          ...(isLastSubItem && {
+                            borderLeft: '4px solid #3b82f6',
+                            borderRight: '4px solid #3b82f6',
+                            borderBottom: '4px solid #3b82f6'
+                          })
+                        }}
+                        onClick={() => {
+                          if ((isGroupHeader || isLastSubItem) && item.purchase_order_number) {
+                            toggleGroup(item.purchase_order_number);
+                          }
+                        }}
+                      >
+                        <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-32">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="truncate">
+                              {item.purchase_order_number}
+                              {isGroupHeader && item.groupSize && !isExpanded && ` (${item.groupSize}건)`}
+                            </span>
+                            {/* Excel 다운로드 버튼 - 그룹 헤더에만 표시 */}
+                            {(isGroupHeader || (!isGroupHeader && !isSubItem)) && item.purchase_order_number && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-green-100"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await generateExcelForOrder(item.purchase_order_number!);
+                                }}
+                                title="Excel 발주서 다운로드"
+                              >
+                                <FileSpreadsheet className="w-3 h-3 text-green-600" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
+                        <td className="px-2 py-2 text-xs text-foreground truncate w-32 relative">
+                          {item.specification}
+                          {/* 규격 열 중앙에 화살표 배치 */}
+                          {/* 접혀있을 때: 그룹 헤더에 아래쪽 화살표 */}
+                          {isGroupHeader && !isExpanded && (
+                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
+                              <ChevronDown className="w-3 h-3 text-blue-600" />
+                            </div>
+                          )}
+                          {/* 펼쳐져 있을 때: 마지막 하위 항목에 위쪽 화살표 */}
+                          {isLastSubItem && (
+                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
+                              <ChevronDown className="w-3 h-3 text-blue-600 rotate-180" />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
+                      </motion.tr>
+                    );
+                  })}
                 </tbody>
               </table>
               
-              {filteredData.length === 0 && (
+              {displayData.length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
                 </div>

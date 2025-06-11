@@ -16,7 +16,6 @@ export default function EmailDrawer() {
   const [template, setTemplate] = useState("basic");
 
   const handleSend = () => {
-    console.log("이메일 전송:", { recipients, subject, body, template });
     alert("이메일이 전송되었습니다.");
   };
 

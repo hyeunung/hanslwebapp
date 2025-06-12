@@ -351,7 +351,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       vendor_name: firstItem.vendor_name,
       vendor_phone: '',
       vendor_fax: '',
-      vendor_contact_name: ''
+      vendor_contact_name: '',
+      vendor_payment_schedule: ''
     };
 
     try {
@@ -368,13 +369,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         // vendor 정보 조회
         const { data: vendorData, error: vendorError } = await supabase
           .from('vendors')
-          .select('vendor_phone, vendor_fax')
+          .select('vendor_phone, vendor_fax, vendor_payment_schedule')
           .eq('id', vendorId)
           .single();
 
         if (vendorData && !vendorError) {
           vendorInfo.vendor_phone = vendorData.vendor_phone || '';
           vendorInfo.vendor_fax = vendorData.vendor_fax || '';
+          vendorInfo.vendor_payment_schedule = vendorData.vendor_payment_schedule || '';
         }
 
         // vendor_contacts에서 contact_id로 담당자 정보 조회
@@ -407,6 +409,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       project_vendor: firstItem.project_vendor,
       sales_order_number: firstItem.sales_order_number,
       project_item: firstItem.project_item,
+      vendor_payment_schedule: vendorInfo.vendor_payment_schedule,
       items: orderItems.map(item => ({
         line_number: item.line_number,
         item_name: item.item_name,
@@ -424,8 +427,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
       const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
       // 파일 다운로드
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-        window.navigator.msSaveOrOpenBlob(blob, filename);
+      if (window.navigator && (window.navigator as any).msSaveOrOpenBlob) {
+        (window.navigator as any).msSaveOrOpenBlob(blob, filename);
       } else {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);

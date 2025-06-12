@@ -592,7 +592,33 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_name} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white purchase-item-input-quantity"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-quantity');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
+                            }
+                          }
+                        }}
                                    />
                                  </div>
                                  <div>
@@ -944,7 +970,33 @@ export default function PurchaseNewMain() {
                         value={item.item_name}
                         onChange={e => update(idx, { ...item, item_name: e.target.value })}
                         placeholder="품명"
-                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-item_name"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-item_name');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
+                            }
+                          }
+                        }}
                       />
                     </td>
                     <td className="w-[217px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
@@ -952,7 +1004,33 @@ export default function PurchaseNewMain() {
                         value={item.specification}
                         onChange={e => update(idx, { ...item, specification: e.target.value })}
                         placeholder="규격"
-                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-specification"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-specification');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-specification');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
+                            }
+                          }
+                        }}
                       />
                     </td>
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-[#e5e7eb] text-center">
@@ -961,7 +1039,33 @@ export default function PurchaseNewMain() {
                         inputMode="numeric"
                         value={item.quantity}
                         onChange={e => update(idx, { ...item, quantity: Number(e.target.value) })}
-                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-quantity"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-quantity');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
+                            }
+                          }
+                        }}
                       />
                     </td>
                     <td className="w-[89px] text-right px-4 border-l border-[#e5e7eb] text-black break-words whitespace-normal">
@@ -974,8 +1078,34 @@ export default function PurchaseNewMain() {
                             const raw = e.target.value.replace(/,/g, "");
                             update(idx, { ...item, unit_price_value: Number(raw) });
                           }}
-                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-xs bg-white overflow-x-hidden"
+                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white overflow-x-hidden purchase-item-input-unit_price_value"
                           placeholder="단가"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const nextIdx = idx + 1;
+                              const inputs = document.querySelectorAll('.purchase-item-input-unit_price_value');
+                              if (nextIdx < fields.length) {
+                                (inputs[nextIdx] as HTMLInputElement)?.focus();
+                              } else {
+                                append({
+                                  line_number: fields.length + 1,
+                                  item_name: '',
+                                  specification: '',
+                                  quantity: 1,
+                                  unit_price_value: 0,
+                                  unit_price_currency: currency,
+                                  amount_value: 0,
+                                  amount_currency: currency,
+                                  remark: ''
+                                });
+                                setTimeout(() => {
+                                  const newInputs = document.querySelectorAll('.purchase-item-input-unit_price_value');
+                                  (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                                }, 10);
+                              }
+                            }
+                          }}
                         />
                         <span className="ml-1 text-xs text-muted-foreground">{currency === "KRW" ? "₩" : "$"}</span>
                       </div>
@@ -991,7 +1121,33 @@ export default function PurchaseNewMain() {
                         value={item.remark}
                         onChange={e => update(idx, { ...item, remark: e.target.value })}
                         placeholder="비고(용도)"
-                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-remark"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-remark');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-remark');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
+                            }
+                          }
+                        }}
                       />
                     </td>
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">

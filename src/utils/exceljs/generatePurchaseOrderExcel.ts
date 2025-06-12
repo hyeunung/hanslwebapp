@@ -13,6 +13,7 @@ export interface PurchaseOrderData {
   sales_order_number: string;
   project_item: string;
   items: PurchaseOrderItem[];
+  vendor_payment_schedule?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -85,10 +86,10 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   sheet.mergeCells('A4:B4'); sheet.mergeCells('C4:D4'); sheet.mergeCells('F4:G4');
   sheet.mergeCells('A5:B5'); sheet.mergeCells('C5:D5'); sheet.mergeCells('F5:G5');
   sheet.mergeCells('A6:B6'); sheet.mergeCells('C6:D6'); sheet.mergeCells('F6:G6');
-  sheet.mergeCells('A7:B7'); sheet.mergeCells('C7:D7'); sheet.mergeCells('E7:F7');
+  sheet.mergeCells('A7:B7'); sheet.mergeCells('C7:D7'); sheet.mergeCells('F7:G7');
   // 8~46행(헤더/품목/합계) 병합 없음
-  sheet.mergeCells('A47:E47');
-  // 하단 정보(48~50행) 병합 없음
+  // 합계가 들어가는 행에 맞춰 병합 범위도 동적으로 이동
+  // (아래에서 sumRow 계산 후 병합)
 
   try {
     const response = await fetch('/logo.png');
@@ -116,17 +117,32 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
 
   // 3. 상단 정보 고정 라벨 적용 (공백 포함)
   sheet.getCell('A2').value = '업   체   명';
+  sheet.getCell('A2').font = { bold: true };
   sheet.getCell('A3').value = '담   당   자';
+  sheet.getCell('A3').font = { bold: true };
   sheet.getCell('A4').value = '청   구   일';
+  sheet.getCell('A4').font = { bold: true };
   sheet.getCell('A5').value = 'TEL.';
+  sheet.getCell('A5').font = { bold: true };
   sheet.getCell('A6').value = 'FAX.';
-  sheet.getCell('A7').value = '입 고 요 청 일';
+  sheet.getCell('A6').font = { bold: true };
+  sheet.getCell('A7').value = '지출 예정일';
+  sheet.getCell('A7').font = { bold: true };
 
   sheet.getCell('E2').value = '구매요청자';
+  sheet.getCell('E2').font = { bold: true };
   sheet.getCell('E3').value = '주         소';
+  sheet.getCell('E3').font = { bold: true };
   sheet.getCell('E4').value = '발 주 번 호';
+  sheet.getCell('E4').font = { bold: true };
   sheet.getCell('E5').value = 'TEL.';
+  sheet.getCell('E5').font = { bold: true };
   sheet.getCell('E6').value = 'FAX.';
+  sheet.getCell('E6').font = { bold: true };
+  sheet.getCell('E7').value = '지출 예정일';
+  sheet.getCell('E7').font = { bold: true };
+
+  sheet.getCell('F7').value = data.vendor_payment_schedule || '';
 
   // 데이터 매핑(예시)
   sheet.getCell('C2').value = data.vendor_name;
@@ -146,24 +162,31 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   const tableHeaders = ['No', '품명', '규격', '수량', '단가', '금액', '비고'];
   for (let i = 0; i < tableHeaders.length; i++) {
     sheet.getCell(String.fromCharCode(65 + i) + '8').value = tableHeaders[i];
+    sheet.getCell(String.fromCharCode(65 + i) + '8').font = { bold: true };
   }
 
   // 품목이 35개를 넘으면 아래로 밀어서 합계/하단 정보 출력
   const baseRow = 9;
   const maxItemsBeforePush = 35;
-  const itemRows = data.items.length;
+  // --- 품목 데이터 line_number 기준 정렬 ---
+  const sortedItems = [...data.items].sort((a, b) => a.line_number - b.line_number);
+  const itemRows = sortedItems.length;
   const sumRow = baseRow + itemRows; // 합계 위치
-  const infoRow1 = sumRow + 1;
-  const infoRow2 = sumRow + 2;
-  const infoRow3 = sumRow + 3;
+
+  // 2~8행, 합계행(sumRow)은 16px(=12pt)로 지정
+  for (let r = 2; r <= 8; r++) {
+    sheet.getRow(r).height = 12;
+  }
+  sheet.getRow(sumRow).height = 12;
 
   // 품목 데이터
-  for (let i = 0; i < data.items.length; i++) {
-    const item = data.items[i];
+  for (let i = 0; i < sortedItems.length; i++) {
+    const item = sortedItems[i];
     const rowIdx = baseRow + i;
     sheet.getCell('A' + rowIdx).value = item.line_number;
     sheet.getCell('B' + rowIdx).value = item.item_name;
     sheet.getCell('C' + rowIdx).value = item.specification;
+    sheet.getCell('C' + rowIdx).alignment = { horizontal: 'left', vertical: 'middle' };
     sheet.getCell('D' + rowIdx).value = item.quantity;
     // 단가(E열) - 통화 기호 포함
     const unitSymbol = getCurrencySymbol(item.currency);
@@ -181,79 +204,82 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     sheet.getCell('F' + rowIdx).value = amountWithCurrency;
     sheet.getCell('F' + rowIdx).alignment = { horizontal: 'right', vertical: 'middle' };
     // G열은 비워둠
-    sheet.getCell('G' + rowIdx).value = '';
+    sheet.getCell('G' + rowIdx).value = (item.remark !== undefined && item.remark !== null) ? String(item.remark) : '';
   }
 
   // 합계
+  sheet.mergeCells(`A${sumRow}:E${sumRow}`);
   sheet.getCell('A' + sumRow).value = '합계';
+  sheet.getCell('A' + sumRow).font = { bold: true };
   const totalSymbol = getCurrencySymbol(data.items[0]?.currency);
   const totalAmount = data.items.reduce((sum, item) => sum + (item.amount_value || 0), 0);
   sheet.getCell('F' + sumRow).value = `${totalAmount.toLocaleString()} ${totalSymbol}`.trim();
   sheet.getCell('F' + sumRow).alignment = { horizontal: 'right', vertical: 'middle' };
 
-  // 하단 정보(라벨+값, 오른쪽 한 칸씩)
-  sheet.getCell('F' + infoRow1).value = 'PJ업체';
-  sheet.getCell('F' + infoRow2).value = '수주번호';
-  sheet.getCell('F' + infoRow3).value = 'item';
-  sheet.getCell('G' + infoRow1).value = data.project_vendor || '';
-  sheet.getCell('G' + infoRow2).value = data.sales_order_number || '';
-  sheet.getCell('G' + infoRow3).value = data.project_item || '';
+  // 실제 마지막 데이터가 들어간 행까지 동적으로 테두리 적용 (합계까지만)
+  const lastRow = sumRow;
+  for (let r = 1; r <= lastRow; r++) {
+    for (let c = 1; c <= 7; c++) {
+      const col = String.fromCharCode(64 + c); // A~G
+      const cellAddr = col + r;
+      const cell = sheet.getCell(cellAddr);
+      // E(5), F(6)열의 품목 데이터 행(단가/금액)과 합계행, C(3)열의 품목 데이터 행(규격)은 alignment를 덮어쓰지 않음
+      const isPriceCol = (c === 5 || c === 6);
+      const isSpecCol = (c === 3);
+      const isItemRow = (r >= baseRow && r < sumRow);
+      const isSumRow = (r === sumRow);
+      if (!((isPriceCol && (isItemRow || isSumRow)) || (isSpecCol && isItemRow))) {
+        // 나머지 셀만 중앙 정렬
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+      // 기존 스타일: 2행/8행/합계행(sumRow) 위, 8행 아래, 마지막행만 굵은선
+      cell.border = {
+        top:    { style: (r === 1) ? 'medium' : (r === 2 || r === 8 || r === sumRow) ? 'medium' : 'thin' },
+        left:   { style: c === 1 ? 'medium' : 'thin' },
+        right:  { style: c === 7 ? 'medium' : 'thin' },
+        bottom: { style: (r === 8 || r === sumRow || r === lastRow) ? 'medium' : 'thin' }
+      };
+    }
+  }
+  // 규격(C열) 입력란(품목 데이터 행)은 마지막에 좌측 정렬로 덮어쓴다
+  for (let i = 0; i < itemRows; i++) {
+    const rowIdx = baseRow + i;
+    sheet.getCell('C' + rowIdx).alignment = { horizontal: 'left', vertical: 'middle' };
+  }
+
+  // B2:B7, D2:D7, E2:E6 오른쪽 테두리 굵게
+  for (let r = 2; r <= 7; r++) {
+    sheet.getCell('B' + r).border = {
+      ...sheet.getCell('B' + r).border,
+      right: { style: 'medium' }
+    };
+    sheet.getCell('D' + r).border = {
+      ...sheet.getCell('D' + r).border,
+      right: { style: 'medium' }
+    };
+    if (r <= 6) {
+      sheet.getCell('E' + r).border = {
+        ...sheet.getCell('E' + r).border,
+        right: { style: 'medium' }
+      };
+    }
+  }
+  // E7, G7 위쪽 테두리 일반(얇게)
+  sheet.getCell('E7').border = {
+    ...sheet.getCell('E7').border,
+    top: { style: 'thin' },
+    right: { style: 'medium' }
+  };
+  sheet.getCell('G7').border = {
+    ...sheet.getCell('G7').border,
+    top: { style: 'thin' }
+  };
 
   // 열 너비 (템플릿 기준)
   const colWidths = { A:5.5, B:11.83, C:30.83, D:11.83, E:14.83, F:16.83, G:38.17 };
   Object.entries(colWidths).forEach(([col, width]) => {
     sheet.getColumn(col).width = width;
   });
-
-  // 테두리: 병합 구조에 맞춰 대표 셀만 적용, 나머지는 단일 셀 전체 적용
-  // 병합 대표 셀 좌표 집합 (템플릿 기준)
-  const mergedCellLeads = new Set([
-    'A1',
-    'A2','C2','F2',
-    'A3','C3','F3',
-    'A4','C4','F4',
-    'A5','C5','F5',
-    'A6','C6','F6',
-    'A7','C7','E7',
-    'A47',
-  ]);
-  for (let r = 1; r <= 50; r++) {
-    for (let c = 1; c <= 7; c++) {
-      const col = String.fromCharCode(64 + c); // A~G
-      const cellAddr = col + r;
-      const cell = sheet.getCell(cellAddr);
-      // 셀 정렬: 모두 중앙 정렬
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      // 1~47행: A~G 전체 외곽선만 굵게, 내부는 얇게 + 2행/8행/47행 위, 8행 아래 굵은선
-      if (r >= 1 && r <= 47) {
-        cell.border = {
-          top:    { style: (r === 1) ? 'medium' : (r === 2 || r === 8 || r === 47) ? 'medium' : 'thin' },
-          left:   { style: c === 1 ? 'medium' : 'thin' },
-          right:  { style: c === 7 ? 'medium' : 'thin' },
-          bottom: { style: (r === 47 || r === 8) ? 'medium' : 'thin' }
-        };
-      }
-    }
-  }
-  // 48~50행 E~G열 테두리: F, G열에 요청하신 테두리 적용(가운데 두줄은 굵은선X)
-  for (let r = 48; r <= 50; r++) {
-    // F열
-    const fCell = sheet.getCell('F' + r);
-    fCell.border = {
-      left: { style: 'medium' },
-      right: { style: 'medium' },
-      bottom: r === 50 ? { style: 'medium' } : { style: 'thin' },
-      top: r === 48 ? { style: 'thin' } : undefined
-    };
-    // G열
-    const gCell = sheet.getCell('G' + r);
-    gCell.border = {
-      right: { style: 'medium' },
-      left: { style: 'thin' },
-      bottom: r === 50 ? { style: 'medium' } : { style: 'thin' },
-      top: r === 48 ? { style: 'thin' } : undefined
-    };
-  }
 
   // 9. 파일 생성
   const buffer = await workbook.xlsx.writeBuffer();

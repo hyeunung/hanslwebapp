@@ -146,7 +146,6 @@ export default function PurchaseNewMain() {
   const [currency, setCurrency] = useState("KRW");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [addCount, setAddCount] = useState(1);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [contactsForEdit, setContactsForEdit] = useState<{ id?: number; contact_name: string; contact_email: string; contact_phone: string; position: string; isNew?: boolean }[]>([]);
@@ -253,7 +252,6 @@ export default function PurchaseNewMain() {
     }
     setLoading(true);
     setError("");
-    setSuccess("");
     
 
     
@@ -357,7 +355,6 @@ export default function PurchaseNewMain() {
         });
         if (itemErr) throw itemErr;
       }
-      setSuccess(`발주 요청이 성공적으로 등록되었습니다. (발주번호: ${purchaseOrderNumber})`);
       setTimeout(() => router.push("/purchase/list"), 2000);
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
@@ -1022,11 +1019,6 @@ export default function PurchaseNewMain() {
               {error}
             </div>
           )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-              {success}
-            </div>
-          )}
           
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
@@ -1037,7 +1029,29 @@ export default function PurchaseNewMain() {
                 onChange={e => setAddCount(Math.max(1, Number(e.target.value.replace(/[^0-9]/g, ''))))}
                 className="w-16 h-8 text-xs shadow-md hover:shadow-lg border border-[#d2d2d7] bg-white"
               />
-              <Button type="button" size="sm" variant="ghost" onClick={() => append({ line_number: fields.length + 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' })} className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]">+ 품목추가</Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  for (let i = 0; i < addCount; i++) {
+                    append({
+                      line_number: fields.length + 1 + i,
+                      item_name: '',
+                      specification: '',
+                      quantity: 1,
+                      unit_price_value: 0,
+                      unit_price_currency: currency,
+                      amount_value: 0,
+                      amount_currency: currency,
+                      remark: ''
+                    });
+                  }
+                }}
+                className="px-4 text-blue-600 font-semibold bg-transparent border-none shadow-none hover:text-blue-700 hover:bg-transparent hover:shadow-none hover:border-none text-xs ml-[-10px]"
+              >
+                + 품목추가
+              </Button>
             </div>
             <div className="flex items-center gap-2">
               <Button type="button" size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_, idx) => remove(fields.length - idx - 1)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' }); }}>전체삭제</Button>

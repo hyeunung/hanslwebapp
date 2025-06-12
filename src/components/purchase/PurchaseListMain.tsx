@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import EmailButton from "@/components/purchase/EmailButton";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
-import { generatePurchaseOrderExcel, generateSimpleTestExcel } from "@/utils/excelGenerator";
+import { generateSimpleTestExcel } from "@/utils/excelGenerator";
+import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
 
 interface Purchase {
   id: number;
@@ -419,12 +420,41 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     };
 
     try {
-      await generatePurchaseOrderExcel(excelData);
+      // ExcelJS 기반으로 생성
+      const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
+      const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
+      // 파일 다운로드
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(link.href);
+        }, 100);
+      }
     } catch (error) {
       console.error('Excel 생성 오류:', error);
       alert('Excel 파일 생성 중 오류가 발생했습니다.');
     }
   };
+
+  // 파일명 날짜 포맷
+  function formatDateForFileName(dateStr: string): string {
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        return 'unknown_date';
+      }
+      return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+    } catch (error) {
+      return 'unknown_date';
+    }
+  }
 
   // 테스트 Excel 생성 함수
   const generateTestExcel = async () => {

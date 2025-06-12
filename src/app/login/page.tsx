@@ -114,7 +114,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-muted">
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg p-8 min-w-[320px] w-full max-w-sm">
         <h1 className="text-2xl font-bold mb-4 text-center">로그인</h1>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)} onKeyDown={e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); } }}>
           <div className="flex flex-col gap-4">
             <Controller
               name="email"
@@ -185,7 +185,7 @@ export default function LoginPage() {
           <DialogHeader>
             <DialogTitle>회원가입</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSignupSubmit(onSignup)}>
+          <form onSubmit={handleSignupSubmit(onSignup)} onKeyDown={e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); } }}>
             <div className="flex flex-col gap-4 mt-2">
               <Controller
                 name="email"
@@ -226,7 +226,7 @@ export default function LoginPage() {
           <DialogHeader>
             <DialogTitle>비밀번호 재설정</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleResetSubmit(onReset)}>
+          <form onSubmit={handleResetSubmit(onReset)} onKeyDown={e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); } }}>
             <div className="flex flex-col gap-4 mt-2">
               <Controller
                 name="email"

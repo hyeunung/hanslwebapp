@@ -32,6 +32,7 @@ interface Item {
 
 interface FormValues {
   vendor_id: number;
+  contact_id?: number;
   contacts: string[];
   sales_order_number: string;
   project_vendor: string;
@@ -337,6 +338,7 @@ export default function PurchaseNewMain() {
         total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),
         unit_price_currency: fields[0]?.unit_price_currency || currency,
         po_template_type: data.po_template_type,
+        contact_id: data.contact_id ? Number(data.contact_id) : null,
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
@@ -448,10 +450,17 @@ export default function PurchaseNewMain() {
   };
 
   return (
-    <form onSubmit={(e) => {
-      e.preventDefault();
-      rhHandleSubmit(handleSubmit)(e);
-    }}>
+    <form 
+      onSubmit={(e) => {
+        e.preventDefault();
+        rhHandleSubmit(handleSubmit)(e);
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          e.preventDefault();
+        }
+      }}
+    >
       <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
        <div className="w-1/4 relative bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
@@ -547,7 +556,10 @@ export default function PurchaseNewMain() {
                <div className="space-y-2 -mt-px">
                  <Select
                    value={watch('contacts')[0] || ''}
-                   onValueChange={val => setValue('contacts', [val])}
+                   onValueChange={val => {
+                     setValue('contacts', [val]);
+                     setValue('contact_id', val ? Number(val) : undefined);
+                   }}
                  >
                    <SelectTrigger className="h-[34px] bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
                      <SelectValue placeholder="담당자 선택" />

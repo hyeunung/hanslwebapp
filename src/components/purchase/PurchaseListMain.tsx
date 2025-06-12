@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,8 @@ interface Purchase {
   sales_order_number: string;
   project_item: string;
   line_number: number;
+  vendor_id?: number;
+  contact_name?: string;
 }
 
 interface Employee {
@@ -63,6 +65,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
+  // 담당자 캐시 (vendor_id -> contact_name)
+  const contactCache = useRef<{ [vendorId: number]: string }>({});
+  const [contactMap, setContactMap] = useState<{ [vendorId: number]: string }>({});
 
   useEffect(() => {
     if (user?.id) {
@@ -85,6 +90,33 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       setSelectedEmployee(currentUserName);
     }
   }, [currentUserName]);
+
+  // 담당자명 비동기 조회 및 캐싱
+  const fetchContactName = async (vendorId: number) => {
+    if (!vendorId || contactCache.current[vendorId]) return;
+    const { data, error } = await supabase
+      .from('vendor_contacts')
+      .select('contact_name')
+      .eq('vendor_id', vendorId)
+      .order('id', { ascending: true })
+      .limit(1);
+    if (data && data.length > 0) {
+      contactCache.current[vendorId] = data[0].contact_name;
+      setContactMap(prev => ({ ...prev, [vendorId]: data[0].contact_name }));
+    } else {
+      contactCache.current[vendorId] = '';
+      setContactMap(prev => ({ ...prev, [vendorId]: '' }));
+    }
+  };
+
+  // 구매업체별 담당자명 미리 조회 (최초 렌더링 시)
+  useEffect(() => {
+    const vendorIds = Array.from(new Set(purchases.map(p => (p as any).vendor_id).filter(Boolean)));
+    vendorIds.forEach(vendorId => {
+      if (!contactCache.current[vendorId]) fetchContactName(vendorId);
+    });
+    // eslint-disable-next-line
+  }, [purchases.length]);
 
   async function loadMyRequests() {
     if (!user) return;
@@ -119,7 +151,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           project_vendor,
           sales_order_number,
           project_item,
-          line_number
+          line_number,
+          contact_name
         `);
         
       console.log('발주 데이타 조회 결과:', { dataCount: data?.length, error });
@@ -151,6 +184,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               sales_order_number: row.sales_order_number as string,
               project_item: row.project_item as string,
               line_number: row.line_number as number,
+              contact_name: row.contact_name as string,
             } as Purchase;
           })
         );
@@ -320,16 +354,16 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     };
 
     try {
-      // purchase_requests 테이블에서 vendor_id 조회
+      // purchase_requests 테이블에서 vendor_id, contact_id 조회
       const { data: prData, error: prError } = await supabase
         .from('purchase_requests')
-        .select('vendor_id')
+        .select('vendor_id, contact_id')
         .eq('purchase_order_number', orderNumber)
         .single();
 
       if (prData && !prError) {
         const vendorId = prData.vendor_id;
-        
+        const contactId = prData.contact_id;
         // vendor 정보 조회
         const { data: vendorData, error: vendorError } = await supabase
           .from('vendors')
@@ -342,15 +376,17 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           vendorInfo.vendor_fax = vendorData.vendor_fax || '';
         }
 
-        // vendor_contacts에서 첫 번째 담당자 정보 조회
-        const { data: contactData, error: contactError } = await supabase
-          .from('vendor_contacts')
-          .select('contact_name')
-          .eq('vendor_id', vendorId)
-          .limit(1);
-
-        if (contactData && !contactError && contactData.length > 0) {
-          vendorInfo.vendor_contact_name = contactData[0].contact_name || '';
+        // vendor_contacts에서 contact_id로 담당자 정보 조회
+        if (contactId) {
+          const { data: contactData, error: contactError } = await supabase
+            .from('vendor_contacts')
+            .select('contact_name, contact_phone, contact_email')
+            .eq('id', contactId)
+            .single();
+          if (contactData && !contactError) {
+            vendorInfo.vendor_contact_name = contactData.contact_name || '';
+            // 필요시 vendorInfo에 전화/이메일 등 추가 가능
+          }
         }
       }
     } catch (error) {
@@ -539,6 +575,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                   <tr className="h-12">
                     <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">발주번호/액션</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">담당자</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
@@ -608,6 +645,10 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                     const isLastSubItem = item.isLastSubItem;
                     const isExpanded = expandedGroups.has(item.purchase_order_number || '');
                     
+                    // 담당자명 표시
+                    const vendorId = (purchases.find(p => p.purchase_order_number === item.purchase_order_number)?.vendor_id) as number;
+                    const contactName = contactMap[vendorId] || '';
+                    
                     return (
                       <motion.tr
                         key={`${item.unique_row_id}-${isGroupHeader ? 'header' : isSubItem ? 'sub' : 'single'}`}
@@ -675,6 +716,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                           </div>
                         </td>
                         <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
+                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.contact_name || ''}</td>
                         <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
                         <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
                         <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>

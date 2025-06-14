@@ -58,83 +58,43 @@ export default function PurchaseNewMain() {
   const { user } = useAuth();
   const router = useRouter();
   const [employeeName, setEmployeeName] = useState<string>("");
-  const [employees, setEmployees] = useState<{email: string; name: string; department?: string; position?: string; phone?: string; address?: string}[]>([]);
+  const [employees, setEmployees] = useState<{name: string; email?: string; department?: string; position?: string; phone?: string; address?: string}[]>([]);
   
-    // 직원 목록 로드 및 현재 사용자 설정
   useEffect(() => {
-    // 회사 직원 목록 (추후 DB 테이블로 이관 가능)
-    const employeeList = [
-      { email: 'admin@hansl.co.kr', name: '관리자', department: '관리팀', position: '관리자' },
-      { email: 'ceo@hansl.co.kr', name: '대표이사', department: '경영진', position: '대표이사' },
-      { email: 'manager@hansl.co.kr', name: '부장', department: '영업팀', position: '부장' },
-      { email: 'staff@hansl.co.kr', name: '직원', department: '일반팀', position: '사원' },
-      { email: 'john.doe@hansl.co.kr', name: '홍길동', department: '구매팀', position: '대리' },
-      { email: 'jane.smith@hansl.co.kr', name: '김영희', department: '구매팀', position: '과장' },
-      { email: 'park.chul@hansl.co.kr', name: '박철수', department: '영업팀', position: '차장' },
-      { email: 'lee.min@hansl.co.kr', name: '이민수', department: '기술팀', position: '팀장' },
-      // 실제 직원 이메일들을 여기에 추가
-    ];
-
-    // 직원 목록 설정
-    setEmployees(employeeList);
-
     // DB에서 직원 목록 가져오기
     const loadEmployees = async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('name, email, department, position, phone, address');
-      
+        .select('name');
       if (data && !error && data.length > 0) {
-        // DB에서 가져온 직원들을 기존 목록과 합치기 (DB 우선)
-        const mergedEmployees = data.map(dbEmp => ({
-          email: dbEmp.email,
-          name: dbEmp.name,
-          department: dbEmp.department,
-          position: dbEmp.position,
-          phone: dbEmp.phone,
-          address: dbEmp.address
-        }));
-        
-        // 기본 목록에서 DB에 없는 직원들만 추가
-        const additionalEmployees = employeeList.filter(listEmp => 
-          !data.some(dbEmp => dbEmp.email === listEmp.email)
-        );
-        
-        setEmployees([...mergedEmployees, ...additionalEmployees]);
+        setEmployees(data.map(dbEmp => ({ name: dbEmp.name })));
+      } else if (user?.email) {
+        // DB에서 못 불러오면 로그인 사용자 이름만 employees에 추가
+        const fallbackName = user.email?.split('@')[0] || "사용자";
+        setEmployees([{ name: fallbackName }]);
+      } else {
+        setEmployees([]);
       }
     };
-    
     loadEmployees();
 
     // 현재 로그인한 사용자의 이름을 기본값으로 설정
     if (user?.email) {
-      const currentEmployee = employeeList.find(emp => emp.email === user.email);
-      if (currentEmployee) {
-        setEmployeeName(currentEmployee.name);
-        if (setValue) setValue('requester_name', currentEmployee.name);
-      } else {
-        // DB에서 조회 시도
-        supabase
-          .from('employees')
-          .select('name, email')
-          .eq('email', user.email)
-          .single()
-          .then(({ data, error }) => {
-            if (data && !error) {
-              setEmployeeName(data.name);
-              if (setValue) setValue('requester_name', data.name);
-              // DB에서 가져온 직원도 목록에 추가
-              setEmployees(prev => [...prev, { email: data.email, name: data.name }]);
-            } else {
-              // 매핑에도 없고 DB에도 없으면 이메일 앞부분 사용
-              const fallbackName = user.email?.split('@')[0] || "사용자";
-              setEmployeeName(fallbackName);
-              if (setValue) setValue('requester_name', fallbackName);
-              // 현재 사용자도 목록에 추가
-              setEmployees(prev => [...prev, { email: user.email!, name: fallbackName }]);
-            }
-          });
-      }
+      supabase
+        .from('employees')
+        .select('name')
+        .eq('email', user.email)
+        .single()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            setEmployeeName(data.name);
+            if (setValue) setValue('requester_name', data.name);
+          } else {
+            const fallbackName = user.email?.split('@')[0] || "사용자";
+            setEmployeeName(fallbackName);
+            if (setValue) setValue('requester_name', fallbackName);
+          }
+        });
     }
   }, [user]);
   const [vendors, setVendors] = useState<{ id: number; vendor_name: string }[]>([]);
@@ -596,7 +556,7 @@ export default function PurchaseNewMain() {
                         onKeyDown={e => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            const nextIdx = idx + 1;
+                            const nextIdx = index + 1;
                             const inputs = document.querySelectorAll('.purchase-item-input-quantity');
                             if (nextIdx < fields.length) {
                               (inputs[nextIdx] as HTMLInputElement)?.focus();

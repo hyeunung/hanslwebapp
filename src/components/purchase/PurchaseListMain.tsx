@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { generateSimpleTestExcel } from "@/utils/excelGenerator";
 import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
+import Image from "next/image";
 
 interface Purchase {
   id: number;
@@ -276,13 +277,30 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   }
 
   const filteredData = purchases.filter(item => {
-    const matchesSearch = item.purchase_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.item_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const lowerSearch = searchTerm.toLowerCase();
+    // 모든 주요 컬럼을 하나의 문자열로 합쳐서 검색
+    const searchable = [
+      item.purchase_order_number,
+      item.item_name,
+      item.specification,
+      item.vendor_name,
+      item.contact_name,
+      item.requester_name,
+      item.remark,
+      item.project_vendor,
+      item.sales_order_number,
+      item.project_item,
+      item.progress_type,
+      item.payment_status,
+      item.payment_category,
+      item.currency,
+      item.request_type
+    ].map(v => (v ?? '').toString().toLowerCase()).join(' ');
+    const matchesSearch = lowerSearch === '' || searchable.includes(lowerSearch);
     const matchesEmployee = selectedEmployee === "all" || !selectedEmployee || item.requester_name === selectedEmployee;
     const matchesTab = activeTab === "all" || 
                       (activeTab === "pending" && item.delivery_request_date === "승인대기") ||
                       (activeTab === "approved" && item.delivery_request_date === "승인완료");
-    
     return matchesSearch && matchesEmployee && matchesTab;
   });
 
@@ -308,20 +326,23 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         groupSize: items.length 
       };
       displayData.push(headerItem);
-      
-      // 그룹이 펼쳐진 경우 하위 항목들 추가
+      // 그룹이 펼쳐진 경우 하위 항목들 추가 (대표 제외)
       if (expandedGroups.has(orderNumber)) {
-        items.forEach((item, index) => {
+        items.slice(1).forEach((item, index) => {
           displayData.push({ 
             ...item, 
             isSubItem: true,
-            isLastSubItem: index === items.length - 1 // 마지막 하위 항목 표시
+            isLastSubItem: index === items.length - 2 // slice(1)이므로 -2
           });
         });
       }
     } else {
-      // 단일 항목인 경우 그대로 추가
-      displayData.push(items[0]);
+      // 단일 항목인 경우에도 isGroupHeader: true로 추가
+      displayData.push({
+        ...items[0],
+        isGroupHeader: true,
+        groupSize: 1
+      });
     }
   });
 
@@ -471,10 +492,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   };
 
+  // 변경: 발주번호(그룹) 수 기준
+  const allOrderNumbers = Array.from(new Set(purchases.map(item => item.purchase_order_number)));
+  const pendingOrderNumbers = Array.from(new Set(purchases.filter(item => item.delivery_request_date === "승인대기").map(item => item.purchase_order_number)));
+  const approvedOrderNumbers = Array.from(new Set(purchases.filter(item => item.delivery_request_date === "승인완료").map(item => item.purchase_order_number)));
   const stats = {
-    total: purchases.length,
-    pending: purchases.filter(item => item.delivery_request_date === "승인대기").length,
-    approved: purchases.filter(item => item.delivery_request_date === "승인완료").length,
+    total: allOrderNumbers.length,
+    pending: pendingOrderNumbers.length,
+    approved: approvedOrderNumbers.length,
   };
 
   return (
@@ -587,7 +612,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
-                  placeholder="발주번호, 품목명, 요청자로 검색..."
+                  placeholder="전체 항목 통합검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
@@ -606,7 +631,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               <table className="w-full min-w-max">
                 <thead className="bg-muted/10 sticky top-0">
                   <tr className="h-12">
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">발주번호/액션</th>
+                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-44">발주번호/액션</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">담당자</th>
                     <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
@@ -677,6 +702,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                     const isSubItem = item.isSubItem;
                     const isLastSubItem = item.isLastSubItem;
                     const isExpanded = expandedGroups.has(item.purchase_order_number || '');
+                    const isSingleRowGroup = isGroupHeader && (item.groupSize ?? 1) === 1;
+                    const isMultiRowGroupHeader = isGroupHeader && (item.groupSize ?? 1) > 1;
                     
                     // 담당자명 표시
                     const vendorId = (purchases.find(p => p.purchase_order_number === item.purchase_order_number)?.vendor_id) as number;
@@ -695,16 +722,18 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                             ? isLastSubItem 
                               ? 'bg-gray-50 hover:bg-blue-50 cursor-pointer'
                               : 'bg-gray-50 hover:bg-gray-100'
-                            : isGroupHeader 
+                            : isMultiRowGroupHeader
                             ? isExpanded 
                               ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer'
                               : 'hover:bg-blue-50 cursor-pointer'
+                            : isSingleRowGroup
+                            ? 'bg-white cursor-pointer'
                             : 'hover:bg-muted/10'
                         }`}
                         style={{
                           backgroundColor: isAdvancePayment ? '#ffe4e6' : undefined,
-                          // 펼쳐진 그룹 굵은 테두리 인라인 스타일로 강제 적용
-                          ...(isGroupHeader && isExpanded && {
+                          // 그룹(2행 이상) 펼침 시 굵은 테두리
+                          ...(isMultiRowGroupHeader && isExpanded && {
                             borderLeft: '4px solid #3b82f6',
                             borderRight: '4px solid #3b82f6',
                             borderTop: '4px solid #3b82f6'
@@ -717,35 +746,56 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                             borderLeft: '4px solid #3b82f6',
                             borderRight: '4px solid #3b82f6',
                             borderBottom: '4px solid #3b82f6'
+                          }),
+                          // 1행짜리: 클릭 시 파란색 테두리
+                          ...(isSingleRowGroup && expandedGroups.has(item.purchase_order_number || '') && {
+                            border: '4px solid #3b82f6'
                           })
                         }}
                         onClick={() => {
-                          if ((isGroupHeader || isLastSubItem) && item.purchase_order_number) {
+                          // 그룹(2행 이상) 헤더 또는 마지막 하위 항목만 토글
+                          // 1행짜리는 자기 자신만 토글(파란 테두리)
+                          if ((isMultiRowGroupHeader || isLastSubItem || isSingleRowGroup) && item.purchase_order_number) {
                             toggleGroup(item.purchase_order_number);
                           }
                         }}
                       >
-                        <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-32">
+                        <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-44">
                           <div className="flex flex-col items-center gap-1">
-                            <span className="truncate">
+                            <span className="truncate flex items-center gap-1">
+                              {/* 엑셀 이모티콘은 그룹 헤더(대표) 행에만 보이게 하고, 클릭 시 엑셀 다운로드 */}
+                              {isGroupHeader && (
+                                <Image
+                                  src="/excels-icon.svg"
+                                  alt="엑셀 다운로드"
+                                  width={16}
+                                  height={16}
+                                  className="inline-block align-middle cursor-pointer hover:scale-110 transition-transform"
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await generateExcelForOrder(item.purchase_order_number!);
+                                  }}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      await generateExcelForOrder(item.purchase_order_number!);
+                                    }
+                                  }}
+                                  title="엑셀 발주서 다운로드"
+                                />
+                              )}
                               {item.purchase_order_number}
-                              {isGroupHeader && item.groupSize && !isExpanded && ` (${item.groupSize}건)`}
+                              {isMultiRowGroupHeader && !isExpanded && ` (${item.groupSize}건)`}
+                              {/* 드롭다운 이모티콘은 그룹(2행 이상)만 */}
+                              {isMultiRowGroupHeader && !isExpanded && (
+                                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
+                                  <ChevronDown className="w-3 h-3 text-blue-600" />
+                                </div>
+                              )}
                             </span>
-                            {/* Excel 다운로드 버튼 - 그룹 헤더에만 표시 */}
-                            {(isGroupHeader || (!isGroupHeader && !isSubItem)) && item.purchase_order_number && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-green-100"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  await generateExcelForOrder(item.purchase_order_number!);
-                                }}
-                                title="Excel 발주서 다운로드"
-                              >
-                                <FileSpreadsheet className="w-3 h-3 text-green-600" />
-                              </Button>
-                            )}
                           </div>
                         </td>
                         <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
@@ -758,7 +808,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                           {item.specification}
                           {/* 규격 열 중앙에 화살표 배치 */}
                           {/* 접혀있을 때: 그룹 헤더에 아래쪽 화살표 */}
-                          {isGroupHeader && !isExpanded && (
+                          {isMultiRowGroupHeader && !isExpanded && (
                             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
                               <ChevronDown className="w-3 h-3 text-blue-600" />
                             </div>

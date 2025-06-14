@@ -92,7 +92,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   // (아래에서 sumRow 계산 후 병합)
 
   try {
-    const response = await fetch('/logo.png');
+    const response = await fetch('/logo_KOR.png');
     const arrayBuffer = await response.arrayBuffer();
     const imageId = workbook.addImage({
       buffer: arrayBuffer,
@@ -101,18 +101,20 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     // 로고(이모티콘)는 너비 0.58col, '발주서' 글자 바로 왼쪽에 딱 붙게 배치
     // D열 width가 undefined/null/0이면 기본값 22로 대체
     const dWidth = sheet.getColumn('D').width || 22;
-    const logoWidth = Math.max(1, dWidth * 7.2 * 0.58); // 최소 1px 보장
-    // 이미지 높이를 28로 줄여 1행 높이(29.8pt)보다 작게 설정
-    const logoHeight = 28;
+    const logoWidth = Math.max(1, dWidth * 7.2 * 0.58) + 4; // 기존보다 4px 더 크게
+    const logoHeight = 30 + 4; // 기존 30에서 4px 더 크게
+    // D1 셀 중앙(3.5, 0.5)에서 왼쪽 2px(0.28col), 위로 2px(0.13row) 이동
+    const logoCol = 3.5 - 0.50;
+    const logoRow = 0.5 - 0.20;
     sheet.addImage(imageId, {
-      tl: { col: 3.35, row: 0.1 }, // D1 바로 왼쪽(3.35col), 약간 아래
+      tl: { col: logoCol, row: logoRow }, // D1 셀 중앙에서 왼쪽 2px, 위로 2px 이동
       ext: { width: logoWidth, height: logoHeight },
     });
   } catch (e) {}
 
   // 2. 제목 (B1:H1 병합, 중앙정렬)
-  sheet.getCell('D1').value = '발 주 서';
-  sheet.getCell('D1').alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getCell('D1').value = '     발 주 서';
+  sheet.getCell('D1').alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
   sheet.getCell('D1').font = { bold: true, size: 20 };
 
   // 3. 상단 정보 고정 라벨 적용 (공백 포함)
@@ -165,13 +167,13 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     sheet.getCell(String.fromCharCode(65 + i) + '8').font = { bold: true };
   }
 
-  // 품목이 35개를 넘으면 아래로 밀어서 합계/하단 정보 출력
+  // 품목이 45개를 넘으면 아래로 밀어서 합계/하단 정보 출력
   const baseRow = 9;
-  const maxItemsBeforePush = 35;
+  const minRows = 45;
   // --- 품목 데이터 line_number 기준 정렬 ---
   const sortedItems = [...data.items].sort((a, b) => a.line_number - b.line_number);
   const itemRows = sortedItems.length;
-  const sumRow = baseRow + itemRows; // 합계 위치
+  const sumRow = baseRow + Math.max(itemRows, minRows); // 합계 위치
 
   // 2~8행, 합계행(sumRow)은 16px(=12pt)로 지정
   for (let r = 2; r <= 8; r++) {
@@ -205,6 +207,14 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     sheet.getCell('F' + rowIdx).alignment = { horizontal: 'right', vertical: 'middle' };
     // G열은 비워둠
     sheet.getCell('G' + rowIdx).value = (item.remark !== undefined && item.remark !== null) ? String(item.remark) : '';
+  }
+
+  // 품목이 45개보다 적으면 빈 행 추가
+  for (let i = itemRows; i < minRows; i++) {
+    const rowIdx = baseRow + i;
+    for (let c = 0; c < 7; c++) {
+      sheet.getCell(String.fromCharCode(65 + c) + rowIdx).value = '';
+    }
   }
 
   // 합계

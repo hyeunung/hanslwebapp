@@ -421,164 +421,246 @@ export default function PurchaseNewMain() {
       <div className="flex gap-6">
        {/* 발주 기본 정보 - 좌측 1/4 폭 */}
        <div className="w-1/4 relative bg-muted/20 border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-5 space-y-4">
-         <div className="flex flex-col justify-center mb-4">
-           <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
-           <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
-         </div>
-
-         <div className="space-y-4">
-           {/* 요청 설정 */}
-           <div className="grid grid-cols-3 gap-2">
-             <div>
-               <Label className="mb-1 block text-xs">요청 유형<span className="text-red-500 ml-1">*</span></Label>
-               <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
-                 <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
-                   <SelectValue placeholder="선택" />
-                 </SelectTrigger>
-                 <SelectContent position="popper" className="z-[9999]">
-                   <SelectItem value="원자재">원자재</SelectItem>
-                   <SelectItem value="소모품">소모품</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
-             <div>
-               <Label className="mb-1 block text-xs">진행 종류<span className="text-red-500 ml-1">*</span></Label>
-               <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
-                 <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
-                   <SelectValue placeholder="선택" />
-                 </SelectTrigger>
-                 <SelectContent position="popper" className="z-[9999]">
-                   <SelectItem value="일반">일반</SelectItem>
-                   <SelectItem value="선진행">선진행</SelectItem>
-                 </SelectContent>
-               </Select>
-        </div>
-             <div>
-               <Label className="mb-1 block text-xs">결제 종류<span className="text-red-500 ml-1">*</span></Label>
-               <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
-                 <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
-                   <SelectValue placeholder="선택" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="z-[9999]">
-                   <SelectItem value="발주">발주</SelectItem>
-                   <SelectItem value="구매 요청">구매 요청</SelectItem>
-                   <SelectItem value="현장 결제">현장 결제</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+         <div className="flex flex-row items-start justify-between w-full mb-4">
+           <div className="flex flex-col">
+             <h4 className="font-semibold text-foreground">발주 기본 정보</h4>
+             <p className="text-xs text-muted-foreground mt-0.5">Basic Information</p>
            </div>
-
-           {/* 업체 정보 */}
-           <div className="grid grid-cols-2 gap-2">
-             <div>
-               <Label className="mb-1 block text-xs">업체명<span className="text-red-500 ml-1">*</span></Label>
-               <ReactSelect
-                 options={vendors.map(v => ({ value: v.id.toString(), label: v.vendor_name }))}
-                 value={vendors.find(v => v.id.toString() === vendor) ? { value: vendor, label: vendors.find(v => v.id.toString() === vendor)?.vendor_name } : null}
-                 onChange={(option, _action) => {
-                   const opt = option as { value: string; label: string } | null;
-                   if (opt) {
-                     setVendor(opt.value);
-                     setValue('vendor_id', Number(opt.value));
-                   } else {
-                     setVendor('');
-                     setValue('vendor_id', 0);
-                   }
-                 }}
-                 placeholder="업체 선택"
-                 isClearable
-                 isSearchable
-                 closeMenuOnSelect={true}
-                 classNamePrefix="vendor-select"
-                 styles={{
-                   container: base => ({ ...base, width: '100%', fontSize: '12px' }),
-                   control: base => ({ ...base, height: 32, minHeight: 32, background: '#fff', border: '1px solid #d2d2d7', borderRadius: 6, fontSize: '12px', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', '&:hover': { boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' } }),
-                   valueContainer: base => ({ ...base, height: 32, padding: '0 8px', fontSize: '12px' }),
-                   input: base => ({ ...base, margin: 0, padding: 0, fontSize: '12px' }),
-                   indicatorsContainer: base => ({ ...base, height: 32 }),
-                   menuPortal: base => ({ ...base, zIndex: 1400 })
-                 }}
-               />
-             </div>
-             <div>
-               <div className="flex items-center justify-between mb-1">
-                 <Label className="text-xs">담당자</Label>
-                 <span
-                   className="text-primary text-[10px] cursor-pointer hover:underline select-none flex items-center"
-                   onClick={openContactsManager}
-                 >
-                   <span className="-translate-y-px">+</span><span className="ml-1">추가/수정</span>
-                 </span>
-          </div>
-               <div className="space-y-2 -mt-px">
-                 <Select
-                   value={watch('contacts')[0] || ''}
-                   onValueChange={val => {
-                     setValue('contacts', [val]);
-                     setValue('contact_id', val ? Number(val) : undefined);
-                   }}
-                 >
-                   <SelectTrigger className="h-[34px] bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
-                     <SelectValue placeholder="담당자 선택" />
+           <div className="flex flex-col items-start">
+             <Label className="mb-1 block text-xs">발주서 종류<span className="text-red-500 ml-1">*</span></Label>
+             <Select value={watch('po_template_type')} onValueChange={value => setValue('po_template_type', value)}>
+               <SelectTrigger className="h-8 w-28 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                 <SelectValue placeholder="종류 선택" />
+               </SelectTrigger>
+               <SelectContent position="popper" className="z-[9999]">
+                 <SelectItem value="일반">일반</SelectItem>
+                 <SelectItem value="PCB">PCB</SelectItem>
+                 <SelectItem value="소모품">소모품</SelectItem>
+                 <SelectItem value="기타">기타</SelectItem>
+               </SelectContent>
+             </Select>
+           </div>
+         </div>
+         {watch('po_template_type') === '일반' && (
+           <div className="space-y-4">
+             {/* 요청 설정 */}
+             <div className="grid grid-cols-3 gap-2">
+               <div>
+                 <Label className="mb-1 block text-xs">요청 유형<span className="text-red-500 ml-1">*</span></Label>
+                 <Select value={watch('request_type')} onValueChange={(value) => setValue('request_type', value)}>
+                   <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                     <SelectValue placeholder="선택" />
                    </SelectTrigger>
                    <SelectContent position="popper" className="z-[9999]">
-                     {contacts.map(c => (
-                       <SelectItem key={c.id} value={c.id.toString()}>
-                         {c.contact_name || c.contact_email || c.contact_phone || c.position || ''}
-                       </SelectItem>
-                     ))}
+                     <SelectItem value="원자재">원자재</SelectItem>
+                     <SelectItem value="소모품">소모품</SelectItem>
                    </SelectContent>
                  </Select>
                </div>
-               {/* 담당자 관리 모달 */}
-               <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
-                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                   <DialogHeader>
-                     <DialogTitle>담당자 관리</DialogTitle>
-                     <p className="text-sm text-muted-foreground">기존 담당자를 수정하거나 새로운 담당자를 추가하세요</p>
-                   </DialogHeader>
-                   
-                   <div className="space-y-4">
-                     {/* 기존 담당자들 (수정 가능) */}
-                     {contactsForEdit.filter(c => !c.isNew).length > 0 && (
+               <div>
+                 <Label className="mb-1 block text-xs">진행 종류<span className="text-red-500 ml-1">*</span></Label>
+                 <Select value={watch('progress_type')} onValueChange={(value) => setValue('progress_type', value)}>
+                   <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                     <SelectValue placeholder="선택" />
+                   </SelectTrigger>
+                   <SelectContent position="popper" className="z-[9999]">
+                     <SelectItem value="일반">일반</SelectItem>
+                     <SelectItem value="선진행">선진행</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
+               <div>
+                 <Label className="mb-1 block text-xs">결제 종류<span className="text-red-500 ml-1">*</span></Label>
+                 <Select value={watch('payment_category')} onValueChange={(value) => setValue('payment_category', value)}>
+                   <SelectTrigger className="h-8 bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                     <SelectValue placeholder="선택" />
+                   </SelectTrigger>
+                   <SelectContent position="popper" className="z-[9999]">
+                     <SelectItem value="발주">발주</SelectItem>
+                     <SelectItem value="구매 요청">구매 요청</SelectItem>
+                     <SelectItem value="현장 결제">현장 결제</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
+             </div>
+
+             {/* 업체 정보 */}
+             <div className="grid grid-cols-2 gap-2">
+               <div>
+                 <Label className="mb-1 block text-xs">업체명<span className="text-red-500 ml-1">*</span></Label>
+                 <ReactSelect
+                   options={vendors.map(v => ({ value: v.id.toString(), label: v.vendor_name }))}
+                   value={vendors.find(v => v.id.toString() === vendor) ? { value: vendor, label: vendors.find(v => v.id.toString() === vendor)?.vendor_name } : null}
+                   onChange={(option, _action) => {
+                     const opt = option as { value: string; label: string } | null;
+                     if (opt) {
+                       setVendor(opt.value);
+                       setValue('vendor_id', Number(opt.value));
+                     } else {
+                       setVendor('');
+                       setValue('vendor_id', 0);
+                     }
+                   }}
+                   placeholder="업체 선택"
+                   isClearable
+                   isSearchable
+                   closeMenuOnSelect={true}
+                   classNamePrefix="vendor-select"
+                   styles={{
+                     container: base => ({ ...base, width: '100%', fontSize: '12px' }),
+                     control: base => ({ ...base, height: 32, minHeight: 32, background: '#fff', border: '1px solid #d2d2d7', borderRadius: 6, fontSize: '12px', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', '&:hover': { boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' } }),
+                     valueContainer: base => ({ ...base, height: 32, padding: '0 8px', fontSize: '12px' }),
+                     input: base => ({ ...base, margin: 0, padding: 0, fontSize: '12px' }),
+                     indicatorsContainer: base => ({ ...base, height: 32 }),
+                     menuPortal: base => ({ ...base, zIndex: 1400 })
+                   }}
+                 />
+               </div>
+               <div>
+                 <div className="flex items-center justify-between mb-1">
+                   <Label className="text-xs">담당자</Label>
+                   <span
+                     className="text-primary text-[10px] cursor-pointer hover:underline select-none flex items-center"
+                     onClick={openContactsManager}
+                   >
+                     <span className="-translate-y-px">+</span><span className="ml-1">추가/수정</span>
+                   </span>
+                 </div>
+                 <div className="space-y-2 -mt-px">
+                   <Select
+                     value={watch('contacts')[0] || ''}
+                     onValueChange={val => {
+                       setValue('contacts', [val]);
+                       setValue('contact_id', val ? Number(val) : undefined);
+                     }}
+                   >
+                     <SelectTrigger className="h-[34px] bg-white border border-[#d2d2d7] rounded-md text-xs shadow-sm hover:shadow-md transition-shadow duration-200">
+                       <SelectValue placeholder="담당자 선택" />
+                     </SelectTrigger>
+                     <SelectContent position="popper" className="z-[9999]">
+                       {contacts.map(c => (
+                         <SelectItem key={c.id} value={c.id.toString()}>
+                           {c.contact_name || c.contact_email || c.contact_phone || c.position || ''}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 {/* 담당자 관리 모달 */}
+                 <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+                   <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                     <DialogHeader>
+                       <DialogTitle>담당자 관리</DialogTitle>
+                       <p className="text-sm text-muted-foreground">기존 담당자를 수정하거나 새로운 담당자를 추가하세요</p>
+                     </DialogHeader>
+                     
+                     <div className="space-y-4">
+                       {/* 기존 담당자들 (수정 가능) */}
+                       {contactsForEdit.filter(c => !c.isNew).length > 0 && (
+                         <div>
+                           <h4 className="font-medium text-sm mb-3">기존 담당자</h4>
+                           <div className="space-y-3">
+                             {contactsForEdit.filter(c => !c.isNew).map((contact, index) => (
+                               <div key={contact.id || index} className="border rounded-lg p-3 bg-muted/20 hover:shadow-sm transition-shadow duration-200">
+                                 <div className="grid grid-cols-2 gap-2 mb-2">
+                                   <div>
+                                     <Label className="text-xs mb-1 block">이름*</Label>
+                                     <Input 
+                                       value={contact.contact_name} 
+                                       onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
+                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white purchase-item-input-quantity"
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const nextIdx = index + 1;
+                                const inputs = document.querySelectorAll('.purchase-item-input-quantity');
+                                if (nextIdx < fields.length) {
+                                  (inputs[nextIdx] as HTMLInputElement)?.focus();
+                                } else {
+                                  append({
+                                    line_number: fields.length + 1,
+                                    item_name: '',
+                                    specification: '',
+                                    quantity: 1,
+                                    unit_price_value: 0,
+                                    unit_price_currency: currency,
+                                    amount_value: 0,
+                                    amount_currency: currency,
+                                    remark: ''
+                                  });
+                                  setTimeout(() => {
+                                    const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
+                                    (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                                  }, 10);
+                                }
+                              }
+                            }}
+                                   />
+                                   </div>
+                                   <div>
+                                     <Label className="text-xs mb-1 block">이메일*</Label>
+                                     <Input 
+                                       value={contact.contact_email} 
+                                       onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
+                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                     />
+                                   </div>
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-2">
+                                   <div>
+                                     <Label className="text-xs mb-1 block">전화</Label>
+                                     <Input 
+                                       value={contact.contact_phone} 
+                                       onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_phone', e.target.value)}
+                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                     />
+                                   </div>
+                                   <div className="flex items-end gap-2">
+                                     <div className="flex-1">
+                                       <Label className="text-xs mb-1 block">직급</Label>
+                                       <Input 
+                                         value={contact.position} 
+                                         onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'position', e.target.value)}
+                                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                       />
+                                     </div>
+                                     <Button 
+                                       type="button" 
+                                       variant="destructive" 
+                                       size="sm" 
+                                       className="h-8 px-2 hover:shadow-sm transition-shadow duration-200" 
+                                       onClick={() => handleDeleteContact(contact.id!)}
+                                     >
+                                       <Trash2 className="w-3 h-3" />
+                                     </Button>
+                                   </div>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
+
+                       {/* 새 담당자 추가 섹션 */}
                        <div>
-                         <h4 className="font-medium text-sm mb-3">기존 담당자</h4>
+                         <div className="flex items-center justify-between mb-3">
+                           <h4 className="font-medium text-sm">새 담당자 추가</h4>
+                           <Button type="button" variant="outline" size="sm" className="hover:shadow-sm transition-shadow duration-200" onClick={addNewContactSlot}>
+                             <Plus className="w-3 h-3 mr-1" />
+                             추가
+                           </Button>
+                         </div>
                          <div className="space-y-3">
-                           {contactsForEdit.filter(c => !c.isNew).map((contact, index) => (
-                             <div key={contact.id || index} className="border rounded-lg p-3 bg-muted/20 hover:shadow-sm transition-shadow duration-200">
+                           {contactsForEdit.filter(c => c.isNew).map((contact, index) => (
+                             <div key={index} className="border rounded-lg p-3 bg-blue-50/50 hover:shadow-sm transition-shadow duration-200">
                                <div className="grid grid-cols-2 gap-2 mb-2">
                                  <div>
                                    <Label className="text-xs mb-1 block">이름*</Label>
                                    <Input 
                                      value={contact.contact_name} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white purchase-item-input-quantity"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const nextIdx = index + 1;
-                            const inputs = document.querySelectorAll('.purchase-item-input-quantity');
-                            if (nextIdx < fields.length) {
-                              (inputs[nextIdx] as HTMLInputElement)?.focus();
-                            } else {
-                              append({
-                                line_number: fields.length + 1,
-                                item_name: '',
-                                specification: '',
-                                quantity: 1,
-                                unit_price_value: 0,
-                                unit_price_currency: currency,
-                                amount_value: 0,
-                                amount_currency: currency,
-                                remark: ''
-                              });
-                              setTimeout(() => {
-                                const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
-                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
-                              }, 10);
-                            }
-                          }
-                        }}
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
+                                     placeholder="담당자 이름"
                                    />
                                  </div>
                                  <div>
@@ -586,7 +668,8 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_email} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
+                                     placeholder="이메일 주소"
                                    />
                                  </div>
                                </div>
@@ -596,7 +679,8 @@ export default function PurchaseNewMain() {
                                    <Input 
                                      value={contact.contact_phone} 
                                      onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_phone', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
+                                     placeholder="전화번호"
                                    />
                                  </div>
                                  <div className="flex items-end gap-2">
@@ -605,17 +689,18 @@ export default function PurchaseNewMain() {
                                      <Input 
                                        value={contact.position} 
                                        onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'position', e.target.value)}
-                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                       className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
+                                       placeholder="직급"
                                      />
                                    </div>
                                    <Button 
                                      type="button" 
-                                     variant="destructive" 
+                                     variant="ghost" 
                                      size="sm" 
                                      className="h-8 px-2 hover:shadow-sm transition-shadow duration-200" 
-                                     onClick={() => handleDeleteContact(contact.id!)}
+                                     onClick={() => removeContactSlot(contactsForEdit.indexOf(contact))}
                                    >
-                                     <Trash2 className="w-3 h-3" />
+                                     <X className="w-3 h-3" />
                                    </Button>
                                  </div>
                                </div>
@@ -623,133 +708,64 @@ export default function PurchaseNewMain() {
                            ))}
                          </div>
                        </div>
-                     )}
-
-                     {/* 새 담당자 추가 섹션 */}
-                     <div>
-                       <div className="flex items-center justify-between mb-3">
-                         <h4 className="font-medium text-sm">새 담당자 추가</h4>
-                         <Button type="button" variant="outline" size="sm" className="hover:shadow-sm transition-shadow duration-200" onClick={addNewContactSlot}>
-                           <Plus className="w-3 h-3 mr-1" />
-                           추가
-                         </Button>
-                       </div>
-                       <div className="space-y-3">
-                         {contactsForEdit.filter(c => c.isNew).map((contact, index) => (
-                           <div key={index} className="border rounded-lg p-3 bg-blue-50/50 hover:shadow-sm transition-shadow duration-200">
-                             <div className="grid grid-cols-2 gap-2 mb-2">
-                               <div>
-                                 <Label className="text-xs mb-1 block">이름*</Label>
-                                 <Input 
-                                   value={contact.contact_name} 
-                                   onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_name', e.target.value)}
-                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
-                                   placeholder="담당자 이름"
-                                 />
-                               </div>
-                               <div>
-                                 <Label className="text-xs mb-1 block">이메일*</Label>
-                                 <Input 
-                                   value={contact.contact_email} 
-                                   onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
-                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
-                                   placeholder="이메일 주소"
-                                 />
-                               </div>
-                             </div>
-                             <div className="grid grid-cols-2 gap-2">
-                               <div>
-                                 <Label className="text-xs mb-1 block">전화</Label>
-                                 <Input 
-                                   value={contact.contact_phone} 
-                                   onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_phone', e.target.value)}
-                                   className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
-                                   placeholder="전화번호"
-                                 />
-                               </div>
-                               <div className="flex items-end gap-2">
-                                 <div className="flex-1">
-                                   <Label className="text-xs mb-1 block">직급</Label>
-                                   <Input 
-                                     value={contact.position} 
-                                     onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'position', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
-                                     placeholder="직급"
-                                   />
-                                 </div>
-                                 <Button 
-                                   type="button" 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-8 px-2 hover:shadow-sm transition-shadow duration-200" 
-                                   onClick={() => removeContactSlot(contactsForEdit.indexOf(contact))}
-                                 >
-                                   <X className="w-3 h-3" />
-                                 </Button>
-                               </div>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
                      </div>
-                   </div>
 
-                   <DialogFooter>
-                     <Button type="button" onClick={handleSaveAllContacts} disabled={!hasChanges} className="hover:shadow-sm transition-shadow duration-200">
-                       모든 변경사항 저장
-                     </Button>
-                     <DialogClose asChild>
-                       <Button type="button" variant="outline" className="hover:shadow-sm transition-shadow duration-200">취소</Button>
-                     </DialogClose>
-                   </DialogFooter>
-                 </DialogContent>
-               </Dialog>
+                     <DialogFooter>
+                       <Button type="button" onClick={handleSaveAllContacts} disabled={!hasChanges} className="hover:shadow-sm transition-shadow duration-200">
+                         모든 변경사항 저장
+                       </Button>
+                       <DialogClose asChild>
+                         <Button type="button" variant="outline" className="hover:shadow-sm transition-shadow duration-200">취소</Button>
+                       </DialogClose>
+                     </DialogFooter>
+                   </DialogContent>
+                 </Dialog>
+               </div>
              </div>
-           </div>
 
-           {/* 구매요구자 및 일정 정보 */}
-           <div className="grid grid-cols-3 gap-2">
-             <div className="flex-1">
-               <Label className="mb-1 block text-xs">구매요구자</Label>
-               <Controller
-                 name="requester_name"
-                 control={control}
-                 render={({ field }) => (
-                   <ReactSelect
-                     key={`employee-select-${field.value}`}
-                     value={field.value ? 
-                       { 
-                         value: field.value, 
-                         label: field.value
-                       } : 
-                       null
-                     }
-                     defaultValue={employeeName ? 
-                       { 
-                         value: employeeName, 
-                         label: employeeName
-                       } : 
-                       null
-                     }
-                     onChange={(selectedOption: any) => {
-                       const value = (selectedOption as EmployeeOption)?.value || "";
-                       field.onChange(value);
-                       setEmployeeName(value);
-                     }}
-                     options={employees.map(employee => ({
-                       value: employee.name,
-                       label: employee.name
-                     }))}
-                     placeholder="구매요구자를 검색하거나 선택하세요"
-                     isSearchable
-                     isClearable={false}
-                     noOptionsMessage={() => "일치하는 직원이 없습니다"}
-                     filterOption={(option, inputValue) => {
-                       const employee = employees.find(emp => emp.name === option.value);
-                       const searchText = `${employee?.name || ''} ${employee?.position || ''} ${employee?.email || ''}`.toLowerCase();
-                       return searchText.includes(inputValue.toLowerCase());
-                     }}
-                                            styles={{
+             {/* 구매요구자 및 일정 정보 */}
+             <div className="grid grid-cols-3 gap-2">
+               <div className="flex-1">
+                 <Label className="mb-1 block text-xs">구매요구자</Label>
+                 <Controller
+                   name="requester_name"
+                   control={control}
+                   render={({ field }) => (
+                     <ReactSelect
+                       key={`employee-select-${field.value}`}
+                       value={field.value ? 
+                         { 
+                           value: field.value, 
+                           label: field.value
+                         } : 
+                         null
+                       }
+                       defaultValue={employeeName ? 
+                         { 
+                           value: employeeName, 
+                           label: employeeName
+                         } : 
+                         null
+                       }
+                       onChange={(selectedOption: any) => {
+                         const value = (selectedOption as EmployeeOption)?.value || "";
+                         field.onChange(value);
+                         setEmployeeName(value);
+                       }}
+                       options={employees.map(employee => ({
+                         value: employee.name,
+                         label: employee.name
+                       }))}
+                       placeholder="구매요구자를 검색하거나 선택하세요"
+                       isSearchable
+                       isClearable={false}
+                       noOptionsMessage={() => "일치하는 직원이 없습니다"}
+                       filterOption={(option, inputValue) => {
+                         const employee = employees.find(emp => emp.name === option.value);
+                         const searchText = `${employee?.name || ''} ${employee?.position || ''} ${employee?.email || ''}`.toLowerCase();
+                         return searchText.includes(inputValue.toLowerCase());
+                       }}
+                                          styles={{
                          control: (base) => ({
                            ...base,
                            minHeight: '30px',
@@ -884,7 +900,8 @@ export default function PurchaseNewMain() {
           </div>
           </div>
         </div>
-      </div>
+      )}
+       </div>
 
        {/* Professional Items Section - 우측 3/4 폭 */}
        <div className="w-3/4 space-y-4">

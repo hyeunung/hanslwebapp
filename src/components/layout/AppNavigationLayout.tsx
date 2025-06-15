@@ -4,7 +4,7 @@ import { Building2, Home, FileText, Users, CheckCircle, Plus } from "lucide-reac
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import PurchaseNewMain from "@/components/purchase/PurchaseNewMain";
 import PurchaseListMain from "@/components/purchase/PurchaseListMain";
-import ApproveMain from "@/components/purchase/ApproveMain";
+import ApproveMain from "@/components/approve/ApproveMain";
 import VendorListMain from "@/components/vendor/VendorListMain";
 import LogoutButton from "./LogoutButton";
 

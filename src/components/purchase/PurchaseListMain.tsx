@@ -502,6 +502,11 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     approved: approvedOrderNumbers.length,
   };
 
+  // 1. 탭 이동 시 펼침 상태 초기화
+  useEffect(() => {
+    setExpandedGroups(new Set());
+  }, [activeTab]);
+
   return (
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
       {/* Professional Header */}
@@ -789,12 +794,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                               )}
                               {item.purchase_order_number}
                               {isMultiRowGroupHeader && !isExpanded && ` (${item.groupSize}건)`}
-                              {/* 드롭다운 이모티콘은 그룹(2행 이상)만 */}
-                              {isMultiRowGroupHeader && !isExpanded && (
-                                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
-                                  <ChevronDown className="w-3 h-3 text-blue-600" />
-                                </div>
-                              )}
                             </span>
                           </div>
                         </td>
@@ -806,19 +805,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                         <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
                         <td className="px-2 py-2 text-xs text-foreground truncate w-32 relative">
                           {item.specification}
-                          {/* 규격 열 중앙에 화살표 배치 */}
-                          {/* 접혀있을 때: 그룹 헤더에 아래쪽 화살표 */}
-                          {isMultiRowGroupHeader && !isExpanded && (
-                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
-                              <ChevronDown className="w-3 h-3 text-blue-600" />
-                            </div>
-                          )}
-                          {/* 펼쳐져 있을 때: 마지막 하위 항목에 위쪽 화살표 */}
-                          {isLastSubItem && (
-                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full border border-border shadow-sm p-0.5">
-                              <ChevronDown className="w-3 h-3 text-blue-600 rotate-180" />
-                            </div>
-                          )}
                         </td>
                         <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
                         <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>

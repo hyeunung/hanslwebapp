@@ -214,7 +214,7 @@ const ApproveMain: React.FC = () => {
             </div>
           </div>
           <TabsContent value={activeTab} className="flex-1 overflow-auto m-0">
-            <div className="overflow-auto">
+            <div className="overflow-x-auto">
               <div className="px-6 py-2 text-xs text-muted-foreground bg-muted/5 border-b border-border">
                 <span className="font-medium">2024</span>
               </div>
@@ -257,20 +257,22 @@ const ApproveMain: React.FC = () => {
                       </tr>
                       {expandedRowId === row.id && (
                         <tr>
-                          <td colSpan={9} className="p-0 bg-gray-50">
-                            <ApproveDetailAccordion
-                              requestType={row.requestType}
-                              paymentCategory={row.paymentCategory}
-                              vendorName={row.vendorName}
-                              contactName={row.contactName}
-                              requesterName={row.requesterName}
-                              requestDate={row.requestDate}
-                              deliveryRequestDate={row.deliveryRequestDate}
-                              projectVendor={row.projectVendor}
-                              salesOrderNumber={row.salesOrderNumber}
-                              projectItem={row.projectItem}
-                              items={row.items}
-                            />
+                          <td colSpan={10} className="p-0">
+                            <div className="flex justify-center">
+                              <ApproveDetailAccordion
+                                requestType={row.requestType}
+                                paymentCategory={row.paymentCategory}
+                                vendorName={row.vendorName}
+                                contactName={row.contactName}
+                                requesterName={row.requesterName}
+                                requestDate={row.requestDate}
+                                deliveryRequestDate={row.deliveryRequestDate}
+                                projectVendor={row.projectVendor}
+                                salesOrderNumber={row.salesOrderNumber}
+                                projectItem={row.projectItem}
+                                items={row.items}
+                              />
+                            </div>
                           </td>
                         </tr>
                       )}

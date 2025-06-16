@@ -37,60 +37,105 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps> = ({
   projectItem,
   items,
 }) => {
+  // 총합 계산
+  const totalAmount = items.reduce((sum, item) => sum + (item.amountValue || 0), 0);
+
   return (
-    <div className="flex flex-col md:flex-row gap-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-      {/* 좌측: 기본 정보 */}
-      <div className="flex-1 space-y-2 min-w-[220px]">
-        <div><b>요청유형:</b> {requestType}</div>
-        <div><b>결제종류:</b> {paymentCategory}</div>
-        <div><b>업체명:</b> {vendorName}</div>
-        <div><b>담당자:</b> {contactName}</div>
-        <div><b>구매요구자:</b> {requesterName}</div>
-        <div><b>청구일:</b> {requestDate}</div>
-        <div><b>입고요청일:</b> {deliveryRequestDate}</div>
-        <div><b>PJ업체:</b> {projectVendor}</div>
-        <div><b>수주번호:</b> {salesOrderNumber}</div>
-        <div><b>item:</b> {projectItem}</div>
-      </div>
-      {/* 우측: 품목 테이블 */}
-      <div className="flex-1 overflow-x-auto">
-        <table className="w-full text-xs border border-gray-200 bg-white rounded-md">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="px-2 py-1">번호</th>
-              <th className="px-2 py-1">품명</th>
-              <th className="px-2 py-1">규격</th>
-              <th className="px-2 py-1">수량</th>
-              <th className="px-2 py-1">단가(₩)</th>
-              <th className="px-2 py-1">합계(₩)</th>
-              <th className="px-2 py-1">비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.slice().sort((a, b) => a.lineNumber - b.lineNumber).map((item, idx) => (
-              <tr key={idx} className="border-t border-gray-100">
-                <td className="px-2 py-1 text-center">{item.lineNumber}</td>
-                <td className="px-2 py-1">{item.itemName}</td>
-                <td className="px-2 py-1">{item.specification}</td>
-                <td className="px-2 py-1 text-center">{item.quantity}</td>
-                <td className="px-2 py-1 text-right">{item.unitPriceValue.toLocaleString()}<span className="ml-0.5">₩</span></td>
-                <td className="px-2 py-1 text-right">{item.amountValue.toLocaleString()}<span className="ml-0.5">₩</span></td>
-                <td className="px-2 py-1">{item.remark || ""}</td>
+    <div
+      className="flex justify-center w-full py-8"
+      style={{ background: "transparent" }}
+    >
+      <div
+        className="flex gap-8 px-8 py-8 items-start"
+        style={{
+          background: "#f8f9fa",
+          borderRadius: "16px",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
+          maxWidth: "none",
+          width: "auto",
+          margin: "0 auto",
+        }}
+      >
+        {/* 왼쪽: 메타 정보 */}
+        <div className="flex flex-col min-w-[240px] max-w-[320px] bg-white rounded-lg p-6 pr-4 shadow-sm space-y-4">
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">요청유형</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{requestType}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">결제종류</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{paymentCategory}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">업체명</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{vendorName}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">담당자</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{contactName}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">구매요구자</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{requesterName}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">청구일</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{requestDate}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">입고요청일</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{deliveryRequestDate}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">PJ업체</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{projectVendor}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">수주번호</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{salesOrderNumber}</span>
+          </div>
+          <div className="flex">
+            <span className="text-sm text-gray-400 font-medium leading-none w-2/5">item</span>
+            <span className="text-sm text-gray-900 font-normal pr-5 leading-none flex-1 ml-1">{projectItem}</span>
+          </div>
+        </div>
+        {/* 오른쪽: 품목 테이블 */}
+        <div className="flex-1 bg-white rounded-lg p-6 shadow-sm">
+          <table className="min-w-[1100px] w-[1100px] text-xs">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-2 py-1 w-20 text-center">번호</th>
+                <th className="px-2 py-1 w-[500px] text-center">품명</th>
+                <th className="px-2 py-1 w-[1000px] text-center">규격</th>
+                <th className="px-2 py-1 w-20 text-center">수량</th>
+                <th className="px-2 py-1 w-80 text-center">단가(₩)</th>
+                <th className="px-2 py-1 w-80 text-center">합계(₩)</th>
+                <th className="px-2 py-1 w-[720px] text-center">비고</th>
               </tr>
-            ))}
-            {/* 총 합계 행 */}
-            <tr className="border-t border-gray-300 bg-gray-50 font-semibold">
-              <td className="px-2 py-1 text-center" colSpan={5}>총 합계</td>
-              <td className="px-2 py-1 text-right" colSpan={1}>
-                {items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}<span className="ml-0.5">₩</span>
-              </td>
-              <td className="px-2 py-1"></td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={item.lineNumber}>
+                  <td className="text-center px-2 py-1 w-16">{idx + 1}</td>
+                  <td className="text-center px-2 py-1 w-[144px]">{item.itemName}</td>
+                  <td className="text-left px-2 py-1 w-[720px]">{item.specification}</td>
+                  <td className="text-center px-2 py-1 w-20">{item.quantity}</td>
+                  <td className="text-right px-2 py-1 w-40">{item.unitPriceValue?.toLocaleString()} ₩</td>
+                  <td className="text-right px-2 py-1 w-40">{item.amountValue?.toLocaleString()} ₩</td>
+                  <td className="text-center px-2 py-1 w-[720px]">{item.remark}</td>
+                </tr>
+              ))}
+              <tr className="font-bold bg-gray-50">
+                <td colSpan={5} className="text-right px-2 py-1">총 합계</td>
+                <td className="text-right px-2 py-1 w-40">{totalAmount.toLocaleString()} ₩</td>
+                <td className="w-[720px]" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 };
 
-export default ApproveDetailAccordion;
+export default ApproveDetailAccordion; 

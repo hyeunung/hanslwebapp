@@ -31,15 +31,17 @@ interface ApproveRow {
   projectVendor: string;
   salesOrderNumber: string;
   projectItem: string;
+  purchaseOrderNumber: string;
+  progressType: string;
   items: ItemDetail[];
   middleManagerStatus: "approved" | "pending" | "rejected";
   finalManagerStatus: "approved" | "pending" | "rejected";
 }
 
-function renderStatusBadge(status: "approved" | "pending" | "rejected") {
-  if (status === "approved") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">✔ 승인</span>;
-  if (status === "rejected") return <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">반려</span>;
-  return <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">대기</span>;
+function renderStatusBadge(status: "approved" | "pending" | "rejected" | string) {
+  if (status === "approved" || status === "승인") return <span className="bg-green-600 text-white px-4 py-1 rounded-full text-base tracking-widest">승  인</span>;
+  if (status === "rejected" || status === "반려") return <span className="bg-red-600 text-white px-4 py-1 rounded-full text-base tracking-widest">반  려</span>;
+  return <span className="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-base tracking-widest">대  기</span>;
 }
 
 const ApproveMain: React.FC = () => {
@@ -63,6 +65,8 @@ const ApproveMain: React.FC = () => {
           project_vendor,
           sales_order_number,
           project_item,
+          purchase_order_number,
+          progress_type,
           vendor_id,
           contact_id,
           middle_manager_status,
@@ -114,6 +118,8 @@ const ApproveMain: React.FC = () => {
             projectVendor: row.project_vendor,
             salesOrderNumber: row.sales_order_number,
             projectItem: row.project_item,
+            purchaseOrderNumber: row.purchase_order_number,
+            progressType: row.progress_type,
             items: (items || []).map((item: any) => ({
               lineNumber: item.line_number,
               itemName: item.item_name,
@@ -215,21 +221,22 @@ const ApproveMain: React.FC = () => {
           </div>
           <TabsContent value={activeTab} className="flex-1 overflow-auto m-0">
             <div className="overflow-x-auto">
-              <div className="px-6 py-2 text-xs text-muted-foreground bg-muted/5 border-b border-border">
-                <span className="font-medium">2024</span>
-              </div>
               <table className="w-full min-w-max">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr className="h-10">
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 min-w-[4rem]">요청유형</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-24 min-w-[6rem]">품명</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5rem] text-left">규격</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20">구매요구자</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">요청유형</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5.5rem]">담당자</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-48 min-w-[12rem]">품명</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5rem] text-center">규격</th>
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">중간관리자</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">최종관리자</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-72 text-center">비고</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
+                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">신청일</th>
                   </tr>
                 </thead>
@@ -241,25 +248,30 @@ const ApproveMain: React.FC = () => {
                   ) : filteredList.map((row) => (
                     <React.Fragment key={row.id}>
                       <tr
-                        className="cursor-pointer hover:bg-blue-50 h-10 text-xs text-foreground"
+                        className={`cursor-pointer h-10 text-xs text-foreground ${row.progressType?.includes('선진행') ? 'bg-rose-100' : 'hover:bg-blue-50'}`}
                         onClick={() => setExpandedRowId(expandedRowId === row.id ? null : row.id)}
                       >
-                        <td className="text-center px-2 py-2 w-16 min-w-[4rem]">{row.requestType}</td>
-                        <td className="text-center px-2 py-2 w-24 min-w-[6rem]">{row.items[0]?.itemName}</td>
-                        <td className="text-left px-2 py-2 w-20 min-w-[5rem]">{row.items[0]?.specification}</td>
-                        <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.salesOrderNumber}</td>
+                        <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
+                        <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
                         <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
-                        <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">₩{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}</span></td>
+                        <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.requestType}</td>
+                        <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
+                        <td className="text-center px-2 py-2 w-20 min-w-[5.5rem]">{row.contactName}</td>
+                        <td className="text-center px-2 py-2 w-48 min-w-[12rem]">{row.items[0]?.itemName}</td>
+                        <td className="text-left px-2 py-2 w-20 min-w-[5rem]">{row.items[0]?.specification}</td>
                         <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
-                        <td className="text-center px-2 py-2">{renderStatusBadge(row.middleManagerStatus)}</td>
-                        <td className="text-center px-2 py-2">{renderStatusBadge(row.finalManagerStatus)}</td>
+                        <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
+                        <td className="text-center px-2 py-2 w-72">{row.items[0]?.remark || '-'}</td>
+                        <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.purchaseOrderNumber}</td>
+                        <td className="text-center px-2 py-2">{row.deliveryRequestDate}</td>
                         <td className="text-center px-2 py-2">{row.requestDate}</td>
                       </tr>
                       {expandedRowId === row.id && (
                         <tr>
-                          <td colSpan={10} className="p-0">
-                            <div className="flex justify-center">
+                          <td colSpan={14} className="p-0 bg-transparent">
+                            <div className="flex justify-center w-full mt-0 mb-8">
                               <ApproveDetailAccordion
+                                id={row.id}
                                 requestType={row.requestType}
                                 paymentCategory={row.paymentCategory}
                                 vendorName={row.vendorName}
@@ -271,6 +283,14 @@ const ApproveMain: React.FC = () => {
                                 salesOrderNumber={row.salesOrderNumber}
                                 projectItem={row.projectItem}
                                 items={row.items}
+                                middleManagerStatus={row.middleManagerStatus}
+                                finalManagerStatus={row.finalManagerStatus}
+                                onMiddleManagerStatusChange={(newStatus) => {
+                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, middleManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                                }}
+                                onFinalManagerStatusChange={(newStatus) => {
+                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, finalManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                                }}
                               />
                             </div>
                           </td>

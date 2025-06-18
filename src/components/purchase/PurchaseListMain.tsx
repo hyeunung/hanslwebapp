@@ -17,7 +17,6 @@ import Image from "next/image";
 
 interface Purchase {
   id: number;
-  unique_row_id: string;
   purchase_order_number?: string;
   request_date: string;
   delivery_request_date: string;
@@ -28,9 +27,6 @@ interface Purchase {
   request_type: string;
   vendor_name: string;
   vendor_payment_schedule: string;
-  vendor_phone?: string;
-  vendor_fax?: string;
-  vendor_contact_name?: string;
   requester_name: string;
   item_name: string;
   specification: string;
@@ -42,8 +38,12 @@ interface Purchase {
   sales_order_number: string;
   project_item: string;
   line_number: number;
-  vendor_id?: number;
   contact_name?: string;
+  middle_manager_status?: string;
+  final_manager_status?: string;
+  payment_completed_at: string;
+  is_received: boolean;
+  received_at: string;
 }
 
 interface Employee {
@@ -56,20 +56,26 @@ interface PurchaseListMainProps {
   showEmailButton?: boolean;
 }
 
+// 네비게이션 탭 정의 (상단 useState들 아래에 위치)
+const NAV_TABS: { key: string; label: string }[] = [
+  { key: 'pending', label: '승인대기' },
+  { key: 'purchase', label: '구매 현황' },
+  { key: 'receipt', label: '입고 현황' },
+  { key: 'done', label: '완료' },
+];
+
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
   const { user } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState(""); // 초기값 비워두고 로딩 후 설정
-  const [activeTab, setActiveTab] = useState("all");
+  const [selectedEmployee, setSelectedEmployee] = useState('all'); // 기본값 'all'로
+  const [activeTab, setActiveTab] = useState('pending');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
-  // 담당자 캐시 (vendor_id -> contact_name)
-  const contactCache = useRef<{ [vendorId: number]: string }>({});
-  const [contactMap, setContactMap] = useState<{ [vendorId: number]: string }>({});
+
 
   useEffect(() => {
     if (user?.id) {
@@ -93,51 +99,25 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   }, [currentUserName]);
 
-  // 담당자명 비동기 조회 및 캐싱
-  const fetchContactName = async (vendorId: number) => {
-    if (!vendorId || contactCache.current[vendorId]) return;
-    const { data, error } = await supabase
-      .from('vendor_contacts')
-      .select('contact_name')
-      .eq('vendor_id', vendorId)
-      .order('id', { ascending: true })
-      .limit(1);
-    if (data && data.length > 0) {
-      contactCache.current[vendorId] = data[0].contact_name;
-      setContactMap(prev => ({ ...prev, [vendorId]: data[0].contact_name }));
-    } else {
-      contactCache.current[vendorId] = '';
-      setContactMap(prev => ({ ...prev, [vendorId]: '' }));
-    }
-  };
 
-  // 구매업체별 담당자명 미리 조회 (최초 렌더링 시)
-  useEffect(() => {
-    const vendorIds = Array.from(new Set(purchases.map(p => (p as any).vendor_id).filter(Boolean)));
-    vendorIds.forEach(vendorId => {
-      if (!contactCache.current[vendorId]) fetchContactName(vendorId);
-    });
-    // eslint-disable-next-line
-  }, [purchases.length]);
+
+
 
   async function loadMyRequests() {
     if (!user) return;
-    
     setIsLoadingPurchases(true);
-    console.log('발주 데이터 로딩 시작');
-    
+    console.log('발주 데이터 로딩 시작, user.id:', user.id);
     try {
-      // 전체 발주 데이터를 가져오도록 수정 (필터링은 프론트엔드에서 처리)
       const { data, error } = await supabase
         .from('purchase_request_view')
         .select(`
           purchase_request_id,
-          unique_row_id,
           purchase_order_number,
           request_date,
           delivery_request_date,
           progress_type,
           payment_status,
+          payment_completed_at,
           payment_category,
           currency,
           request_type,
@@ -154,41 +134,45 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           sales_order_number,
           project_item,
           line_number,
-          contact_name
+          contact_name,
+          middle_manager_status,
+          final_manager_status,
+          is_received,
+          received_at
         `);
-        
-      console.log('발주 데이타 조회 결과:', { dataCount: data?.length, error });
-        
+      console.log('발주 데이타 조회 결과:', { dataCount: data?.length, error, userId: user.id, data });
       if (data) {
         setPurchases(
-          (data as Array<Record<string, unknown>>).map((row) => {
-            return {
-              id: row.purchase_request_id as number,
-              unique_row_id: row.unique_row_id as string,
-              purchase_order_number: row.purchase_order_number as string,
-              request_date: row.request_date as string,
-              delivery_request_date: row.delivery_request_date as string,
-              progress_type: row.progress_type as string,
-              payment_status: row.payment_status as string,
-              payment_category: row.payment_category as string,
-              currency: row.currency as string,
-              request_type: row.request_type as string,
-              vendor_name: row.vendor_name as string,
-              vendor_payment_schedule: row.vendor_payment_schedule as string,
-              requester_name: row.requester_name as string,
-              item_name: row.item_name as string,
-              specification: row.specification as string,
-              quantity: row.quantity as number,
-              unit_price_value: row.unit_price_value as number,
-              amount_value: row.amount_value as number,
-              remark: row.remark as string,
-              project_vendor: row.project_vendor as string,
-              sales_order_number: row.sales_order_number as string,
-              project_item: row.project_item as string,
-              line_number: row.line_number as number,
-              contact_name: row.contact_name as string,
-            } as Purchase;
-          })
+          (data as Array<Record<string, unknown>>).map((row) => ({
+            id: Number(row.purchase_request_id),
+            purchase_order_number: row.purchase_order_number as string,
+            request_date: row.request_date as string,
+            delivery_request_date: row.delivery_request_date as string,
+            progress_type: row.progress_type as string,
+            payment_status: row.payment_status as string,
+            payment_completed_at: row.payment_completed_at as string,
+            payment_category: row.payment_category as string,
+            currency: row.currency as string,
+            request_type: row.request_type as string,
+            vendor_name: row.vendor_name as string,
+            vendor_payment_schedule: row.vendor_payment_schedule as string,
+            requester_name: row.requester_name as string,
+            item_name: row.item_name as string,
+            specification: row.specification as string,
+            quantity: Number(row.quantity),
+            unit_price_value: Number(row.unit_price_value),
+            amount_value: Number(row.amount_value),
+            remark: row.remark as string,
+            project_vendor: row.project_vendor as string,
+            sales_order_number: row.sales_order_number as string,
+            project_item: row.project_item as string,
+            line_number: Number(row.line_number),
+            contact_name: row.contact_name ? String(row.contact_name) : '',
+            middle_manager_status: row.middle_manager_status as string,
+            final_manager_status: row.final_manager_status as string,
+            is_received: !!row.is_received,
+            received_at: row.received_at as string,
+          }))
         );
       }
     } catch (error) {
@@ -276,48 +260,71 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   }
 
-  const filteredData = purchases.filter(item => {
-    const lowerSearch = searchTerm.toLowerCase();
-    // 모든 주요 컬럼을 하나의 문자열로 합쳐서 검색
-    const searchable = [
-      item.purchase_order_number,
-      item.item_name,
-      item.specification,
-      item.vendor_name,
-      item.contact_name,
-      item.requester_name,
-      item.remark,
-      item.project_vendor,
-      item.sales_order_number,
-      item.project_item,
-      item.progress_type,
-      item.payment_status,
-      item.payment_category,
-      item.currency,
-      item.request_type
-    ].map(v => (v ?? '').toString().toLowerCase()).join(' ');
-    const matchesSearch = lowerSearch === '' || searchable.includes(lowerSearch);
-    const matchesEmployee = selectedEmployee === "all" || !selectedEmployee || item.requester_name === selectedEmployee;
-    const matchesTab = activeTab === "all" || 
-                      (activeTab === "pending" && item.delivery_request_date === "승인대기") ||
-                      (activeTab === "approved" && item.delivery_request_date === "승인완료");
-    return matchesSearch && matchesEmployee && matchesTab;
+  const today = new Date();
+  const isToday = (dateStr: string) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+  };
+
+  const tabFilteredOrders = purchases.filter(item => {
+    // 직원 필터
+    if (selectedEmployee !== 'all' && selectedEmployee) {
+      if (item.requester_name !== selectedEmployee) return false;
+    }
+    // 검색어 필터
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.trim().toLowerCase();
+      const searchable = [
+        item.purchase_order_number,
+        item.vendor_name,
+        item.item_name,
+        item.specification,
+        item.requester_name,
+        item.remark,
+        item.project_vendor,
+        item.sales_order_number,
+        item.project_item,
+        item.unit_price_value?.toString(),
+        item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
+        item.amount_value?.toString(),
+        item.amount_value ? Number(item.amount_value).toLocaleString() : '',
+      ].map(v => (v || '').toLowerCase()).join(' ');
+      if (!searchable.includes(term)) return false;
+    }
+    // 탭 필터 복원
+    if (activeTab === 'pending') {
+      // 승인대기: 둘 중 하나라도 '대기'면
+      return item.middle_manager_status === '대기' || item.final_manager_status === '대기';
+    }
+    if (activeTab === 'purchase') {
+      // 구매 현황: 결제가 '구매완료'가 아닌 건
+      return item.payment_status !== '구매완료';
+    }
+    if (activeTab === 'receipt') {
+      // 입고 현황: 입고가 '입고완료'가 아닌 건
+      return item.progress_type !== '입고완료';
+    }
+    if (activeTab === 'done') {
+      // 완료: 최종관리자 승인(완료)만으로 표시
+      return ['approved', '승인'].includes(item.final_manager_status || '');
+    }
+    return true;
   });
 
-  // 발주번호별로 그룹핑
-  const groupedData = filteredData.reduce((groups, item) => {
+  // 발주번호별 그룹핑 및 카운트
+  const orderNumberGroups = tabFilteredOrders.reduce((acc, item) => {
     const key = item.purchase_order_number || 'no-number';
-    if (!groups[key]) {
-      groups[key] = [];
-    }
-    groups[key].push(item);
-    return groups;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
   }, {} as Record<string, Purchase[]>);
+  const tabOrderCount = Object.keys(orderNumberGroups).length;
 
   // 표시할 데이터 생성 (그룹 헤더 + 펼쳐진 항목들)
   const displayData: (Purchase & { isGroupHeader?: boolean; groupSize?: number; isSubItem?: boolean; isLastSubItem?: boolean })[] = [];
   
-  Object.entries(groupedData).forEach(([orderNumber, items]) => {
+  Object.entries(orderNumberGroups).forEach(([orderNumber, items]) => {
     if (items.length > 1) {
       // 여러 항목이 있는 경우 그룹 헤더 추가
       const headerItem = { 
@@ -492,342 +499,384 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   };
 
-  // 변경: 발주번호(그룹) 수 기준
-  const allOrderNumbers = Array.from(new Set(purchases.map(item => item.purchase_order_number)));
-  const pendingOrderNumbers = Array.from(new Set(purchases.filter(item => item.delivery_request_date === "승인대기").map(item => item.purchase_order_number)));
-  const approvedOrderNumbers = Array.from(new Set(purchases.filter(item => item.delivery_request_date === "승인완료").map(item => item.purchase_order_number)));
+  // Compact stats 계산 복구
+  const pendingOrderNumbers = Array.from(new Set(purchases.filter(item => item.middle_manager_status === '대기' || item.final_manager_status === '대기').map(item => item.purchase_order_number)));
+  const approvedOrderNumbers = Array.from(new Set(purchases.filter(item => item.middle_manager_status === '승인' && item.final_manager_status === '승인').map(item => item.purchase_order_number)));
   const stats = {
-    total: allOrderNumbers.length,
+    total: purchases.length,
     pending: pendingOrderNumbers.length,
     approved: approvedOrderNumbers.length,
   };
 
-  // 1. 탭 이동 시 펼침 상태 초기화
+  // isToday 함수와 delivery_request_date 값 디버깅
+  purchases.slice(0, 5).forEach((item, idx) => {
+    console.log(`[isToday 디버그 ${idx}] delivery_request_date:`, item.delivery_request_date, 'isToday:', isToday(item.delivery_request_date));
+  });
+
   useEffect(() => {
-    setExpandedGroups(new Set());
-  }, [activeTab]);
+    console.log('purchases:', purchases);
+    console.log('tabFilteredOrders:', tabFilteredOrders);
+    console.log('displayData:', displayData);
+  }, [purchases, tabFilteredOrders, displayData]);
 
   return (
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
-      {/* Professional Header */}
-      <CardHeader className="pb-4 bg-muted/20 border-b border-border">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col">
-              <h2 className="font-semibold text-foreground">발주 현황</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Purchase Order Management</p>
-            </div>
-            {showEmailButton && (
-              <EmailButton 
-                onClick={() => {
-                  if (onEmailToggle) onEmailToggle();
-                }}
-                inline={true}
-                style={{ marginLeft: '8px' }}
-              />
-            )}
-            
-            {/* Compact Stats */}
-            <div className="flex items-center gap-6 ml-6">
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary"></div>
-                  <span className="text-sm text-muted-foreground">전체</span>
-                </div>
-                <span className="text-sm font-semibold text-foreground">{stats.total}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-warning"></div>
-                  <span className="text-sm text-muted-foreground">대기</span>
-                </div>
-                <span className="text-sm font-semibold text-warning">{stats.pending}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success"></div>
-                  <span className="text-sm text-muted-foreground">완료</span>
-                </div>
-                <span className="text-sm font-semibold text-success">{stats.approved}</span>
+      <CardHeader className="pt-[16px] pb-0 px-0 bg-muted/20 relative">
+        {showEmailButton && (
+          <div className="absolute left-0 top-0 flex items-center justify-center" style={{ width: '36px', height: '73px' }}>
+            <EmailButton
+              inline
+              onClick={onEmailToggle}
+              style={{
+                width: '36px',
+                height: '73px',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 0,
+              }}
+            />
+          </div>
+        )}
+        <div className={showEmailButton ? "pl-[60px]" : "pl-6"}>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col">
+                <h2 className="font-semibold text-foreground text-[16.3px]">발주 현황</h2>
+                <p className="text-muted-foreground mt-0.5 text-[12.3px] mb-[13px]">Purchase Order Management</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={generateTestExcel}
-              className="gap-1.5 rounded-md h-8 px-3 hover:shadow-sm transition-shadow duration-200 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span className="hidden sm:inline">테스트 Excel</span>
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-md h-8 px-3 hover:shadow-sm transition-shadow duration-200">
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">필터</span>
-            </Button>
+          {/* 구분선 + 탭 바 */}
+          <div className="w-full" style={{marginTop: 0}}>
+            <div className={`h-0.5 bg-primary mb-0 ${showEmailButton ? 'ml-[-60px] w-[calc(100%+60px)]' : ''}`} />
+            <div className="flex gap-0" style={{ marginLeft: 0, minWidth: 320 }}>
+              {NAV_TABS.map((tab, idx) => {
+      const isActive = activeTab === tab.key;
+      return (
+        <button
+          key={tab.key}
+          type="button"
+          onClick={() => setActiveTab(tab.key)}
+          className={`px-3 py-1 font-medium text-[13px] focus:outline-none
+            ${isActive ? 'text-white bg-primary' : 'text-muted-foreground bg-gray-100'}
+            ${idx === 0 ? 'rounded-bl-xl' : ''}
+            ${idx === NAV_TABS.length - 1 ? 'rounded-br-xl' : ''}
+            border-0 transition-colors duration-150`}
+          style={{
+            borderLeft: idx !== 0 ? '2px solid #fff' : 'none',
+          }}
+        >
+          <span className="tracking-tight">{tab.label}</span>
+        </button>
+      );
+    })}
+            </div>
           </div>
         </div>
+
       </CardHeader>
-
       <CardContent className="flex-1 overflow-hidden p-0">
-        {/* Professional Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-2 mb-2 p-1">
-            <TabsTrigger 
-              value="all" 
-              className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm"
-            >
-              전체목록
-            </TabsTrigger>
-            <TabsTrigger 
-              value="pending" 
-              className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8"
-            >
-              승인대기
-            </TabsTrigger>
-            <TabsTrigger 
-              value="approved" 
-              className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8"
-            >
-              승인완료
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Professional Filters - 균형있는 패딩 */}
-          <div className="px-6 py-3 border-b border-border bg-background">
-            <div className="flex gap-4 items-center">
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm transition-shadow duration-200">
-                  <SelectValue placeholder={
-                    isLoadingEmployees ? "로딩 중..." : 
-                    currentUserName ? currentUserName : 
-                    "직원 선택"
-                  } />
-                </SelectTrigger>
-                <SelectContent className="rounded-md">
-                  <SelectItem value="all">전체 보기</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.email} value={employee.name}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="전체 항목 통합검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
-                />
-              </div>
+        {/* Professional Filters - 균형있는 패딩 */}
+        <div className="px-6 py-3 border-b border-border bg-background">
+          <div className="flex gap-4 items-center">
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm transition-shadow duration-200">
+                <SelectValue placeholder={
+                  isLoadingEmployees ? "로딩 중..." : 
+                  currentUserName ? currentUserName : 
+                  "직원 선택"
+                } />
+              </SelectTrigger>
+              <SelectContent className="rounded-md">
+                <SelectItem value="all">전체 보기</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.email} value={employee.name}>
+                    {employee.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="전체 항목 통합검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
+              />
             </div>
           </div>
+        </div>
 
-          {/* Professional Table - 더 넓은 테이블 */}
-          <TabsContent value={activeTab} className="flex-1 overflow-auto m-0">
-            <div className="overflow-auto">
-              {/* Year indicator */}
-              <div className="px-6 py-2 text-xs text-muted-foreground bg-muted/5 border-b border-border">
-                <span className="font-medium">2024</span>
-              </div>
-              <table className="w-full min-w-max">
-                <thead className="bg-muted/10 sticky top-0">
-                  <tr className="h-12">
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-44">발주번호/액션</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">담당자</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">규격</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
-                    <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
-                    <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
-                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayData.map((item, index) => {
-                    
-                    // 날짜 포맷팅 (월-일만 표시)
-                    const formatDate = (dateStr: string) => {
-                      if (!dateStr) return '';
-                      const date = new Date(dateStr);
-                      return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        {/* Professional Table - 더 넓은 테이블 */}
+        <div className="flex-1 overflow-auto m-0">
+          <div className="overflow-auto">
+            <table className="w-full min-w-max">
+              <thead className="bg-muted/10 sticky top-0">
+                <tr className="h-12">
+                  {activeTab === 'purchase' ? (
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">구매 현황</th>
+                  ) : activeTab === 'receipt' ? (
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">입고 상태</th>
+                  ) : (
+                    <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-40">승인상태</th>
+                  )}
+                  <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-56">발주번호 / 품명 수</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">담당자</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">규격</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
+                  <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
+                  <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
+                  <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayData.map((item, index) => {
+                  
+                  // 날짜 포맷팅 (월-일만 표시)
+                  const formatDate = (dateStr: string) => {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                  };
+                  
+                  // 통화 포맷팅
+                  const formatCurrency = (value: number, currency: string) => {
+                    const formatter = new Intl.NumberFormat('ko-KR');
+                    const currencySymbols: { [key: string]: string } = {
+                      'KRW': '₩',
+                      'USD': '$',
+                      'EUR': '€',
+                      'JPY': '¥',
+                      'CNY': '¥'
                     };
-                    
-                    // 통화 포맷팅
-                    const formatCurrency = (value: number, currency: string) => {
-                      const formatter = new Intl.NumberFormat('ko-KR');
-                      const currencySymbols: { [key: string]: string } = {
-                        'KRW': '₩',
-                        'USD': '$',
-                        'EUR': '€',
-                        'JPY': '¥',
-                        'CNY': '¥'
-                      };
-                      const symbol = currencySymbols[currency] || currency;
-                      return `${formatter.format(value)} ${symbol}`;
-                    };
-                    
-                    // 전체 데이터 디버깅 (처음 3개만 로그)
-                    if (index < 3) {
-                      console.log(`데이터 ${index + 1}:`, {
-                        purchase_order: item.purchase_order_number,
-                        progress_type: item.progress_type,
-                        progress_type_length: item.progress_type?.length,
-                        progress_type_chars: item.progress_type?.split('').map(char => char.charCodeAt(0))
-                      });
-                    }
-                    
-                    // 선진행건 여부 확인 (여러 방법으로 체크)
-                    const isAdvancePayment = item.progress_type === '선진행' || 
-                                            item.progress_type?.trim() === '선진행' ||
-                                            item.progress_type?.includes('선진행');
-                    
-                    // 선진행건 발견 시 로그
-                    if (isAdvancePayment) {
-                      console.log('🔴 선진행건 발견!', {
-                        purchase_order: item.purchase_order_number,
-                        progress_type: item.progress_type,
-                        raw_value: JSON.stringify(item.progress_type)
-                      });
-                    }
-                    
-                    // 그룹 헤더인지 하위 항목인지 확인
-                    const isGroupHeader = item.isGroupHeader;
-                    const isSubItem = item.isSubItem;
-                    const isLastSubItem = item.isLastSubItem;
-                    const isExpanded = expandedGroups.has(item.purchase_order_number || '');
-                    const isSingleRowGroup = isGroupHeader && (item.groupSize ?? 1) === 1;
-                    const isMultiRowGroupHeader = isGroupHeader && (item.groupSize ?? 1) > 1;
-                    
-                    // 담당자명 표시
-                    const vendorId = (purchases.find(p => p.purchase_order_number === item.purchase_order_number)?.vendor_id) as number;
-                    const contactName = contactMap[vendorId] || '';
-                    
-                    return (
-                      <motion.tr
-                        key={`${item.unique_row_id}-${isGroupHeader ? 'header' : isSubItem ? 'sub' : 'single'}`}
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
-                        className={`transition-colors h-12 relative border-b border-border ${
-                          isAdvancePayment 
-                            ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100' 
-                            : isSubItem 
-                            ? isLastSubItem 
-                              ? 'bg-gray-50 hover:bg-blue-50 cursor-pointer'
-                              : 'bg-gray-50 hover:bg-gray-100'
-                            : isMultiRowGroupHeader
-                            ? isExpanded 
-                              ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer'
-                              : 'hover:bg-blue-50 cursor-pointer'
-                            : isSingleRowGroup
-                            ? 'bg-white cursor-pointer'
-                            : 'hover:bg-muted/10'
-                        }`}
-                        style={{
-                          backgroundColor: isAdvancePayment ? '#ffe4e6' : undefined,
-                          // 그룹(2행 이상) 펼침 시 굵은 테두리
-                          ...(isMultiRowGroupHeader && isExpanded && {
-                            borderLeft: '4px solid #3b82f6',
-                            borderRight: '4px solid #3b82f6',
-                            borderTop: '4px solid #3b82f6'
-                          }),
-                          ...(isSubItem && !isLastSubItem && {
-                            borderLeft: '4px solid #3b82f6',
-                            borderRight: '4px solid #3b82f6'
-                          }),
-                          ...(isLastSubItem && {
-                            borderLeft: '4px solid #3b82f6',
-                            borderRight: '4px solid #3b82f6',
-                            borderBottom: '4px solid #3b82f6'
-                          }),
-                          // 1행짜리: 클릭 시 파란색 테두리
-                          ...(isSingleRowGroup && expandedGroups.has(item.purchase_order_number || '') && {
-                            border: '4px solid #3b82f6'
-                          })
-                        }}
-                        onClick={() => {
-                          // 그룹(2행 이상) 헤더 또는 마지막 하위 항목만 토글
-                          // 1행짜리는 자기 자신만 토글(파란 테두리)
-                          if ((isMultiRowGroupHeader || isLastSubItem || isSingleRowGroup) && item.purchase_order_number) {
-                            toggleGroup(item.purchase_order_number);
-                          }
-                        }}
-                      >
-                        <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-44">
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="truncate flex items-center gap-1">
-                              {/* 엑셀 이모티콘은 그룹 헤더(대표) 행에만 보이게 하고, 클릭 시 엑셀 다운로드 */}
-                              {isGroupHeader && (
-                                <Image
-                                  src="/excels-icon.svg"
-                                  alt="엑셀 다운로드"
-                                  width={16}
-                                  height={16}
-                                  className="inline-block align-middle cursor-pointer hover:scale-110 transition-transform"
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={async (e) => {
+                    const symbol = currencySymbols[currency] || currency;
+                    return `${formatter.format(value)} ${symbol}`;
+                  };
+                  
+                  // 전체 데이터 디버깅 (처음 3개만 로그)
+                  if (index < 3) {
+                    console.log(`데이터 ${index + 1}:`, {
+                      purchase_order: item.purchase_order_number,
+                      progress_type: item.progress_type,
+                      progress_type_length: item.progress_type?.length,
+                      progress_type_chars: item.progress_type?.split('').map(char => char.charCodeAt(0))
+                    });
+                  }
+                  
+                  // 선진행건 여부 확인 (여러 방법으로 체크)
+                  const isAdvancePayment = item.progress_type === '선진행' || 
+                                          item.progress_type?.trim() === '선진행' ||
+                                          item.progress_type?.includes('선진행');
+                  
+                  // 선진행건 발견 시 로그
+                  if (isAdvancePayment) {
+                    console.log('🔴 선진행건 발견!', {
+                      purchase_order: item.purchase_order_number,
+                      progress_type: item.progress_type,
+                      raw_value: JSON.stringify(item.progress_type)
+                    });
+                  }
+                  
+                  // 그룹 헤더인지 하위 항목인지 확인
+                  const isGroupHeader = item.isGroupHeader;
+                  const isSubItem = item.isSubItem;
+                  const isLastSubItem = item.isLastSubItem;
+                  const isExpanded = expandedGroups.has(item.purchase_order_number || '');
+                  const isSingleRowGroup = isGroupHeader && (item.groupSize ?? 1) === 1;
+                  const isMultiRowGroupHeader = isGroupHeader && (item.groupSize ?? 1) > 1;
+                  
+                  // 담당자명 표시
+                  const contactName = item.contact_name || '';
+                  
+                  // 고유 key 생성: purchase_order_number + line_number + 타입
+                  const keyType = isGroupHeader ? 'header' : isSubItem ? 'sub' : 'single';
+                  const key = `${item.purchase_order_number}-${item.line_number ?? 0}-${keyType}`;
+                  
+                  return (
+                    <motion.tr
+                      key={key}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
+                      className={`transition-colors h-12 relative border-b border-border ${
+                        activeTab === 'pending' && isAdvancePayment
+                          ? 'bg-rose-100 !bg-rose-100'
+                          : isAdvancePayment
+                          ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100'
+                          : isSubItem
+                          ? isLastSubItem
+                            ? 'bg-gray-50 hover:bg-blue-50 cursor-pointer'
+                            : 'bg-gray-50 hover:bg-gray-100'
+                          : isMultiRowGroupHeader
+                          ? isExpanded
+                            ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer'
+                            : 'hover:bg-blue-50 cursor-pointer'
+                          : isSingleRowGroup
+                          ? 'bg-white cursor-pointer'
+                          : 'hover:bg-muted/10'
+                      }`}
+                      style={{
+                        backgroundColor: isAdvancePayment ? '#ffe4e6' : undefined,
+                        // 그룹(2행 이상) 펼침 시 굵은 테두리
+                        ...(isMultiRowGroupHeader && isExpanded && {
+                          borderLeft: '4px solid #3b82f6',
+                          borderRight: '4px solid #3b82f6',
+                          borderTop: '4px solid #3b82f6'
+                        }),
+                        ...(isSubItem && !isLastSubItem && {
+                          borderLeft: '4px solid #3b82f6',
+                          borderRight: '4px solid #3b82f6'
+                        }),
+                        ...(isLastSubItem && {
+                          borderLeft: '4px solid #3b82f6',
+                          borderRight: '4px solid #3b82f6',
+                          borderBottom: '4px solid #3b82f6'
+                        }),
+                        // 1행짜리: 클릭 시 파란색 테두리
+                        ...(isSingleRowGroup && expandedGroups.has(item.purchase_order_number || '') && {
+                          border: '4px solid #3b82f6'
+                        })
+                      }}
+                      onClick={() => {
+                        // 그룹(2행 이상) 헤더 또는 마지막 하위 항목만 토글
+                        // 1행짜리는 자기 자신만 토글(파란 테두리)
+                        if ((isMultiRowGroupHeader || isLastSubItem || isSingleRowGroup) && item.purchase_order_number) {
+                          toggleGroup(item.purchase_order_number);
+                        }
+                      }}
+                    >
+                      {activeTab === 'purchase' ? (
+                        // 구매 현황 칼럼
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-24">
+                          {['approved', '승인'].includes(item.payment_status) ? (
+                            <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white" style={{ minWidth: 40 }}>승인</span>
+                          ) : item.payment_status === '대기' ? (
+                            <span
+                              className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`}
+                              style={{ minWidth: 40 }}
+                            >
+                              {item.payment_status}
+                            </span>
+                          ) : (
+                            item.payment_status
+                          )}
+                        </td>
+                      ) : activeTab === 'receipt' ? (
+                        // 입고 상태 칼럼
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-24">
+                          {item.is_received ? (
+                            <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white" style={{ minWidth: 40 }}>완료</span>
+                          ) : (
+                            <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`} style={{ minWidth: 40 }}>대기</span>
+                          )}
+                        </td>
+                      ) : (
+                        // 승인상태 칼럼
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-40">
+                          {isGroupHeader ? (
+                            <>
+                              <span
+                                className={`inline-block px-2 py-1 rounded-lg font-semibold
+                                  ${item.middle_manager_status === '대기'
+                                    ? 'bg-gray-200 text-gray-800'
+                                    : 'bg-blue-600 text-white'}
+                                  ${item.middle_manager_status === '대기' && isAdvancePayment ? 'border border-gray-400' : ''}
+                                `}
+                                style={{ minWidth: 40, marginRight: 4 }}
+                              >
+                                {['approved', '승인'].includes(item.middle_manager_status || '') ? '승인' : item.middle_manager_status}
+                              </span>
+                              /
+                              <span
+                                className={`inline-block px-2 py-1 rounded-lg font-semibold
+                                  ${item.final_manager_status === '대기'
+                                    ? 'bg-gray-200 text-gray-800'
+                                    : 'bg-blue-600 text-white'}
+                                  ${item.final_manager_status === '대기' && isAdvancePayment ? 'border border-gray-400' : ''}
+                                `}
+                                style={{ minWidth: 40, marginLeft: 4 }}
+                              >
+                                {['approved', '승인'].includes(item.final_manager_status || '') ? '승인' : item.final_manager_status}
+                              </span>
+                            </>
+                          ) : ''}
+                        </td>
+                      )}
+                      {/* 이하 기존 컬럼들 그대로 */}
+                      <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-56">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="truncate flex items-center gap-1">
+                            {isGroupHeader && (
+                              <Image
+                                src="/excels-icon.svg"
+                                alt="엑셀 다운로드"
+                                width={16}
+                                height={16}
+                                className="inline-block align-middle cursor-pointer hover:scale-110 transition-transform"
+                                role="button"
+                                tabIndex={0}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await generateExcelForOrder(item.purchase_order_number!);
+                                }}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     await generateExcelForOrder(item.purchase_order_number!);
-                                  }}
-                                  onKeyDown={async (e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      await generateExcelForOrder(item.purchase_order_number!);
-                                    }
-                                  }}
-                                  title="엑셀 발주서 다운로드"
-                                />
-                              )}
-                              {item.purchase_order_number}
-                              {isMultiRowGroupHeader && !isExpanded && ` (${item.groupSize}건)`}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.contact_name || ''}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
-                        <td className="px-2 py-2 text-xs text-foreground truncate w-32 relative">
-                          {item.specification}
-                        </td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
-                        <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              
-              {displayData.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+                                  }
+                                }}
+                                title="엑셀 발주서 다운로드"
+                              />
+                            )}
+                            {item.purchase_order_number}
+                            {isGroupHeader && item.groupSize && item.groupSize > 1 && ` (${item.groupSize}건)`}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.contact_name || '-'}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
+                      <td className="px-2 py-2 text-xs text-foreground truncate w-32 relative">
+                        {item.specification}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
+                      <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            
+            {displayData.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

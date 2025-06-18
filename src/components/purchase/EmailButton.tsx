@@ -48,17 +48,17 @@ export default function EmailButton({ onClick, style, inline = false }: EmailBut
       <div
         onClick={handleClick}
         style={{
-          width: '32px',
-          height: '32px',
+          width: '44px',
+          height: '100%',
           backgroundColor: 'var(--background)',
-          borderRadius: '8px',
+          borderRadius: '12px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           boxShadow: 'none',
           border: '1px solid var(--border)',
-          marginLeft: '4px',
           ...style,
         }}
         className="hover:shadow-sm transition-shadow duration-200"
@@ -70,6 +70,17 @@ export default function EmailButton({ onClick, style, inline = false }: EmailBut
             pointerEvents: 'none'
           }} 
         />
+        <span
+          className="font-bold text-xs text-black"
+          style={{
+            writingMode: 'vertical-lr',
+            textOrientation: 'mixed',
+            letterSpacing: '0.1em',
+            marginTop: 4,
+          }}
+        >
+          E-mail
+        </span>
       </div>
     );
   }

@@ -523,14 +523,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
       <CardHeader className="pt-[16px] pb-0 px-0 bg-muted/20 relative">
         {showEmailButton && (
-          <div className="absolute left-0 top-0 flex items-center justify-center" style={{ width: '36px', height: '73px' }}>
+          <div className="absolute left-0 top-0 flex items-center justify-center rounded-lg" style={{ width: '36px', height: '73px', borderRadius: '8px' }}>
             <EmailButton
               inline
               onClick={onEmailToggle}
               style={{
                 width: '36px',
                 height: '73px',
-                borderRadius: '12px',
+                borderRadius: '8px',
                 fontWeight: 'bold',
                 flexDirection: 'column',
                 justifyContent: 'center',
@@ -541,76 +541,101 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           </div>
         )}
         <div className={showEmailButton ? "pl-[60px]" : "pl-6"}>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col">
-                <h2 className="font-semibold text-foreground text-[16.3px]">발주 현황</h2>
-                <p className="text-muted-foreground mt-0.5 text-[12.3px] mb-[13px]">Purchase Order Management</p>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <h2 className="font-semibold text-foreground text-[16.3px]">발주 현황</h2>
+              <p className="text-muted-foreground mt-0.5 text-[12.3px] mb-[13px]">Purchase Order Management</p>
+            </div>
+          </div>
+
+          {/* 구분선 (탭바 위) */}
+          <div className="w-full" style={{marginTop: 0}}>
+            <div className={`h-0.5 bg-primary mb-0 ${showEmailButton ? 'ml-[-60px] w-[calc(100%+60px)]' : ''}`} />
+          </div>
+          {/* 탭 바 */}
+          <div className="flex gap-0" style={{ marginLeft: 0, minWidth: 320 }}>
+            {NAV_TABS.map((tab, idx) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-3 py-1 min-w-[72px] font-medium text-[13px] focus:outline-none shadow-md hover:shadow-lg transition-shadow duration-200
+                    ${isActive ? 'text-white bg-gradient-to-l from-primary/90 to-primary' : 'text-muted-foreground bg-gray-100'}
+                    ${idx === 0 ? 'rounded-bl-xl' : ''}
+                    ${idx === NAV_TABS.length - 1 ? 'rounded-br-xl' : ''}
+                    border-0 transition-colors duration-150`}
+                  style={{
+                    borderLeft: idx !== 0 ? '2px solid #fff' : 'none',
+                  }}
+                >
+                  <span className="tracking-tight">{tab.label.replace('구매 현황', '구매현황').replace('입고 현황', '입고현황')}</span>
+                  <div className={`mx-auto my-0.5 h-px w-14 ${isActive ? 'bg-white/40' : 'bg-muted-foreground/30'}`}></div>
+                  <span className={`block text-[11px] font-normal mt-0.5 ${isActive ? 'text-white' : 'text-muted-foreground'}`} style={{marginBottom: 0}}>
+                    {(() => {
+                      // 각 탭별로 실제 표시되는 고유 발주번호 개수 계산 (tabFilteredOrders 기준)
+                      let filtered: Purchase[] = [];
+                      if (tab.key === activeTab) {
+                        filtered = tabFilteredOrders;
+                      } else if (tab.key === 'pending') {
+                        filtered = purchases.filter(item => item.middle_manager_status === '대기' || item.final_manager_status === '대기');
+                      } else if (tab.key === 'purchase') {
+                        filtered = purchases.filter(item => item.payment_status !== '구매완료');
+                      } else if (tab.key === 'receipt') {
+                        filtered = purchases.filter(item => item.progress_type !== '입고완료');
+                      } else if (tab.key === 'done') {
+                        filtered = purchases.filter(item => ['approved', '승인'].includes(item.final_manager_status || ''));
+                      }
+                      return Array.from(new Set(filtered.map(item => item.purchase_order_number || 'no-number'))).length;
+                    })()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {/* 필터 영역 */}
+          <div className="px-6 py-0 bg-background border-0">
+            <div className="flex gap-4 items-end justify-end">
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <div className="relative w-auto min-w-[72px]">
+                  <SelectTrigger className="w-full h-9 text-sm bg-background rounded-md hover:shadow-sm transition-shadow duration-200 focus:ring-0 border-0 focus:border-0">
+                    <SelectValue placeholder={
+                      isLoadingEmployees ? "로딩 중..." : 
+                      currentUserName ? currentUserName : 
+                      "직원 선택"
+                    } />
+                  </SelectTrigger>
+                  <div className="absolute left-0 right-0 bottom-0 h-px bg-border" />
+                </div>
+                <SelectContent className="rounded-md">
+                  <SelectItem value="all">전체 보기</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.email} value={employee.name}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative w-auto min-w-[160px]">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="전체 항목 통합검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9 text-sm bg-background rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus:ring-0 border-0 focus:border-0"
+                />
+                <div className="absolute left-0 right-0 bottom-0 h-px bg-border" />
               </div>
             </div>
           </div>
-          {/* 구분선 + 탭 바 */}
-          <div className="w-full" style={{marginTop: 0}}>
-            <div className={`h-0.5 bg-primary mb-0 ${showEmailButton ? 'ml-[-60px] w-[calc(100%+60px)]' : ''}`} />
-            <div className="flex gap-0" style={{ marginLeft: 0, minWidth: 320 }}>
-              {NAV_TABS.map((tab, idx) => {
-      const isActive = activeTab === tab.key;
-      return (
-        <button
-          key={tab.key}
-          type="button"
-          onClick={() => setActiveTab(tab.key)}
-          className={`px-3 py-1 font-medium text-[13px] focus:outline-none
-            ${isActive ? 'text-white bg-primary' : 'text-muted-foreground bg-gray-100'}
-            ${idx === 0 ? 'rounded-bl-xl' : ''}
-            ${idx === NAV_TABS.length - 1 ? 'rounded-br-xl' : ''}
-            border-0 transition-colors duration-150`}
-          style={{
-            borderLeft: idx !== 0 ? '2px solid #fff' : 'none',
-          }}
-        >
-          <span className="tracking-tight">{tab.label}</span>
-        </button>
-      );
-    })}
-            </div>
-          </div>
         </div>
-
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        {/* Professional Filters - 균형있는 패딩 */}
-        <div className="px-6 py-3 border-b border-border bg-background">
-          <div className="flex gap-4 items-center">
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-              <SelectTrigger className="w-40 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm transition-shadow duration-200">
-                <SelectValue placeholder={
-                  isLoadingEmployees ? "로딩 중..." : 
-                  currentUserName ? currentUserName : 
-                  "직원 선택"
-                } />
-              </SelectTrigger>
-              <SelectContent className="rounded-md">
-                <SelectItem value="all">전체 보기</SelectItem>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.email} value={employee.name}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="전체 항목 통합검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
-              />
-            </div>
-          </div>
+        {/* 테이블 위 구분선 */}
+        <div className="w-full">
+          <div className="h-0.5 bg-primary" />
         </div>
-
         {/* Professional Table - 더 넓은 테이블 */}
         <div className="flex-1 overflow-auto m-0">
           <div className="overflow-auto">

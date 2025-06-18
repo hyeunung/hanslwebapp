@@ -44,6 +44,7 @@ interface Purchase {
   payment_completed_at: string;
   is_received: boolean;
   received_at: string;
+  final_manager_approved_at?: string | null;
 }
 
 interface Employee {
@@ -240,7 +241,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   }
 
   const today = new Date();
-  const isToday = (dateStr: string) => {
+  const isToday = (dateStr?: string | null) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
@@ -273,16 +274,22 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
     // 탭 필터 복원
     if (activeTab === 'pending') {
-      // 최종승인이 승인되지 않은 모든 항목
-      return item.final_manager_status !== 'approved';
+      // 아직 승인 안된 건 + 오늘 승인된 건만 남김
+      return item.final_manager_status !== 'approved' ||
+        (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
     }
     if (activeTab === 'purchase') {
-      // 구매 현황: 결제가 '구매완료'가 아닌 건
-      return item.payment_status !== '구매완료';
+      // payment_category가 '구매 요청' + 오늘 결제완료된 건만 남김
+      return item.payment_category === '구매 요청' &&
+        (item.payment_status !== 'approved' || isToday(item.payment_completed_at));
     }
     if (activeTab === 'receipt') {
-      // 입고 현황: 입고가 '입고완료'가 아닌 건
-      return item.progress_type !== '입고완료';
+      // 입고현황: 최종승인 또는 선진행 건만, 입고완료가 아닌 건 + 오늘 입고된 건만 남김
+      const isFinalApproved = item.final_manager_status === 'approved';
+      const isAdvance = item.progress_type?.includes('선진행');
+      if (!(isFinalApproved || isAdvance)) return false;
+      return item.progress_type !== '입고완료' ||
+        (item.progress_type === '입고완료' && isToday(item.received_at));
     }
     if (activeTab === 'done') {
       // 완료: 최종관리자 승인(완료)만으로 표시
@@ -529,10 +536,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           return item.final_manager_status !== 'approved';
         }
         if (tabKey === 'purchase') {
-          return item.payment_status !== '구매완료';
+          return item.payment_category === '구매 요청';
         }
         if (tabKey === 'receipt') {
-          return item.progress_type !== '입고완료';
+          const isFinalApproved = item.final_manager_status === 'approved';
+          const isAdvance = item.progress_type?.includes('선진행');
+          if (!(isFinalApproved || isAdvance)) return false;
+          return item.progress_type !== '입고완료' ||
+            (item.progress_type === '입고완료' && isToday(item.received_at));
         }
         if (tabKey === 'done') {
           return ['approved', '승인'].includes(item.final_manager_status || '');
@@ -775,18 +786,15 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                     {activeTab === 'purchase' ? (
                       // 구매 현황 칼럼
                       <td className="px-2 py-2 text-xs text-foreground text-center w-24">
-                        {['approved', '승인'].includes(item.payment_status) ? (
-                          <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white" style={{ minWidth: 40 }}>승인</span>
-                        ) : item.payment_status === '대기' ? (
-                          <span
-                            className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`}
-                            style={{ minWidth: 40 }}
-                          >
-                            {item.payment_status}
-                          </span>
-                        ) : (
-                          item.payment_status
-                        )}
+                        {item.payment_status === 'pending' ? (
+  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`} style={{ minWidth: 40 }}>대기</span>
+) : item.payment_status === 'approved' ? (
+  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white${item.progress_type?.includes('선진행') ? ' border border-blue-400' : ''}`} style={{ minWidth: 40 }}>구매완료</span>
+) : item.payment_status === 'rejected' ? (
+  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-red-200 text-red-800${item.progress_type?.includes('선진행') ? ' border border-red-400' : ''}`} style={{ minWidth: 40 }}>반려</span>
+) : (
+  <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800" style={{ minWidth: 40 }}>{item.payment_status}</span>
+)}
                       </td>
                     ) : activeTab === 'receipt' ? (
                       // 입고 상태 칼럼
@@ -834,28 +842,35 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                       <div className="flex flex-col items-center gap-1">
                         <span className="truncate flex items-center gap-1">
                           {isGroupHeader && (
-                            <Image
-                              src="/excels-icon.svg"
-                              alt="엑셀 다운로드"
-                              width={16}
-                              height={16}
-                              className="inline-block align-middle cursor-pointer hover:scale-110 transition-transform"
-                              role="button"
-                              tabIndex={0}
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await generateExcelForOrder(item.purchase_order_number!);
-                              }}
-                              onKeyDown={async (e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  await generateExcelForOrder(item.purchase_order_number!);
-                                }
-                              }}
-                              title="엑셀 발주서 다운로드"
-                            />
-                          )}
+  <Image
+    src="/excels-icon.svg"
+    alt="엑셀 다운로드"
+    width={16}
+    height={16}
+    className={`inline-block align-middle transition-transform
+      ${isAdvancePayment || item.final_manager_status === 'approved' ? 'cursor-pointer hover:scale-110' : 'opacity-40 grayscale cursor-not-allowed'}`}
+    role="button"
+    tabIndex={isAdvancePayment || item.final_manager_status === 'approved' ? 0 : -1}
+    onClick={async (e) => {
+      if (isAdvancePayment || item.final_manager_status === 'approved') {
+        e.stopPropagation();
+        await generateExcelForOrder(item.purchase_order_number!);
+      }
+    }}
+    onKeyDown={async (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && (isAdvancePayment || item.final_manager_status === 'approved')) {
+        e.preventDefault();
+        e.stopPropagation();
+        await generateExcelForOrder(item.purchase_order_number!);
+      }
+    }}
+    style={{
+      filter: !isAdvancePayment && item.final_manager_status !== 'approved' ? 'grayscale(1) opacity(0.4)' : undefined,
+      pointerEvents: !isAdvancePayment && item.final_manager_status !== 'approved' ? 'none' : 'auto'
+    }}
+    title="엑셀 발주서 다운로드"
+  />
+)}
                           {item.purchase_order_number}
                           {isGroupHeader && item.groupSize && item.groupSize > 1 && ` (${item.groupSize}건)`}
                         </span>

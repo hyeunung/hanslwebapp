@@ -37,7 +37,7 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
           style={{
             backgroundColor: (disabled || isVerified) ? '#e5e7eb' : '#A8E6CF',
             color: (disabled || isVerified) ? '#a3a3a3' : '#207744',
-            borderRadius: '999px',
+            borderRadius: '6px',
             fontWeight: 600,
             fontSize: '1.15rem',
             boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
@@ -52,7 +52,7 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
           style={{
             backgroundColor: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver'))) ? '#e5e7eb' : '#A2C8FA',
             color: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver'))) ? '#a3a3a3' : '#155fa0',
-            borderRadius: '999px',
+            borderRadius: '6px',
             fontWeight: 600,
             fontSize: '1.15rem',
             boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
@@ -67,7 +67,7 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
           style={{
             backgroundColor: disabled ? '#e5e7eb' : '#FF8B94',
             color: disabled ? '#a3a3a3' : '#8B1E2D',
-            borderRadius: '999px',
+            borderRadius: '6px',
             fontWeight: 600,
             fontSize: '1.15rem',
             boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'

@@ -36,6 +36,9 @@ interface ApproveDetailAccordionExtraProps {
   finalManagerStatus?: string;
   onMiddleManagerStatusChange?: (status: string) => void;
   onFinalManagerStatusChange?: (status: string) => void;
+  isPurchaseTab?: boolean;
+  paymentStatus?: string;
+  onPaymentStatusChange?: (status: string) => void;
 }
 
 const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDetailAccordionExtraProps> = ({
@@ -55,13 +58,21 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   finalManagerStatus: initialFinalManagerStatus = 'pending',
   onMiddleManagerStatusChange,
   onFinalManagerStatusChange,
+  isPurchaseTab = false,
+  paymentStatus = 'pending',
+  onPaymentStatusChange,
 }) => {
-  // 총합 계산
-  const totalAmount = items.reduce((sum, item) => sum + (item.amountValue || 0), 0);
-
   // 실제 상태 관리
   const [middleManagerStatus, setMiddleManagerStatus] = useState(initialMiddleManagerStatus);
   const [finalManagerStatus, setFinalManagerStatus] = useState(initialFinalManagerStatus);
+  const [localPaymentStatus, setLocalPaymentStatus] = useState(paymentStatus);
+
+  // 총합 계산 (중복 선언 제거)
+  const totalAmount = items.reduce((sum, item) => sum + (item.amountValue || 0), 0);
+
+  // 디버깅용 콘솔
+  console.log('[ApproveDetailAccordion] isPurchaseTab:', isPurchaseTab, 'localPaymentStatus:', localPaymentStatus, 'props:', { id, paymentCategory, paymentStatus });
+
   // TODO: 실제 로그인 유저의 roles를 props로 받아와야 함 (임시 예시)
   const roles = ["app_admin"];
   const handleApprove = async () => {
@@ -131,7 +142,42 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       onMiddleManagerStatusChange('approved');
     }
   };
+  const handlePurchaseApprove = async () => {
+    if (!id) return;
+    const { error } = await supabase
+      .from('purchase_requests')
+      .update({ payment_status: 'approved' })
+      .eq('id', id);
+    if (!error) {
+      setLocalPaymentStatus('approved');
+      if (typeof onPaymentStatusChange === 'function') onPaymentStatusChange('approved');
+    } else {
+      alert('구매완료 처리 중 오류 발생: ' + error.message);
+    }
+  };
+  const handlePurchaseReject = async () => {
+    if (!id) return;
+    const { error } = await supabase
+      .from('purchase_requests')
+      .update({ payment_status: 'rejected' })
+      .eq('id', id);
+    if (!error) {
+      setLocalPaymentStatus('rejected');
+      if (typeof onPaymentStatusChange === 'function') onPaymentStatusChange('rejected');
+    } else {
+      alert('반려 처리 중 오류 발생: ' + error.message);
+    }
+  };
 
+  // 승인요청 버튼 스타일(ApproveActionButtons와 동일)
+  const buttonStyle = (bg: string, color: string) => ({
+    backgroundColor: bg,
+    color,
+    borderRadius: '6px',
+    fontWeight: 600,
+    fontSize: '1rem',
+    boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
+  });
 
   return (
     <div
@@ -152,15 +198,40 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
         {/* 중앙 상단: 역할별 버튼 */}
         <div className="w-full flex justify-between items-center mt-0 mb-4">
           <div className="flex-1 flex justify-center">
-            <ApproveActionButtons
-              roles={roles}
-              requestType={requestType}
-              middleManagerStatus={middleManagerStatus}
-              finalManagerStatus={finalManagerStatus}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onVerify={handleVerify}
-            />
+            {isPurchaseTab ? (
+              <div className="flex gap-4">
+                {localPaymentStatus === 'pending' && (
+                  <>
+                    <button
+                      style={buttonStyle('#A2C8FA', '#155fa0')}
+                      className="px-4 py-2 text-sm"
+                      onClick={handlePurchaseApprove}
+                    >구매완료</button>
+                    <button
+                      style={buttonStyle('#FF8B94', '#8B1E2D')}
+                      className="px-4 py-2 text-sm"
+                      onClick={handlePurchaseReject}
+                    >반려</button>
+                  </>
+                )}
+                {localPaymentStatus === 'approved' && (
+                  <span className="px-4 py-2 rounded-md text-sm" style={buttonStyle('#A2C8FA', '#155fa0')}>구매완료</span>
+                )}
+                {localPaymentStatus === 'rejected' && (
+                  <span className="px-4 py-2 rounded text-sm" style={buttonStyle('#FF8B94', '#8B1E2D')}>반려됨</span>
+                )}
+              </div>
+            ) : (
+              <ApproveActionButtons
+                roles={roles}
+                requestType={requestType}
+                middleManagerStatus={middleManagerStatus}
+                finalManagerStatus={finalManagerStatus}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onVerify={handleVerify}
+              />
+            )}
           </div>
           <button
             className="ml-4"

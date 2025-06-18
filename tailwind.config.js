@@ -8,6 +8,10 @@ module.exports = {
     './node_modules/radix-ui/**/*.{js,ts,jsx,tsx}',
     './node_modules/lucide-react/dist/**/*.js',
   ],
+  safelist: [
+    'text-[19px]',
+    'text-[12.3px]',
+  ],
   theme: {
     extend: {
       colors: {

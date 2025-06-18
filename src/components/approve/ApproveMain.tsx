@@ -36,6 +36,7 @@ interface ApproveRow {
   items: ItemDetail[];
   middleManagerStatus: "approved" | "pending" | "rejected";
   finalManagerStatus: "approved" | "pending" | "rejected";
+  paymentStatus: "approved" | "pending" | "rejected";
 }
 
 function renderStatusBadge(status: "approved" | "pending" | "rejected" | string) {
@@ -49,7 +50,7 @@ const ApproveMain: React.FC = () => {
   const [approveList, setApproveList] = useState<ApproveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("approval");
 
   useEffect(() => {
     async function fetchApproveList() {
@@ -71,7 +72,8 @@ const ApproveMain: React.FC = () => {
           contact_id,
           middle_manager_status,
           final_manager_status,
-          requester_name
+          requester_name,
+          payment_status
         `)
         .order("request_date", { ascending: false });
       if (error) {
@@ -131,6 +133,7 @@ const ApproveMain: React.FC = () => {
             })).sort((a, b) => a.lineNumber - b.lineNumber),
             middleManagerStatus: row.middle_manager_status || "pending",
             finalManagerStatus: row.final_manager_status || "pending",
+            paymentStatus: row.payment_status || "pending",
           };
         })
       );
@@ -153,9 +156,15 @@ const ApproveMain: React.FC = () => {
       ...(row.items?.map(i => i.itemName + i.specification) || [])
     ].join(" ").toLowerCase();
     const matchesSearch = !search || searchable.includes(search);
-    const matchesTab = activeTab === "all" ||
-      (activeTab === "pending" && (row.middleManagerStatus === "pending" || row.finalManagerStatus === "pending")) ||
-      (activeTab === "approved" && row.middleManagerStatus === "approved" && row.finalManagerStatus === "approved");
+    let matchesTab = true;
+    if (activeTab === "approval") {
+      // 승인요청: 기존 승인요청 조건
+      matchesTab = row.middleManagerStatus === "pending" || row.finalManagerStatus === "pending";
+    } else if (activeTab === "purchase") {
+      // 구매요청: 결제종류가 '구매 요청'인 항목만
+      matchesTab = row.paymentCategory === "구매 요청";
+    }
+    // 전체목록(all)은 모두 포함
     return matchesSearch && matchesTab;
   });
 
@@ -170,9 +179,12 @@ const ApproveMain: React.FC = () => {
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
       <CardHeader className="pb-4 bg-muted/20 border-b border-border">
         <div className="flex justify-between items-center">
-          <div className="flex flex-col">
-            <h2 className="font-semibold text-foreground">승인 관리</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Approval Management</p>
+          <div className="relative flex gap-2 min-h-0 mt-0" style={{ alignItems: 'flex-start', paddingTop: 0, paddingBottom: 0 }}>
+            <div style={{ position: 'absolute', left: 10, top: 5, bottom: 0, width: '4px', borderRadius: '6px', background: 'var(--success)' }} />
+            <div className="flex flex-col gap-0 min-h-0 ml-6">
+              <div className="font-semibold text-foreground text-[19px] mb-0">승인 관리</div>
+              <div className="text-muted-foreground mt-0 text-[12.3px] mb-0" style={{ marginTop: '0px', marginBottom: '-4px' }}>Approval Management</div>
+            </div>
           </div>
           <div className="flex items-center gap-6 ml-6">
             <div className="flex flex-col items-center gap-1">
@@ -202,9 +214,9 @@ const ApproveMain: React.FC = () => {
       <CardContent className="flex-1 overflow-hidden p-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-2 mb-2 p-1">
-            <TabsTrigger value="all" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm">전체목록</TabsTrigger>
-            <TabsTrigger value="pending" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">승인대기</TabsTrigger>
-            <TabsTrigger value="approved" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">승인완료</TabsTrigger>
+            <TabsTrigger value="approval" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm">승인요청</TabsTrigger>
+            <TabsTrigger value="purchase" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">구매요청</TabsTrigger>
+            <TabsTrigger value="all" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">전체목록</TabsTrigger>
           </TabsList>
           <div className="px-6 py-3 border-b border-border bg-background">
             <div className="flex gap-4 items-center">
@@ -224,8 +236,14 @@ const ApproveMain: React.FC = () => {
               <table className="w-full min-w-max">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr className="h-10">
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
+                    {activeTab === "purchase" ? (
+                      <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">구매 현황</th>
+                    ) : (
+                      <>
+                        <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
+                        <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
+                      </>
+                    )}
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20">구매요구자</th>
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">요청유형</th>
                     <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
@@ -251,8 +269,18 @@ const ApproveMain: React.FC = () => {
                         className={`cursor-pointer h-10 text-xs text-foreground ${row.progressType?.includes('선진행') ? 'bg-rose-100' : 'hover:bg-blue-50'}`}
                         onClick={() => setExpandedRowId(expandedRowId === row.id ? null : row.id)}
                       >
-                        <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
-                        <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
+                        {activeTab === "purchase" ? (
+                          <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">
+                            <span className={`inline-block px-2 py-1 rounded-lg font-semibold ${row.paymentStatus === 'approved' ? 'bg-blue-600 text-white' : row.paymentStatus === 'rejected' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'}`} style={{ minWidth: 40 }}>
+  {row.paymentStatus === 'approved' ? '구매완료' : row.paymentStatus === 'rejected' ? '반려' : '대기'}
+</span>
+                          </td>
+                        ) : (
+                          <>
+                            <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
+                            <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
+                          </>
+                        )}
                         <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
                         <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.requestType}</td>
                         <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
@@ -285,11 +313,16 @@ const ApproveMain: React.FC = () => {
                                 items={row.items}
                                 middleManagerStatus={row.middleManagerStatus}
                                 finalManagerStatus={row.finalManagerStatus}
+                                paymentStatus={row.paymentStatus}
+                                isPurchaseTab={activeTab === "purchase"}
                                 onMiddleManagerStatusChange={(newStatus) => {
                                   setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, middleManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
                                 }}
                                 onFinalManagerStatusChange={(newStatus) => {
                                   setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, finalManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                                }}
+                                onPaymentStatusChange={(newStatus) => {
+                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, paymentStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
                                 }}
                               />
                             </div>

@@ -52,8 +52,10 @@ export default function PurchaseListPageClient() {
             </motion.div>
           )}
         </AnimatePresence>
-        <div className="flex-1 min-w-0">
-          <PurchaseListMain onEmailToggle={toggleEmailPanel} showEmailButton={false} />
+        <div className="flex-1 min-w-0 flex flex-col h-full">
+          <div className="flex-1 overflow-auto">
+            <PurchaseListMain onEmailToggle={toggleEmailPanel} showEmailButton={false} />
+          </div>
         </div>
       </div>
     </CommonLayout>

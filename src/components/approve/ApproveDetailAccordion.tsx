@@ -65,46 +65,70 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   // TODO: 실제 로그인 유저의 roles를 props로 받아와야 함 (임시 예시)
   const roles = ["app_admin"];
   const handleApprove = async () => {
-    if (!id) return;
-    const { error } = await supabase
+    console.log("handleApprove called, id:", id);
+    if (!id) {
+      console.error("No id provided!");
+      alert("에러: id 값이 없습니다.");
+      return;
+    }
+    const { error, data } = await supabase
       .from('purchase_requests')
       .update({ final_manager_status: 'approved' })
       .eq('id', id);
-    if (!error) {
-      setFinalManagerStatus('approved');
-      if (typeof onFinalManagerStatusChange === 'function') {
-        onFinalManagerStatusChange('approved');
-      }
+    console.log("Supabase update result (approve):", { error, data });
+    if (error) {
+      alert("에러 발생: " + error.message);
+      return;
+    }
+    setFinalManagerStatus('approved');
+    if (typeof onFinalManagerStatusChange === 'function') {
+      onFinalManagerStatusChange('approved');
     }
   };
   const handleReject = async () => {
-    if (!id) return;
-    const { error } = await supabase
+    console.log("handleReject called, id:", id);
+    if (!id) {
+      console.error("No id provided!");
+      alert("에러: id 값이 없습니다.");
+      return;
+    }
+    const { error, data } = await supabase
       .from('purchase_requests')
       .update({ middle_manager_status: 'rejected', final_manager_status: 'rejected' })
       .eq('id', id);
-    if (!error) {
-      setMiddleManagerStatus('rejected');
-      setFinalManagerStatus('rejected');
-      if (typeof onMiddleManagerStatusChange === 'function') {
-        onMiddleManagerStatusChange('rejected');
-      }
-      if (typeof onFinalManagerStatusChange === 'function') {
-        onFinalManagerStatusChange('rejected');
-      }
+    console.log("Supabase update result (reject):", { error, data });
+    if (error) {
+      alert("에러 발생: " + error.message);
+      return;
+    }
+    setMiddleManagerStatus('rejected');
+    setFinalManagerStatus('rejected');
+    if (typeof onMiddleManagerStatusChange === 'function') {
+      onMiddleManagerStatusChange('rejected');
+    }
+    if (typeof onFinalManagerStatusChange === 'function') {
+      onFinalManagerStatusChange('rejected');
     }
   };
   const handleVerify = async () => {
-    if (!id) return;
-    const { error } = await supabase
+    console.log("handleVerify called, id:", id);
+    if (!id) {
+      console.error("No id provided!");
+      alert("에러: id 값이 없습니다.");
+      return;
+    }
+    const { error, data } = await supabase
       .from('purchase_requests')
       .update({ middle_manager_status: 'approved' })
       .eq('id', id);
-    if (!error) {
-      setMiddleManagerStatus('approved');
-      if (typeof onMiddleManagerStatusChange === 'function') {
-        onMiddleManagerStatusChange('approved');
-      }
+    console.log("Supabase update result (verify):", { error, data });
+    if (error) {
+      alert("에러 발생: " + error.message);
+      return;
+    }
+    setMiddleManagerStatus('approved');
+    if (typeof onMiddleManagerStatusChange === 'function') {
+      onMiddleManagerStatusChange('approved');
     }
   };
 
@@ -143,20 +167,28 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
             title="초기화"
             style={{ background: 'none', border: 'none', padding: 0, borderRadius: '50%', cursor: 'pointer', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onClick={async () => {
-              if (!id) return;
-              const { error } = await supabase
+              console.log("초기화 버튼 클릭, id:", id);
+              if (!id) {
+                console.error("No id provided!");
+                alert("에러: id 값이 없습니다.");
+                return;
+              }
+              const { error, data } = await supabase
                 .from('purchase_requests')
                 .update({ middle_manager_status: 'pending', final_manager_status: 'pending' })
                 .eq('id', id);
-              if (!error) {
-                setMiddleManagerStatus('pending');
-                setFinalManagerStatus('pending');
-                if (typeof onMiddleManagerStatusChange === 'function') {
-                  onMiddleManagerStatusChange('pending');
-                }
-                if (typeof onFinalManagerStatusChange === 'function') {
-                  onFinalManagerStatusChange('pending');
-                }
+              console.log("Supabase update result (reset):", { error, data });
+              if (error) {
+                alert("에러 발생: " + error.message);
+                return;
+              }
+              setMiddleManagerStatus('pending');
+              setFinalManagerStatus('pending');
+              if (typeof onMiddleManagerStatusChange === 'function') {
+                onMiddleManagerStatusChange('pending');
+              }
+              if (typeof onFinalManagerStatusChange === 'function') {
+                onFinalManagerStatusChange('pending');
               }
             }}
           >

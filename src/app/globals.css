@@ -254,6 +254,10 @@
   }
 }
 
+html, body {
+  height: 100%;
+}
+
 html {
   font-size: var(--font-size);
 }

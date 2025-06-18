@@ -22,7 +22,7 @@ export default function CommonLayout({ children, title, description }: CommonLay
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* 헤더 */}
       <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
         <div className="flex items-center justify-between h-16 px-8">
@@ -72,7 +72,7 @@ export default function CommonLayout({ children, title, description }: CommonLay
       </nav>
       
       {/* 메인 컨텐츠 */}
-      <main className="w-full max-w-none px-8 py-8">
+      <main className="flex-1 flex flex-col min-h-0 w-full max-w-none px-8 py-8">
         {title && (
           <div className="mb-6">
             <h1 className="font-semibold text-foreground">

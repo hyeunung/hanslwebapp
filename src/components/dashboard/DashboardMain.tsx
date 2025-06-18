@@ -15,7 +15,7 @@ export default function DashboardMain() {
   const handleEmailToggle = () => setIsEmailPanelOpen((prev) => !prev);
 
   return (
-    <div className="space-y-6 w-full relative">
+    <div className="flex-1 flex flex-col min-h-0 space-y-6 w-full relative">
       {/* Compact New Purchase Card - 전체 폭 활용 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -91,8 +91,10 @@ export default function DashboardMain() {
             </motion.div>
           )}
         </AnimatePresence>
-        <div className="flex-1 min-w-0">
-          <PurchaseListMain onEmailToggle={handleEmailToggle} showEmailButton={true} />
+        <div className="flex-1 min-w-0 flex flex-col h-full">
+          <div className="flex-1 overflow-auto">
+            <PurchaseListMain onEmailToggle={handleEmailToggle} showEmailButton={true} />
+          </div>
         </div>
       </div>
     </div>

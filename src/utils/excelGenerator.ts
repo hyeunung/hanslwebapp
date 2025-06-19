@@ -300,8 +300,8 @@ async function saveWorkbook(wb: XLSX.WorkBook, data: PurchaseOrderData) {
   }
 }
 
-// 심플한 테스트 함수
-export async function generateSimpleTestExcel() {
+// (삭제) 심플한 테스트 함수
+// export async function generateSimpleTestExcel() {
   console.log('🧪 매우 간단한 테스트 Excel 생성 시작');
   
   try {
@@ -338,9 +338,9 @@ export async function generateSimpleTestExcel() {
     
   } catch (error) {
     console.error('❌ 초간단 테스트 실패:', error);
-    alert('테스트 Excel 생성 실패: ' + (error instanceof Error ? error.message : String(error)));
-  }
-}
+    // alert('테스트 Excel 생성 실패: ' + (error instanceof Error ? error.message : String(error)));
+  // }
+// }
 
 function formatDate(dateStr: string): string {
   try {

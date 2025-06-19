@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import EmailButton from "@/components/purchase/EmailButton";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
-import { generateSimpleTestExcel } from "@/utils/excelGenerator";
+// import { generateSimpleTestExcel } from "@/utils/excelGenerator";
 import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
 import Image from "next/image";
 
@@ -550,17 +550,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   }
 
-  // 테스트 Excel 생성 함수
-  const generateTestExcel = async () => {
-    try {
-      console.log('테스트 Excel 생성 시작');
-      await generateSimpleTestExcel();
-      alert('테스트 Excel 파일이 성공적으로 생성되었습니다!');
-    } catch (error) {
-      console.error('테스트 Excel 생성 오류:', error);
-      alert('테스트 Excel 파일 생성 중 오류가 발생했습니다.');
-    }
-  };
 
   // Compact stats 계산 복구
   const pendingOrderNumbers = Array.from(new Set(purchases.filter(item => item.middle_manager_status === '대기' || item.final_manager_status === '대기').map(item => item.purchase_order_number)));

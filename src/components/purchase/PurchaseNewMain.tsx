@@ -290,7 +290,7 @@ export default function PurchaseNewMain() {
         delivery_request_date: data.delivery_request_date,
         request_type: data.request_type,
         progress_type: data.progress_type,
-        payment_status: '대기',
+        is_payment_completed: false,
         payment_category: data.payment_category,
         currency,
         total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),

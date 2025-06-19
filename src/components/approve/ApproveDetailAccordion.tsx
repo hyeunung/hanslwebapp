@@ -37,8 +37,8 @@ interface ApproveDetailAccordionExtraProps {
   onMiddleManagerStatusChange?: (status: string) => void;
   onFinalManagerStatusChange?: (status: string) => void;
   isPurchaseTab?: boolean;
-  paymentStatus?: string;
-  onPaymentStatusChange?: (status: string) => void;
+  isPaymentCompleted?: boolean;
+  onPaymentCompletedChange?: (completed: boolean) => void;
 }
 
 const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDetailAccordionExtraProps> = ({
@@ -59,19 +59,19 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   onMiddleManagerStatusChange,
   onFinalManagerStatusChange,
   isPurchaseTab = false,
-  paymentStatus = 'pending',
-  onPaymentStatusChange,
+  isPaymentCompleted = false,
+  onPaymentCompletedChange,
 }) => {
   // 실제 상태 관리
   const [middleManagerStatus, setMiddleManagerStatus] = useState(initialMiddleManagerStatus);
   const [finalManagerStatus, setFinalManagerStatus] = useState(initialFinalManagerStatus);
-  const [localPaymentStatus, setLocalPaymentStatus] = useState(paymentStatus);
+  const [localIsPaymentCompleted, setLocalIsPaymentCompleted] = useState(isPaymentCompleted);
 
   // 총합 계산 (중복 선언 제거)
   const totalAmount = items.reduce((sum, item) => sum + (item.amountValue || 0), 0);
 
   // 디버깅용 콘솔
-  console.log('[ApproveDetailAccordion] isPurchaseTab:', isPurchaseTab, 'localPaymentStatus:', localPaymentStatus, 'props:', { id, paymentCategory, paymentStatus });
+  // console.log('[ApproveDetailAccordion] isPurchaseTab:', isPurchaseTab, 'localIsPaymentCompleted:', localIsPaymentCompleted, 'props:', { id, paymentCategory, isPaymentCompleted });
 
   // TODO: 실제 로그인 유저의 roles를 props로 받아와야 함 (임시 예시)
   const roles = ["app_admin"];
@@ -146,11 +146,11 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     if (!id) return;
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ payment_status: 'approved' })
+      .update({ is_payment_completed: true })
       .eq('id', id);
     if (!error) {
-      setLocalPaymentStatus('approved');
-      if (typeof onPaymentStatusChange === 'function') onPaymentStatusChange('approved');
+      setLocalIsPaymentCompleted(true);
+      if (typeof onPaymentCompletedChange === 'function') onPaymentCompletedChange(true);
     } else {
       alert('구매완료 처리 중 오류 발생: ' + error.message);
     }
@@ -159,11 +159,11 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     if (!id) return;
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ payment_status: 'rejected' })
+      .update({ is_payment_completed: false })
       .eq('id', id);
     if (!error) {
-      setLocalPaymentStatus('rejected');
-      if (typeof onPaymentStatusChange === 'function') onPaymentStatusChange('rejected');
+      setLocalIsPaymentCompleted(false);
+      if (typeof onPaymentCompletedChange === 'function') onPaymentCompletedChange(false);
     } else {
       alert('반려 처리 중 오류 발생: ' + error.message);
     }
@@ -200,7 +200,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
           <div className="flex-1 flex justify-center">
             {isPurchaseTab ? (
               <div className="flex gap-4">
-                {localPaymentStatus === 'pending' && (
+                {!localIsPaymentCompleted && (
                   <>
                     <button
                       style={buttonStyle('#A2C8FA', '#155fa0')}
@@ -214,11 +214,8 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
                     >반려</button>
                   </>
                 )}
-                {localPaymentStatus === 'approved' && (
+                {localIsPaymentCompleted && (
                   <span className="px-4 py-2 rounded-md text-sm" style={buttonStyle('#A2C8FA', '#155fa0')}>구매완료</span>
-                )}
-                {localPaymentStatus === 'rejected' && (
-                  <span className="px-4 py-2 rounded text-sm" style={buttonStyle('#FF8B94', '#8B1E2D')}>반려됨</span>
                 )}
               </div>
             ) : (

@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ payment_status: '확인' })
+      .update({ is_payment_completed: true })
       .eq('id', Number(id));
     if (error) throw error;
     return NextResponse.json({ success: true }, { status: 200 });

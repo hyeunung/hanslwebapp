@@ -36,7 +36,7 @@ interface ApproveRow {
   items: ItemDetail[];
   middleManagerStatus: "approved" | "pending" | "rejected";
   finalManagerStatus: "approved" | "pending" | "rejected";
-  paymentStatus: "approved" | "pending" | "rejected";
+  isPaymentCompleted: boolean;
 }
 
 function renderStatusBadge(status: "approved" | "pending" | "rejected" | string) {
@@ -73,7 +73,7 @@ const ApproveMain: React.FC = () => {
           middle_manager_status,
           final_manager_status,
           requester_name,
-          payment_status
+          is_payment_completed
         `)
         .order("request_date", { ascending: false });
       if (error) {
@@ -133,7 +133,7 @@ const ApproveMain: React.FC = () => {
             })).sort((a, b) => a.lineNumber - b.lineNumber),
             middleManagerStatus: row.middle_manager_status || "pending",
             finalManagerStatus: row.final_manager_status || "pending",
-            paymentStatus: row.payment_status || "pending",
+            isPaymentCompleted: !!row.is_payment_completed,
           };
         })
       );
@@ -161,8 +161,8 @@ const ApproveMain: React.FC = () => {
       // 승인요청: 기존 승인요청 조건
       matchesTab = row.middleManagerStatus === "pending" || row.finalManagerStatus === "pending";
     } else if (activeTab === "purchase") {
-      // 구매요청: 결제종류가 '구매 요청'인 항목만
-      matchesTab = row.paymentCategory === "구매 요청";
+      // 구매요청: 결제종류가 '구매 요청'이면서 결제 완료가 아닌 항목만
+      matchesTab = row.paymentCategory === "구매 요청" && !row.isPaymentCompleted;
     }
     // 전체목록(all)은 모두 포함
     return matchesSearch && matchesTab;
@@ -270,11 +270,11 @@ const ApproveMain: React.FC = () => {
                         onClick={() => setExpandedRowId(expandedRowId === row.id ? null : row.id)}
                       >
                         {activeTab === "purchase" ? (
-                          <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">
-                            <span className={`inline-block px-2 py-1 rounded-lg font-semibold ${row.paymentStatus === 'approved' ? 'bg-blue-600 text-white' : row.paymentStatus === 'rejected' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'}`} style={{ minWidth: 40 }}>
-  {row.paymentStatus === 'approved' ? '구매완료' : row.paymentStatus === 'rejected' ? '반려' : '대기'}
-</span>
-                          </td>
+  <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">
+    <span className={`inline-block px-2 py-1 rounded-lg font-semibold ${row.isPaymentCompleted ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`} style={{ minWidth: 40 }}>
+      {row.isPaymentCompleted ? '구매완료' : '대기'}
+    </span>
+  </td>
                         ) : (
                           <>
                             <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
@@ -313,7 +313,7 @@ const ApproveMain: React.FC = () => {
                                 items={row.items}
                                 middleManagerStatus={row.middleManagerStatus}
                                 finalManagerStatus={row.finalManagerStatus}
-                                paymentStatus={row.paymentStatus}
+                                isPaymentCompleted={row.isPaymentCompleted}
                                 isPurchaseTab={activeTab === "purchase"}
                                 onMiddleManagerStatusChange={(newStatus) => {
                                   setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, middleManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
@@ -321,8 +321,8 @@ const ApproveMain: React.FC = () => {
                                 onFinalManagerStatusChange={(newStatus) => {
                                   setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, finalManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
                                 }}
-                                onPaymentStatusChange={(newStatus) => {
-                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, paymentStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                                onPaymentCompletedChange={(completed) => {
+                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, isPaymentCompleted: completed } : r));
                                 }}
                               />
                             </div>

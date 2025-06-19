@@ -1,5 +1,5 @@
 // [구매요청 최종 결제 처리 API]
-// 이 엔드포인트는 구매요청(purchase_requests) 테이블의 특정 id에 대해 payment_status를 '완료'로 변경합니다.
+// 이 엔드포인트는 구매요청(purchase_requests) 테이블의 특정 id에 대해 is_payment_completed를 '완료'로 변경합니다.
 // - 결제 승인(최종 결제) 시 사용됩니다.
 // - Supabase 서비스 역할 키를 사용하여 안전하게 DB를 업데이트합니다.
 // - 에러 및 환경 변수 체크 포함.
@@ -23,10 +23,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params; // URL 파라미터에서 id 추출
   try {
-    // 해당 id의 payment_status를 '완료'로 업데이트
+    // 해당 id의 is_payment_completed를 '완료'로 업데이트
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ payment_status: '완료' })
+      .update({ is_payment_completed: true })
       .eq('id', Number(id));
     if (error) throw error;
     // 성공 시 JSON 응답

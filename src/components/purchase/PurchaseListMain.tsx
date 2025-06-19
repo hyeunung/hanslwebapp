@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ interface Purchase {
   request_date: string;
   delivery_request_date: string;
   progress_type: string;
-  payment_status: string;
+  is_payment_completed: boolean; // <-- 한 줄만 남기고 아래 중복 선언 삭제
   payment_category: string;
   currency: string;
   request_type: string;
@@ -50,6 +50,7 @@ interface Purchase {
 interface Employee {
   name: string;
   email: string;
+  purchase_role?: string[];
 }
 
 interface PurchaseListMainProps {
@@ -62,7 +63,7 @@ const NAV_TABS: { key: string; label: string }[] = [
   { key: 'pending', label: '승인대기' },
   { key: 'purchase', label: '구매 현황' },
   { key: 'receipt', label: '입고 현황' },
-  { key: 'done', label: '완료' },
+  { key: 'done', label: '전체항목' },
 ];
 
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
@@ -71,13 +72,15 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState('all'); // 기본값 'all'로
+  const [selectedEmployee, setSelectedEmployee] = useState(''); // 기본값 ''로
   const [activeTab, setActiveTab] = useState('pending');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
   const lastTabRef = useRef<HTMLButtonElement>(null);
   const [sepLeft, setSepLeft] = useState(0);
+  const [pressedOrder, setPressedOrder] = useState<string | null>(null);
+  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
 
   useLayoutEffect(() => {
     if (lastTabRef.current) {
@@ -94,7 +97,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // 초기 로딩 시 현재 사용자로 자동 설정
   useEffect(() => {
-    if (currentUserName && !selectedEmployee) {
+    if (currentUserName) {
       setSelectedEmployee(currentUserName);
     }
   }, [currentUserName]);
@@ -111,7 +114,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           request_date,
           delivery_request_date,
           progress_type,
-          payment_status,
+          is_payment_completed,
           payment_completed_at,
           payment_category,
           currency,
@@ -133,7 +136,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           middle_manager_status,
           final_manager_status,
           is_received,
-          received_at
+          received_at,
+          is_payment_completed
         `);
       if (data) {
         setPurchases(
@@ -143,7 +147,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             request_date: row.request_date as string,
             delivery_request_date: row.delivery_request_date as string,
             progress_type: row.progress_type as string,
-            payment_status: row.payment_status as string,
+
             payment_completed_at: row.payment_completed_at as string,
             payment_category: row.payment_category as string,
             currency: row.currency as string,
@@ -166,6 +170,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             final_manager_status: row.final_manager_status as string,
             is_received: !!row.is_received,
             received_at: row.received_at as string,
+            is_payment_completed: !!row.is_payment_completed,
           }))
         );
       }
@@ -188,7 +193,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       // 현재 로그인한 사용자 정보 가져오기 (ID로 먼저 찾기)
       let { data: currentUser, error: userError } = await supabase
         .from('employees')
-        .select('name, email')
+        .select('name, email, purchase_role')
         .eq('id', user.id)
         .single();
       
@@ -196,24 +201,27 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       if (!currentUser && user.email) {
         const { data: userByEmail, error: emailError } = await supabase
           .from('employees')
-          .select('name, email')
+          .select('name, email, purchase_role')
           .eq('email', user.email)
           .single();
         
-        currentUser = userByEmail;
+        currentUser = userByEmail ? userByEmail : { name: user.email.split('@')[0], email: user.email, purchase_role: [] };
         userError = emailError;
       }
       
       if (currentUser) {
         setCurrentUserName(currentUser.name);
+        setCurrentUserRoles(Array.isArray(currentUser.purchase_role) ? currentUser.purchase_role : []);
       } else {
         // fallback: user.email에서 이름 추출 또는 기본값 설정
         if (user.email) {
           const nameFromEmail = user.email.split('@')[0];
           setCurrentUserName(nameFromEmail);
+          setCurrentUserRoles([]);
         } else {
           // 마지막 방법: 기본값 설정
           setCurrentUserName('기본사용자');
+          setCurrentUserRoles([]);
         }
       }
 
@@ -227,14 +235,15 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         setEmployees(employeeList);
       } else {
         // 직원 목록을 가져올 수 없는 경우 기본값 설정
-        setEmployees([{ name: currentUserName || '기본사용자', email: user.email || '' }]);
+        setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '', purchase_role: [] }]);
       }
     } catch (error) {
       console.error('직원 정보를 불러오는데 실패했습니다:', error);
       window.alert('직원 정보 로딩에 실패했습니다. 잠시 후 다시 시도해 주세요.');
       // 오류 발생 시 기본값 설정
       setCurrentUserName(user.email?.split('@')[0] || '기본사용자');
-      setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '' }]);
+      setCurrentUserRoles([]);
+      setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '', purchase_role: [] }]);
     } finally {
       setIsLoadingEmployees(false);
     }
@@ -247,56 +256,112 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
   };
 
-  const tabFilteredOrders = purchases.filter(item => {
-    // 직원 필터
-    if (selectedEmployee !== 'all' && selectedEmployee) {
-      if (item.requester_name !== selectedEmployee) return false;
-    }
-    // 검색어 필터
-    if (searchTerm && searchTerm.trim() !== '') {
-      const term = searchTerm.trim().toLowerCase();
-      const searchable = [
-        item.purchase_order_number,
-        item.vendor_name,
-        item.item_name,
-        item.specification,
-        item.requester_name,
-        item.remark,
-        item.project_vendor,
-        item.sales_order_number,
-        item.project_item,
-        item.unit_price_value?.toString(),
-        item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
-        item.amount_value?.toString(),
-        item.amount_value ? Number(item.amount_value).toLocaleString() : '',
-      ].map(v => (v || '').toLowerCase()).join(' ');
-      if (!searchable.includes(term)) return false;
-    }
-    // 탭 필터 복원
-    if (activeTab === 'pending') {
-      // 아직 승인 안된 건 + 오늘 승인된 건만 남김
-      return item.final_manager_status !== 'approved' ||
-        (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
-    }
-    if (activeTab === 'purchase') {
-      // payment_category가 '구매 요청' + 오늘 결제완료된 건만 남김
-      return item.payment_category === '구매 요청' &&
-        (item.payment_status !== 'approved' || isToday(item.payment_completed_at));
-    }
-    if (activeTab === 'receipt') {
-      // 입고현황: 최종승인 또는 선진행 건만, 입고완료가 아닌 건 + 오늘 입고된 건만 남김
+  // 입고현황 탭 필터 조건 함수 (수정)
+  const isReceiptTabMatch = (item: Purchase) => {
+    // 1. is_received가 false면 무조건 표시
+    if (item.is_received === false) {
+      // 이름 필터
+      if (selectedEmployee !== 'all' && selectedEmployee) {
+        if (item.requester_name !== selectedEmployee) return false;
+      }
+      // 최종관리자 승인 or 선진행만
       const isFinalApproved = item.final_manager_status === 'approved';
       const isAdvance = item.progress_type?.includes('선진행');
       if (!(isFinalApproved || isAdvance)) return false;
-      return item.progress_type !== '입고완료' ||
-        (item.progress_type === '입고완료' && isToday(item.received_at));
+      return true;
     }
-    if (activeTab === 'done') {
-      // 완료: 최종관리자 승인(완료)만으로 표시
-      return ['approved', '승인'].includes(item.final_manager_status || '');
+    // 2. is_received가 true면 당일(received_at)이고, (최종관리자 승인 or 선진행)만 표시
+    if (item.is_received === true && isToday(item.received_at)) {
+      // 이름 필터
+      if (selectedEmployee !== 'all' && selectedEmployee) {
+        if (item.requester_name !== selectedEmployee) return false;
+      }
+      const isFinalApproved = item.final_manager_status === 'approved';
+      const isAdvance = item.progress_type?.includes('선진행');
+      if (!(isFinalApproved || isAdvance)) return false;
+      return true;
     }
-    return true;
-  });
+    // 그 외는 표시 안함
+    return false;
+  };
+
+  // 탭별 필터 적용
+  const tabFilteredOrders = activeTab === 'receipt'
+    ? purchases.filter(isReceiptTabMatch)
+    : activeTab === 'done'
+      ? purchases.filter(item => {
+          // 검색어 필터만 적용
+          if (searchTerm && searchTerm.trim() !== '') {
+            const term = searchTerm.trim().toLowerCase();
+            const searchable = [
+              item.purchase_order_number,
+              item.vendor_name,
+              item.item_name,
+              item.specification,
+              item.requester_name,
+              item.remark,
+              item.project_vendor,
+              item.sales_order_number,
+              item.project_item,
+              item.unit_price_value?.toString(),
+              item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
+              item.amount_value?.toString(),
+              item.amount_value ? Number(item.amount_value).toLocaleString() : '',
+            ].map(v => (v || '').toLowerCase()).join(' ');
+            if (!searchable.includes(term)) return false;
+          }
+          return true;
+        })
+      : purchases.filter(item => {
+        // 직원 필터
+        if (selectedEmployee !== 'all' && selectedEmployee) {
+          if (item.requester_name !== selectedEmployee) return false;
+        }
+        // 검색어 필터
+        if (searchTerm && searchTerm.trim() !== '') {
+          const term = searchTerm.trim().toLowerCase();
+          const searchable = [
+            item.purchase_order_number,
+            item.vendor_name,
+            item.item_name,
+            item.specification,
+            item.requester_name,
+            item.remark,
+            item.project_vendor,
+            item.sales_order_number,
+            item.project_item,
+            item.unit_price_value?.toString(),
+            item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
+            item.amount_value?.toString(),
+            item.amount_value ? Number(item.amount_value).toLocaleString() : '',
+          ].map(v => (v || '').toLowerCase()).join(' ');
+          if (!searchable.includes(term)) return false;
+        }
+        // 탭 필터 복원
+        if (activeTab === 'pending') {
+          // 아직 승인 안된 건 + 오늘 승인된 건만 남김
+          return item.final_manager_status !== 'approved' ||
+            (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
+        }
+        if (activeTab === 'purchase') {
+          // '구매 요청'이면서 결제(구매) 완료가 아닌 건 + 오늘 결제된 건만 남김
+          return item.payment_category === '구매 요청' &&
+            (!item.is_payment_completed || isToday(item.payment_completed_at));
+        }
+        if (activeTab === 'receipt') {
+          // 입고현황: 최종승인 또는 선진행 건만, 입고완료가 아닌 건 + 오늘 입고된 건만 남김
+          const isFinalApproved = item.final_manager_status === 'approved';
+          const isAdvance = item.progress_type?.includes('선진행');
+          if (!(isFinalApproved || isAdvance)) return false;
+          return item.progress_type !== '입고완료' ||
+            (item.progress_type === '입고완료' && isToday(item.received_at));
+        }
+        if (activeTab === 'done') {
+          // 완료: 최종관리자 승인(완료)만으로 표시
+          return ['approved', '승인'].includes(item.final_manager_status || '');
+        }
+        return true;
+      });
 
   // 발주번호별 그룹핑 및 카운트
   const orderNumberGroups = tabFilteredOrders.reduce((acc, item) => {
@@ -338,6 +403,18 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       });
     }
   });
+
+  // 디버깅용 콘솔로그: displayData의 주요 필드 출력
+  if (typeof window !== 'undefined') {
+    console.log('[displayData]', displayData.map(row => ({
+      purchase_order_number: row.purchase_order_number,
+      line_number: row.line_number,
+      is_received: row.is_received,
+      isGroupHeader: row.isGroupHeader,
+      isSubItem: row.isSubItem,
+      groupSize: row.groupSize
+    })));
+  }
 
   // 그룹 토글 함수
   const toggleGroup = (orderNumber: string) => {
@@ -494,22 +571,57 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     approved: approvedOrderNumbers.length,
   };
 
-  // isToday 함수와 delivery_request_date 값 디버깅
-  purchases.slice(0, 5).forEach((item, idx) => {
-    console.log(`[isToday 디버그 ${idx}] delivery_request_date:`, item.delivery_request_date, 'isToday:', isToday(item.delivery_request_date));
-  });
+  
 
-  useEffect(() => {
-    // (디버깅용 로그 제거)
-  }, [purchases, tabFilteredOrders, displayData]);
+  
 
   // 모든 탭의 카운트에 직원/검색어 필터가 실시간 반영되도록 함수 도입 (컴포넌트 내부로 이동)
   const getTabCount = (tabKey: string) => {
+    if (tabKey === 'receipt') {
+      return Array.from(new Set(
+        purchases.filter(isReceiptTabMatch).map(item => item.purchase_order_number || 'no-number')
+      )).length;
+    }
+    if (tabKey === 'done') {
+      return Array.from(new Set(
+        purchases.filter(item => {
+          // 검색어 필터만 적용
+          if (searchTerm && searchTerm.trim() !== '') {
+            const term = searchTerm.trim().toLowerCase();
+            const searchable = [
+              item.purchase_order_number,
+              item.vendor_name,
+              item.item_name,
+              item.specification,
+              item.requester_name,
+              item.remark,
+              item.project_vendor,
+              item.sales_order_number,
+              item.project_item,
+              item.unit_price_value?.toString(),
+              item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
+              item.amount_value?.toString(),
+              item.amount_value ? Number(item.amount_value).toLocaleString() : '',
+            ].map(v => (v || '').toLowerCase()).join(' ');
+            if (!searchable.includes(term)) return false;
+          }
+          return true;
+        }).map(item => item.purchase_order_number || 'no-number')
+      )).length;
+    }
     return Array.from(new Set(
       purchases.filter((item: Purchase) => {
-        // 직원 필터
-        if (selectedEmployee !== 'all' && selectedEmployee) {
-          if (item.requester_name !== selectedEmployee) return false;
+        // 직원 필터: '전체'일 때는 무시 (승인대기, 구매현황, 입고현황 탭에서만)
+        if (['pending', 'purchase', 'receipt'].includes(tabKey)) {
+          // '전체'면 필터 무시, 아니면 필터 적용
+          if (selectedEmployee !== 'all' && selectedEmployee) {
+            if (item.requester_name !== selectedEmployee) return false;
+          }
+        } else {
+          // 그 외 탭(예: done)에서는 기존대로 적용
+          if (selectedEmployee !== 'all' && selectedEmployee) {
+            if (item.requester_name !== selectedEmployee) return false;
+          }
         }
         // 검색어 필터
         if (searchTerm && searchTerm.trim() !== '') {
@@ -536,12 +648,13 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           return item.final_manager_status !== 'approved';
         }
         if (tabKey === 'purchase') {
-          return item.payment_category === '구매 요청';
+          return item.payment_category === '구매 요청' && !item.is_payment_completed;
         }
         if (tabKey === 'receipt') {
           const isFinalApproved = item.final_manager_status === 'approved';
           const isAdvance = item.progress_type?.includes('선진행');
           if (!(isFinalApproved || isAdvance)) return false;
+          
           return item.progress_type !== '입고완료' ||
             (item.progress_type === '입고완료' && isToday(item.received_at));
         }
@@ -552,6 +665,25 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       }).map(item => item.purchase_order_number || 'no-number')
     )).length;
   };
+
+  // 구매 현황 탭에서 '대기' 버튼 클릭 시 DB 업데이트 함수
+  const handleCompleteReceipt = async (orderNumber: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('purchase_requests')
+        .update({ is_received: true, received_at: now })
+        .eq('purchase_order_number', orderNumber);
+      if (error) throw error;
+      await loadMyRequests(); // DB에서 최신값 반영
+    } catch (err: any) {
+      window.alert('입고 완료 처리 중 오류가 발생했습니다: ' + (err.message || err));
+    }
+  };
+
+  
+
+  
 
   return (
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
@@ -661,7 +793,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           <table className="w-full min-w-max">
             <thead className="bg-muted/10 sticky top-0">
               <tr className="h-12">
-                {activeTab === 'purchase' ? (
+                {activeTab === 'done' ? (
+                  <>
+                    <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">승인상태</th>
+                    <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">입고현황</th>
+                    <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">구매현황</th>
+<th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">결제 종류</th>
+                  </>
+                ) : activeTab === 'purchase' ? (
                   <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">구매 현황</th>
                 ) : activeTab === 'receipt' ? (
                   <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">입고 상태</th>
@@ -675,7 +814,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
                 <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
                 <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
-                <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-27">규격</th>
+                <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">규격</th>
                 <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
                 <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
                 <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
@@ -783,53 +922,140 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                       }
                     }}
                   >
-                    {activeTab === 'purchase' ? (
+                    {activeTab === 'done' ? (
+                      <>
+                        {/* 승인상태(최종) */}
+                        {isGroupHeader ? (
+                          <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                            <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
+                              style={{
+                                minWidth: 40,
+                                boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                                border: 'none',
+                                background: item.final_manager_status === 'approved' ? '#22c55e' : '#e5e7eb',
+                                color: item.final_manager_status === 'approved' ? '#fff' : '#222',
+                              }}>
+                              {item.final_manager_status === 'pending' ? '대기' : item.final_manager_status === 'approved' ? '승인' : item.final_manager_status}
+                            </span>
+                          </td>
+                        ) : <td className="w-14" />}
+                        {/* 입고현황 */}
+                        {isGroupHeader ? (
+                          <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                            <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
+                              style={{
+                                minWidth: 40,
+                                boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                                border: 'none',
+                                background: item.is_received ? '#22c55e' : '#e5e7eb',
+                                color: item.is_received ? '#fff' : '#222',
+                              }}>
+                              {item.is_received ? '입고' : '대기'}
+                            </span>
+                          </td>
+                        ) : <td className="w-14" />}
+                        {/* 구매현황 */}
+                        {isGroupHeader ? (
+                          <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                            {item.payment_category === '구매 요청' ? (
+                              <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
+                                style={{
+                                  minWidth: 40,
+                                  boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                                  border: 'none',
+                                  background: item.is_received ? '#22c55e' : '#e5e7eb',
+                                  color: item.is_received ? '#fff' : '#222',
+                                }}>
+                                {item.is_received ? '입고' : '대기'}
+                              </span>
+                            ) : ''}
+                          </td>
+                        ) : <td className="w-14" />}
+                        {/* 결제 종류 */}
+                        {isGroupHeader ? (
+                          <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                            {item.payment_category}
+                          </td>
+                        ) : <td className="w-14" />}
+                      </>
+                    ) : activeTab === 'purchase' ? (
                       // 구매 현황 칼럼
-                      <td className="px-2 py-2 text-xs text-foreground text-center w-24">
-                        {item.payment_status === 'pending' ? (
-  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`} style={{ minWidth: 40 }}>대기</span>
-) : item.payment_status === 'approved' ? (
-  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white${item.progress_type?.includes('선진행') ? ' border border-blue-400' : ''}`} style={{ minWidth: 40 }}>구매완료</span>
-) : item.payment_status === 'rejected' ? (
-  <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-red-200 text-red-800${item.progress_type?.includes('선진행') ? ' border border-red-400' : ''}`} style={{ minWidth: 40 }}>반려</span>
-) : (
-  <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800" style={{ minWidth: 40 }}>{item.payment_status}</span>
-)}
-                      </td>
+                      isGroupHeader ? (
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-24" style={{ overflow: 'visible' }}>
+                          {item.is_payment_completed ? (
+                            <span
+                              className="inline-block px-2 py-1 rounded-lg font-semibold bg-green-500 text-white select-none"
+                              style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
+                            >
+                              완료
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 select-none"
+                              style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
+                            >
+                              대기
+                            </span>
+                          )}
+                        </td>
+                      ) : <td className="w-24" />
                     ) : activeTab === 'receipt' ? (
                       // 입고 상태 칼럼
-                      <td className="px-2 py-2 text-xs text-foreground text-center w-24">
-                        {item.is_received ? (
-                          <span className="inline-block px-2 py-1 rounded-lg font-semibold bg-blue-600 text-white" style={{ minWidth: 40 }}>완료</span>
-                        ) : (
-                          <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800${item.progress_type?.includes('선진행') ? ' border border-gray-400' : ''}`} style={{ minWidth: 40 }}>대기</span>
-                        )}
-                      </td>
+                      isGroupHeader ? (
+                        <td className="px-2 py-2 text-xs text-foreground text-center w-24" style={{ overflow: 'visible' }}>
+                          {item.is_received ? (
+                            <span
+                              className={
+                                `inline-block px-2 py-1 rounded-lg font-semibold bg-green-500 text-white select-none`
+                              }
+                              style={{
+                                minWidth: 40,
+                                boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                                border: 'none',
+                              }}
+                            >
+                              입고
+                            </span>
+                          ) : (
+                            currentUserName === item.requester_name || currentUserRoles.includes('app_admin') ? (
+                              <button
+                                className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 transition-all duration-150 focus:outline-none select-none relative overflow-hidden ${pressedOrder === item.purchase_order_number ? 'scale-90' : ''}`}
+                                style={{
+                                  minWidth: 40,
+                                  boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                }}
+                                onClick={async e => {
+                                  e.stopPropagation();
+                                  setPressedOrder(item.purchase_order_number || '');
+                                  await handleCompleteReceipt(item.purchase_order_number!);
+                                  setPressedOrder(null);
+                                }}
+                              >
+                                입고
+                              </button>
+                            ) : (
+                              <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 opacity-60 select-none`} style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none', cursor: 'not-allowed' }}>대기</span>
+                            )
+                          )}
+                        </td>
+                      ) : <td className="w-24" />
                     ) : (
                       // 승인상태 칼럼
                       <td className="px-2 py-2 text-xs text-foreground text-center w-35">
                         {isGroupHeader ? (
                           <>
                             <span
-                              className={`inline-block px-2 py-1 rounded-lg font-semibold
-                                ${item.middle_manager_status === 'pending'
-                                  ? 'bg-gray-200 text-gray-800'
-                                  : 'bg-blue-600 text-white'}
-                                ${item.middle_manager_status === 'pending' && isAdvancePayment ? 'border border-gray-400' : ''}
-                              `}
-                              style={{ minWidth: 40, marginRight: 4 }}
+                              className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800`}
+                              style={{ minWidth: 40, marginRight: 4, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
                             >
                               {item.middle_manager_status === 'pending' ? '대기' : item.middle_manager_status === 'approved' ? '승인' : item.middle_manager_status}
                             </span>
                             /
                             <span
-                              className={`inline-block px-2 py-1 rounded-lg font-semibold
-                                ${item.final_manager_status === 'pending'
-                                  ? 'bg-gray-200 text-gray-800'
-                                  : 'bg-blue-600 text-white'}
-                                ${item.final_manager_status === 'pending' && isAdvancePayment ? 'border border-gray-400' : ''}
-                              `}
-                              style={{ minWidth: 40, marginLeft: 4 }}
+                              className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800`}
+                              style={{ minWidth: 40, marginLeft: 4, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
                             >
                               {item.final_manager_status === 'pending' ? '대기' : item.final_manager_status === 'approved' ? '승인' : item.final_manager_status}
                             </span>

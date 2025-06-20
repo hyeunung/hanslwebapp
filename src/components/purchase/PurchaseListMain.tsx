@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+
 import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,10 +80,13 @@ const NAV_TABS: { key: string; label: string }[] = [
 
 // 이 함수가 실제로 '발주 목록' 화면 전체를 만듭니다.
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   // 검색어, 직원 선택, 탭(진행상태) 등 화면의 상태를 관리합니다.
   const [searchTerm, setSearchTerm] = useState(""); // 검색창에 입력한 내용
   const [selectedEmployee, setSelectedEmployee] = useState('all'); // 선택된 직원, '전체'로 기본값 설정
-  const [activeTab, setActiveTab] = useState('pending'); // 현재 선택된 탭(진행상태)
+  const initialTab = searchParams.get('subtab') || 'pending';
+  const [activeTab, setActiveTab] = useState(initialTab); // 현재 선택된 탭(진행상태)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); // 펼쳐진 주문서 그룹(여러 줄짜리)
   const lastTabRef = useRef<HTMLButtonElement>(null); // 탭 UI 위치 계산용
   const [sepLeft, setSepLeft] = useState(0); // 탭 구분선 위치
@@ -407,7 +412,10 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 ref={idx === NAV_TABS.length - 1 ? lastTabRef : undefined}
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => {
+  setActiveTab(tab.key);
+  router.replace(`/dashboard?tab=dashboard&subtab=${tab.key}`);
+}}
                 className={`px-3 py-1 min-w-[72px] font-medium text-[13px] focus:outline-none transition-shadow duration-200
                   ${activeTab === tab.key ? 'text-white bg-gradient-to-l from-primary/90 to-primary' : 'text-muted-foreground bg-gray-100'}
                   ${idx === 0 ? 'rounded-tl-xl' : ''}
@@ -489,8 +497,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
             </div>
           )}
-          </div>
-          </CardContent>
+        </div>
+      </CardContent>
     </Card>
   );
 }

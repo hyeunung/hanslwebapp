@@ -10,6 +10,7 @@ import VendorListMain from "@/components/vendor/VendorListMain";
 import LogoutButton from "./LogoutButton";
 import { usePurchaseData } from "@/hooks/usePurchaseData";
 import HeaderBar from "./HeaderBar";
+import HeaderBrand from "./HeaderBrand";
 
 const navigationItems = [
   { id: 'dashboard', icon: Home, label: '대시보드' },
@@ -36,8 +37,8 @@ export default function AppNavigationLayout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
-  <HeaderBar logoType="image" brandProps={{ logoWidth: 48, logoHeight: 48, titleFontSize: 38, subtitleFontSize: 13.5, subtitleFontWeight: 600, marginLeftTitle: 16, marginLeftSubtitle: 16 }} />
-</header>
+        <HeaderBar logoType="image" />
+      </header>
       <nav className="bg-white border-b border-border shadow-sm sticky top-16 z-40">
         <div className="flex items-center space-x-8 px-8">
           {navigationItems

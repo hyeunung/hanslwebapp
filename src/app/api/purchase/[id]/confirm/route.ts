@@ -13,9 +13,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   try {
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ is_payment_completed: true })
+      .update({ is_payment_completed: true, payment_completed_at: now })
       .eq('id', Number(id));
     if (error) throw error;
     return NextResponse.json({ success: true }, { status: 200 });

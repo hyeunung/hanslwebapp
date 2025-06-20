@@ -23,10 +23,11 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params; // URL 파라미터에서 id 추출
   try {
-    // 해당 id의 is_payment_completed를 '완료'로 업데이트
+    // 해당 id의 is_payment_completed와 final_manager_approved_at를 업데이트
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('purchase_requests')
-      .update({ is_payment_completed: true })
+      .update({ is_payment_completed: true, final_manager_approved_at: now })
       .eq('id', Number(id));
     if (error) throw error;
     // 성공 시 JSON 응답

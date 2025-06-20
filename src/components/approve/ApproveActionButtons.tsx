@@ -28,8 +28,8 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
   const handleVerifyClick = () => {
     setIsVerified(true);
     onVerify();
-  }
-  // admin: 모든 버튼
+  };
+  // app_admin: 모든 버튼
   if (roles.includes("app_admin")) {
     return (
       <div className="flex gap-6">
@@ -81,21 +81,20 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
       </div>
     );
   }
-  // 중간관리자: 검증/반려
-  if (roles.includes("middle_manager")) {
-    return (
-      <div className="flex gap-2">
-        <Button style={{backgroundColor:'#A8E6CF', color:'#207744'}} onClick={onVerify} disabled={disabled}>검증</Button>
-        <Button style={{backgroundColor:'#FF8B94', color:'#8B1E2D'}} onClick={onReject} disabled={disabled}>반려</Button>
-      </div>
-    );
-  }
-  // 최종승인자: 승인/반려 (원자재/소모품 구분 필요시 requestType 활용)
+  // final_approver: 승인/반려만
   if (roles.includes("final_approver")) {
     return (
       <div className="flex gap-2">
         <Button style={{backgroundColor:'#FFD3B6', color:'#8D5524'}} onClick={onApprove} disabled={disabled}>승인</Button>
         <Button style={{backgroundColor:'#FF8B94', color:'#8B1E2D'}} onClick={onReject} disabled={disabled}>반려</Button>
+      </div>
+    );
+  }
+  // middle_manager: 검증만
+  if (roles.includes("middle_manager")) {
+    return (
+      <div className="flex gap-2">
+        <Button style={{backgroundColor:'#A8E6CF', color:'#207744'}} onClick={onVerify} disabled={disabled}>검증</Button>
       </div>
     );
   }

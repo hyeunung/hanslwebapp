@@ -47,6 +47,11 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
     }
     if (activeTab === 'done') {
       return purchases.filter(item => {
+        // '전체 항목' 탭에서는 담당자 필터만 적용
+        if (selectedEmployee && selectedEmployee !== 'all' && item.requester_name !== selectedEmployee) {
+          return false;
+        }
+
         if (searchTerm && searchTerm.trim() !== '') {
           const term = searchTerm.trim().toLowerCase();
           const searchable = [

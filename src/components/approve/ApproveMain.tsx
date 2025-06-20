@@ -2,9 +2,7 @@ import React, { useState, useEffect } from "react";
 import ApproveDetailAccordion from "./ApproveDetailAccordion";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
@@ -45,12 +43,24 @@ function renderStatusBadge(status: "approved" | "pending" | "rejected" | string)
   return <span className="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-base tracking-widest">대  기</span>;
 }
 
+const TAB_ORDER = ["pending", "approved", "all"];
+const TAB_LABELS: Record<string, string> = {
+  pending: "대기",
+  approved: "완료",
+  all: "전체"
+};
+const TAB_COLORS: Record<string, string> = {
+  pending: "bg-yellow-400 text-yellow-900 hover:bg-yellow-500",
+  approved: "bg-green-500 text-white hover:bg-green-600",
+  all: "bg-gray-200 text-gray-800 hover:bg-gray-300"
+};
+
 const ApproveMain: React.FC = () => {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [approveList, setApproveList] = useState<ApproveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("approval");
+  const [activeTab, setActiveTab] = useState<string>("pending");
 
   useEffect(() => {
     async function fetchApproveList() {
@@ -143,42 +153,66 @@ const ApproveMain: React.FC = () => {
     fetchApproveList();
   }, []);
 
-  // 필터링/탭/검색
-  const filteredList = approveList.filter(row => {
+  // 탭별 필터링
+  const getFilteredList = () => {
+    if (activeTab === "pending") {
+      return approveList.filter(r => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending");
+    }
+    if (activeTab === "approved") {
+      return approveList.filter(r => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved");
+    }
+    return approveList;
+  };
+  const filteredList = getFilteredList().filter(row => {
     const search = searchTerm.toLowerCase();
-    const searchable = [
+    // 금액(합계) 문자열 생성
+    const totalAmount = row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0);
+    const totalAmountStr = totalAmount.toLocaleString();
+    // 모든 칼럼을 문자열로 합침
+    const allFields = [
+      row.id,
       row.requestType,
+      row.paymentCategory,
       row.vendorName,
       row.contactName,
-      row.salesOrderNumber,
+      row.requesterName,
+      row.requestDate,
+      row.deliveryRequestDate,
       row.projectVendor,
+      row.salesOrderNumber,
       row.projectItem,
-      ...(row.items?.map(i => i.itemName + i.specification) || [])
-    ].join(" ").toLowerCase();
+      row.purchaseOrderNumber,
+      row.progressType,
+      row.middleManagerStatus,
+      row.finalManagerStatus,
+      row.isPaymentCompleted ? '구매완료' : '미완료',
+      totalAmountStr,
+      ...(row.items?.flatMap(i => [
+        i.lineNumber,
+        i.itemName,
+        i.specification,
+        i.quantity,
+        i.unitPriceValue,
+        i.amountValue,
+        i.remark
+      ]) || [])
+    ];
+    const searchable = allFields.map(v => (v === undefined || v === null ? '' : v.toString())).join(' ').toLowerCase();
     const matchesSearch = !search || searchable.includes(search);
-    let matchesTab = true;
-    if (activeTab === "approval") {
-      // 승인요청: 기존 승인요청 조건
-      matchesTab = row.middleManagerStatus === "pending" || row.finalManagerStatus === "pending";
-    } else if (activeTab === "purchase") {
-      // 구매요청: 결제종류가 '구매 요청'이면서 결제 완료가 아닌 항목만
-      matchesTab = row.paymentCategory === "구매 요청" && !row.isPaymentCompleted;
-    }
-    // 전체목록(all)은 모두 포함
-    return matchesSearch && matchesTab;
+    return matchesSearch;
   });
 
   // 통계
   const stats = {
-    total: approveList.length,
     pending: approveList.filter(r => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending").length,
     approved: approveList.filter(r => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved").length,
+    all: approveList.length
   };
 
   return (
-    <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
+    <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full rounded-2xl">
       <CardHeader className="pb-4 bg-muted/20 border-b border-border">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-start">
           <div className="relative flex gap-2 min-h-0 mt-0" style={{ alignItems: 'flex-start', paddingTop: 0, paddingBottom: 0 }}>
             <div style={{ position: 'absolute', left: 10, top: 5, bottom: 0, width: '4px', borderRadius: '6px', background: 'var(--success)' }} />
             <div className="flex flex-col gap-0 min-h-0 ml-6">
@@ -186,156 +220,123 @@ const ApproveMain: React.FC = () => {
               <div className="text-muted-foreground mt-0 text-[12.3px] mb-0" style={{ marginTop: '0px', marginBottom: '-4px' }}>Approval Management</div>
             </div>
           </div>
-          <div className="flex items-center gap-6 ml-6">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary"></div>
-                <span className="text-sm text-muted-foreground">전체</span>
-              </div>
-              <span className="text-sm font-semibold text-foreground">{stats.total}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-warning"></div>
-                <span className="text-sm text-muted-foreground">대기</span>
-              </div>
-              <span className="text-sm font-semibold text-warning">{stats.pending}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-success"></div>
-                <span className="text-sm text-muted-foreground">완료</span>
-              </div>
-              <span className="text-sm font-semibold text-success">{stats.approved}</span>
-            </div>
+          <div className="flex items-center gap-2 ml-10">
+            {TAB_ORDER.map(tab => (
+              <Button
+                key={tab}
+                className={`rounded-md px-6 py-2 font-semibold text-sm shadow-sm transition-colors duration-150 ${TAB_COLORS[tab]} ${activeTab === tab ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
+                onClick={() => setActiveTab(tab)}
+                variant="ghost"
+              >
+                {TAB_LABELS[tab]} <span className="ml-2 text-xs font-bold">{stats[tab]}</span>
+              </Button>
+            ))}
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 rounded-lg bg-muted/30 border-b border-border h-12 mx-6 mt-2 mb-2 p-1">
-            <TabsTrigger value="approval" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow font-medium transition-all duration-200 text-sm h-8 hover:shadow-sm">승인요청</TabsTrigger>
-            <TabsTrigger value="purchase" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">구매요청</TabsTrigger>
-            <TabsTrigger value="all" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium transition-all duration-200 text-sm h-8">전체목록</TabsTrigger>
-          </TabsList>
-          <div className="px-6 py-3 border-b border-border bg-background">
-            <div className="flex gap-4 items-center">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="전체 항목 통합검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
-                />
-              </div>
+        {/* 네비게이션바(탭) 제거, 전체목록만 남김 */}
+        <div className="px-6 py-3 border-b border-border bg-background">
+          <div className="flex gap-4 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="전체 항목 통합검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-9 text-sm bg-background border-border rounded-md hover:shadow-sm focus:shadow-sm transition-shadow duration-200 focus-ring"
+              />
             </div>
           </div>
-          <TabsContent value={activeTab} className="flex-1 overflow-auto m-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-max">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr className="h-10">
-                    {activeTab === "purchase" ? (
-                      <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">구매 현황</th>
-                    ) : (
-                      <>
-                        <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
-                        <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
-                      </>
-                    )}
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20">구매요구자</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">요청유형</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5.5rem]">담당자</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-48 min-w-[12rem]">품명</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5rem] text-center">규격</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-72 text-center">비고</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
-                    <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">신청일</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
-                  ) : filteredList.length === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
-                  ) : filteredList.map((row) => (
-                    <React.Fragment key={row.id}>
-                      <tr
-                        className={`cursor-pointer h-10 text-xs text-foreground ${row.progressType?.includes('선진행') ? 'bg-rose-100' : 'hover:bg-blue-50'}`}
-                        onClick={() => setExpandedRowId(expandedRowId === row.id ? null : row.id)}
-                      >
-                        {activeTab === "purchase" ? (
-  <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">
-    <span className={`inline-block px-2 py-1 rounded-lg font-semibold ${row.isPaymentCompleted ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`} style={{ minWidth: 40 }}>
-      {row.isPaymentCompleted ? '구매완료' : '대기'}
-    </span>
-  </td>
-                        ) : (
-                          <>
-                            <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
-                            <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
-                          </>
-                        )}
-                        <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
-                        <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.requestType}</td>
-                        <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
-                        <td className="text-center px-2 py-2 w-20 min-w-[5.5rem]">{row.contactName}</td>
-                        <td className="text-center px-2 py-2 w-48 min-w-[12rem]">{row.items[0]?.itemName}</td>
-                        <td className="text-left px-2 py-2 w-20 min-w-[5rem]">{row.items[0]?.specification}</td>
-                        <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
-                        <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
-                        <td className="text-center px-2 py-2 w-72">{row.items[0]?.remark || '-'}</td>
-                        <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.purchaseOrderNumber}</td>
-                        <td className="text-center px-2 py-2">{row.deliveryRequestDate}</td>
-                        <td className="text-center px-2 py-2">{row.requestDate}</td>
+        </div>
+        <div className="flex-1 overflow-auto m-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr className="h-10">
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20">구매요구자</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">요청유형</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5.5rem]">담당자</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-48 min-w-[12rem]">품명</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5rem] text-center">규격</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-72 text-center">비고</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">신청일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={14} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
+                ) : filteredList.length === 0 ? (
+                  <tr><td colSpan={14} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
+                ) : filteredList.map((row) => (
+                  <React.Fragment key={row.id}>
+                    <tr
+                      className={`cursor-pointer h-10 text-xs text-foreground ${row.progressType?.includes('선진행') ? 'bg-rose-100' : 'hover:bg-blue-50'}`}
+                      onClick={() => setExpandedRowId(expandedRowId === row.id ? null : row.id)}
+                    >
+                      <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
+                      <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
+                      <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
+                      <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.requestType}</td>
+                      <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
+                      <td className="text-center px-2 py-2 w-20 min-w-[5.5rem]">{row.contactName}</td>
+                      <td className="text-center px-2 py-2 w-48 min-w-[12rem]">{row.items[0]?.itemName}</td>
+                      <td className="text-left px-2 py-2 w-20 min-w-[5rem]">{row.items[0]?.specification}</td>
+                      <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
+                      <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
+                      <td className="text-center px-2 py-2 w-72">{row.items[0]?.remark || '-'}</td>
+                      <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.purchaseOrderNumber}</td>
+                      <td className="text-center px-2 py-2">{row.deliveryRequestDate}</td>
+                      <td className="text-center px-2 py-2">{row.requestDate}</td>
+                    </tr>
+                    {expandedRowId === row.id && (
+                      <tr>
+                        <td colSpan={14} className="p-0 bg-transparent">
+                          <div className="flex justify-center w-full mt-0 mb-8">
+                            <ApproveDetailAccordion
+                              id={row.id}
+                              requestType={row.requestType}
+                              paymentCategory={row.paymentCategory}
+                              vendorName={row.vendorName}
+                              contactName={row.contactName}
+                              requesterName={row.requesterName}
+                              requestDate={row.requestDate}
+                              deliveryRequestDate={row.deliveryRequestDate}
+                              projectVendor={row.projectVendor}
+                              salesOrderNumber={row.salesOrderNumber}
+                              projectItem={row.projectItem}
+                              items={row.items}
+                              middleManagerStatus={row.middleManagerStatus}
+                              finalManagerStatus={row.finalManagerStatus}
+                              isPaymentCompleted={row.isPaymentCompleted}
+                              isPurchaseTab={false}
+                              onMiddleManagerStatusChange={(newStatus) => {
+                                setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, middleManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                              }}
+                              onFinalManagerStatusChange={(newStatus) => {
+                                setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, finalManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
+                              }}
+                              onPaymentCompletedChange={(completed) => {
+                                setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, isPaymentCompleted: completed } : r));
+                              }}
+                            />
+                          </div>
+                        </td>
                       </tr>
-                      {expandedRowId === row.id && (
-                        <tr>
-                          <td colSpan={14} className="p-0 bg-transparent">
-                            <div className="flex justify-center w-full mt-0 mb-8">
-                              <ApproveDetailAccordion
-                                id={row.id}
-                                requestType={row.requestType}
-                                paymentCategory={row.paymentCategory}
-                                vendorName={row.vendorName}
-                                contactName={row.contactName}
-                                requesterName={row.requesterName}
-                                requestDate={row.requestDate}
-                                deliveryRequestDate={row.deliveryRequestDate}
-                                projectVendor={row.projectVendor}
-                                salesOrderNumber={row.salesOrderNumber}
-                                projectItem={row.projectItem}
-                                items={row.items}
-                                middleManagerStatus={row.middleManagerStatus}
-                                finalManagerStatus={row.finalManagerStatus}
-                                isPaymentCompleted={row.isPaymentCompleted}
-                                isPurchaseTab={activeTab === "purchase"}
-                                onMiddleManagerStatusChange={(newStatus) => {
-                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, middleManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
-                                }}
-                                onFinalManagerStatusChange={(newStatus) => {
-                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, finalManagerStatus: newStatus as 'approved' | 'pending' | 'rejected' } : r));
-                                }}
-                                onPaymentCompletedChange={(completed) => {
-                                  setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, isPaymentCompleted: completed } : r));
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </TabsContent>
-        </Tabs>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

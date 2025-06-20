@@ -38,6 +38,7 @@ export interface Purchase {
   is_received: boolean; // 입고 완료 여부
   received_at: string; // 입고 완료일
   final_manager_approved_at?: string | null; // 최종 승인일
+  purchase_request_file_url?: string; // 구매 요청 링크
 }
 
 // [타입 정의] 직원 데이터의 구조를 설명합니다.
@@ -109,7 +110,8 @@ export function usePurchaseData() {
           final_manager_status,
           is_received,
           received_at,
-          is_payment_completed
+          is_payment_completed,
+          purchase_request_file_url
         `);
       if (data) {
         // 받아온 데이터를 Purchase 타입에 맞게 변환하여 상태에 저장합니다.
@@ -143,6 +145,7 @@ export function usePurchaseData() {
             is_received: !!row.is_received,
             received_at: row.received_at as string,
             is_payment_completed: !!row.is_payment_completed,
+            purchase_request_file_url: row.purchase_request_file_url as string | undefined,
           }))
         );
       }
@@ -175,40 +178,43 @@ export function usePurchaseData() {
           .select('name, email, purchase_role')
           .eq('email', user.email)
           .single();
-        currentUser = userByEmail ? userByEmail : { name: user.email.split('@')[0], email: user.email, purchase_role: [] };
+        if (userByEmail) {
+          currentUser = userByEmail;
+        }
         userError = emailError;
       }
       // 3. 사용자 정보 상태에 저장
       if (currentUser) {
         setCurrentUserName(currentUser.name);
-        setCurrentUserRoles(Array.isArray(currentUser.purchase_role) ? currentUser.purchase_role : []);
+        setCurrentUserRoles(currentUser.purchase_role || []);
       } else {
         // 이메일에서 이름 추출(없으면 기본값)
         if (user.email) {
           const nameFromEmail = user.email.split('@')[0];
           setCurrentUserName(nameFromEmail);
-          setCurrentUserRoles([]);
         } else {
           setCurrentUserName('기본사용자');
-          setCurrentUserRoles([]);
         }
+        setCurrentUserRoles([]);
+        if (userError) console.error('현재 사용자 정보 로딩 오류:', userError.message);
       }
       // 4. 전체 직원 목록 불러오기
       const { data: employeeList, error: listError } = await supabase
         .from('employees')
-        .select('name, email')
+        .select('name, email, purchase_role')
         .order('name');
+      if (listError) throw listError;
       if (employeeList && employeeList.length > 0) {
         setEmployees(employeeList);
       } else {
-        setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '', purchase_role: [] }]);
+        setEmployees([{ name: currentUser?.name || user.email?.split('@')[0] || '기본사용자', email: currentUser?.email || user.email || '', purchase_role: currentUser?.purchase_role || [] }]);
       }
     } catch (error) {
       // 에러 발생 시 콘솔에 출력 및 기본값 설정
       console.error('직원 정보를 불러오는데 실패했습니다:', error);
       setCurrentUserName(user.email?.split('@')[0] || '기본사용자');
       setCurrentUserRoles([]);
-      setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '', purchase_role: [] }]);
+      setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '' }]);
     } finally {
       setIsLoadingEmployees(false); // 로딩 상태 해제
     }

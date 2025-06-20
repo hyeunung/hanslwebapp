@@ -43,6 +43,7 @@ export interface PurchaseTableItem {
   groupSize?: number;
   isSubItem?: boolean;
   isLastSubItem?: boolean;
+  purchase_request_file_url?: string;
 }
 
 // 이 컴포넌트가 화면에 표를 그릴 때 필요한 입력값(데이터, 함수 등) 목록입니다.
@@ -57,6 +58,7 @@ interface PurchaseTableProps {
   generateExcelForOrder: (orderNumber: string) => Promise<void>;
   handleCompleteReceipt: (orderNumber: string) => Promise<void>;
   setPressedOrder: (orderNumber: string | null) => void;
+  handleCompletePayment: (orderNumber: string) => Promise<void>;
 }
 
 // 이 함수가 실제로 표(테이블)를 화면에 그려줍니다.
@@ -71,7 +73,11 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   generateExcelForOrder,
   handleCompleteReceipt,
   setPressedOrder,
+  handleCompletePayment,
 }) => {
+  // '구매현황' 탭일 때만 링크 열 표시
+  const showLinkColumn = activeTab === 'purchase';
+
   // 날짜를 '월-일' 형식으로 바꿔주는 함수입니다. (예: 2024-06-01 → 06-01)
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -93,10 +99,12 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
     return `${formatter.format(value)} ${symbol}`;
   };
 
-  // '선지급' 여부를 확인하는 함수입니다. (특정 행에 색상 강조 등)
+  // '선진행' 여부를 확인하는 함수입니다. (특정 행에 색상 강조 등)
   const isAdvancePayment = (progress_type?: string) => {
-    return progress_type === '선지급' || progress_type?.trim() === '선지급' || progress_type?.includes('선지급');
+    return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
   };
+
+  const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('purchase_manager');
 
   // 아래가 실제로 표(테이블)를 그리는 부분입니다.
   // 1. thead: 표의 맨 위(제목줄)
@@ -129,11 +137,14 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">규격</th>
+          <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'w-72' : 'w-32'}`}>규격</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
           <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
           <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
+          {showLinkColumn && (
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">링크</th>
+          )}
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
@@ -162,14 +173,11 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
 
           // 실제 한 줄(행)을 그리는 부분입니다. 클릭, 색상, 그룹 등 다양한 조건이 있습니다.
           return (
-            <motion.tr
+            <tr
               key={key}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03, type: "spring", damping: 20 }}
               className={`transition-colors h-12 relative border-b border-border ${
                 activeTab === 'pending' && isAdvancePayment(item.progress_type)
-                  ? 'bg-rose-100 !bg-rose-100' // '선지급' 항목은 분홍색 배경
+                  ? 'bg-rose-100 !bg-rose-100'
                   : isAdvancePayment(item.progress_type)
                   ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100'
                   : isSubItem
@@ -186,7 +194,6 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               }`}
               style={{
                 backgroundColor: isAdvancePayment(item.progress_type) ? '#ffe4e6' : undefined,
-                // 그룹(2행 이상) 펼침 시 파란색 테두리
                 ...(isMultiRowGroupHeader && isExpanded && {
                   borderLeft: '4px solid #3b82f6',
                   borderRight: '4px solid #3b82f6',
@@ -201,13 +208,11 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   borderRight: '4px solid #3b82f6',
                   borderBottom: '4px solid #3b82f6'
                 }),
-                // 1행짜리: 클릭 시 파란 테두리
                 ...(isSingleRowGroup && expandedGroups.has(item.purchase_order_number || '') && {
                   border: '4px solid #3b82f6'
                 })
               }}
               onClick={() => {
-                // 그룹(2행 이상) 헤더 또는 마지막 하위항목, 1행짜리만 클릭 가능
                 if ((isMultiRowGroupHeader || isLastSubItem || isSingleRowGroup) && item.purchase_order_number) {
                   toggleGroup(item.purchase_order_number);
                 }
@@ -280,10 +285,31 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       >
                         완료
                       </span>
+                    ) : canCompletePayment ? (
+                      <button
+                        className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 transition-all duration-150 focus:outline-none select-none relative overflow-hidden"
+                        style={{
+                          minWidth: 40,
+                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        onClick={async e => {
+                          e.stopPropagation();
+                          await handleCompletePayment(item.purchase_order_number!);
+                        }}
+                      >
+                        대기
+                      </button>
                     ) : (
                       <span
-                        className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 select-none"
-                        style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
+                        className="inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 opacity-60 select-none"
+                        style={{
+                          minWidth: 40,
+                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                          border: 'none',
+                          cursor: 'not-allowed',
+                        }}
                       >
                         대기
                       </span>
@@ -398,16 +424,35 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground truncate w-32 relative">{item.specification}</td>
+              <td className={`px-2 py-2 text-xs text-foreground truncate relative ${activeTab === 'purchase' ? 'w-80' : 'w-32'}`}>{item.specification}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
+              {showLinkColumn && (
+                <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">
+                  {isGroupHeader && item.payment_category === '구매 요청' && item.purchase_request_file_url ? (
+                    <a
+                      href={item.purchase_request_file_url.startsWith('http') ? item.purchase_request_file_url : `//${item.purchase_request_file_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {item.purchase_request_file_url}
+                    </a>
+                  ) : isSubItem ? (
+                    ''
+                  ) : (
+                    '-'
+                  )}
+                </td>
+              )}
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
-            </motion.tr>
+            </tr>
           );
         })}
       </tbody>

@@ -2,6 +2,7 @@
 import { Building2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
+import HeaderBar from "./HeaderBar";
 
 interface CommonLayoutProps {
   children: React.ReactNode;
@@ -25,15 +26,8 @@ export default function CommonLayout({ children, title, description }: CommonLay
     <div className="min-h-screen bg-background flex flex-col">
       {/* 헤더 */}
       <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
-        <div className="flex items-center justify-between h-16 px-8">
-          <div className="flex items-center">
-            <Building2 size={24} className="text-primary" />
-            <h1 className="text-xl font-semibold text-foreground ml-4">HANSL</h1>
-            <span className="text-sm text-muted-foreground ml-2">구매 관리 시스템</span>
-          </div>
-          <LogoutButton />
-        </div>
-      </header>
+  <HeaderBar logoType="icon" />
+</header>
       
       {/* 네비게이션 */}
       <nav className="bg-white border-b border-border shadow-sm">

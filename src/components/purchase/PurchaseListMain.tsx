@@ -56,6 +56,13 @@ interface Employee {
   purchase_role?: string[];
 }
 
+interface User {
+  email: string;
+  name: string;
+  roles: string[];
+  purchase_role?: string[];
+}
+
 interface PurchaseListMainProps {
   onEmailToggle?: () => void;
   showEmailButton?: boolean;
@@ -73,12 +80,18 @@ const NAV_TABS: { key: string; label: string }[] = [
 export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
   // 검색어, 직원 선택, 탭(진행상태) 등 화면의 상태를 관리합니다.
   const [searchTerm, setSearchTerm] = useState(""); // 검색창에 입력한 내용
-  const [selectedEmployee, setSelectedEmployee] = useState(''); // 선택된 직원
+  const [selectedEmployee, setSelectedEmployee] = useState('all'); // 선택된 직원, '전체'로 기본값 설정
   const [activeTab, setActiveTab] = useState('pending'); // 현재 선택된 탭(진행상태)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); // 펼쳐진 주문서 그룹(여러 줄짜리)
   const lastTabRef = useRef<HTMLButtonElement>(null); // 탭 UI 위치 계산용
   const [sepLeft, setSepLeft] = useState(0); // 탭 구분선 위치
   const [pressedOrder, setPressedOrder] = useState<string | null>(null); // 클릭된 주문서(행) 기억
+  const [filters, setFilters] = useState<Record<string, string>>({
+    pending: '',
+    purchase: '',
+    receipt: '',
+    done: 'all',
+  });
 
   // 실제 데이터(발주 목록, 직원 목록 등)는 아래 커스텀 훅에서 불러옵니다.
   // usePurchaseData: 서버에서 데이터 불러오기, 현재 로그인 사용자 정보 등 관리
@@ -117,10 +130,15 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     }
   }, [NAV_TABS.length, activeTab]);
 
-  // 로그인한 사용자의 이름을 자동으로 선택합니다. (처음 화면 진입 시)
   useEffect(() => {
     if (currentUserName) {
-      setSelectedEmployee(currentUserName);
+      setFilters(prev => ({
+        ...prev,
+        pending: currentUserName,
+        purchase: currentUserName,
+        receipt: currentUserName,
+        // done은 그대로 'all' 유지
+      }));
     }
   }, [currentUserName]);
 
@@ -267,97 +285,45 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     approved: approvedOrderNumbers.length,
   };
 
-  // 모든 탭의 카운트에 직원/검색어 필터가 실시간 반영되도록 함수 도입 (컴포넌트 내부로 이동)
-  const getTabCount = (tabKey: string) => {
-    if (tabKey === 'receipt') {
-      // receipt 탭 카운트는 usePurchaseFilters에서 이미 필터링된 결과를 사용
-      return Array.from(new Set(
-        tabFilteredOrders.map(item => item.purchase_order_number || 'no-number')
-      )).length;
-    }
-    if (tabKey === 'done') {
-      return Array.from(new Set(
-        purchases.filter(item => {
-          // 검색어 필터만 적용
-          if (searchTerm && searchTerm.trim() !== '') {
-            const term = searchTerm.trim().toLowerCase();
-            const searchable = [
-              item.purchase_order_number,
-              item.vendor_name,
-              item.item_name,
-              item.specification,
-              item.requester_name,
-              item.remark,
-              item.project_vendor,
-              item.sales_order_number,
-              item.project_item,
-              item.unit_price_value?.toString(),
-              item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
-              item.amount_value?.toString(),
-              item.amount_value ? Number(item.amount_value).toLocaleString() : '',
-            ].map(v => (v || '').toLowerCase()).join(' ');
-            if (!searchable.includes(term)) return false;
-          }
+  const getTabCount = useCallback((tabKey: string) => {
+    const employeeFilter = filters[tabKey] || '';
+
+    const isReceiptTabMatch = (item: Purchase) => {
+      if (item.is_received === false) {
+        if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
+        const isFinalApproved = item.final_manager_status === 'approved';
+        const isAdvance = item.progress_type?.includes('선진행');
+        return isFinalApproved || isAdvance;
+      }
+      if (item.is_received === true && isToday(item.received_at)) {
+        if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
+        const isFinalApproved = item.final_manager_status === 'approved';
+        const isAdvance = item.progress_type?.includes('선진행');
+        return isFinalApproved || isAdvance;
+      }
+      return false;
+    };
+
+    const filtered = purchases.filter(item => {
+      if (employeeFilter !== 'all' && employeeFilter) {
+        if (item.requester_name !== employeeFilter) return false;
+      }
+
+      switch (tabKey) {
+        case 'pending':
+          return item.final_manager_status !== 'approved' || (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
+        case 'purchase':
+          return item.payment_category === '구매 요청' && (!item.is_payment_completed || isToday(item.payment_completed_at));
+        case 'receipt':
+          return isReceiptTabMatch(item);
+        case 'done':
           return true;
-        }).map(item => item.purchase_order_number || 'no-number')
-      )).length;
-    }
-    return Array.from(new Set(
-      purchases.filter((item: Purchase) => {
-        // 직원 필터: '전체'일 때는 무시 (승인대기, 구매현황, 입고현황 탭에서만)
-        if (['pending', 'purchase', 'receipt'].includes(tabKey)) {
-          // '전체'면 필터 무시, 아니면 필터 적용
-          if (selectedEmployee !== 'all' && selectedEmployee) {
-            if (item.requester_name !== selectedEmployee) return false;
-          }
-        } else {
-          // 그 외 탭(예: done)에서는 기존대로 적용
-          if (selectedEmployee !== 'all' && selectedEmployee) {
-            if (item.requester_name !== selectedEmployee) return false;
-          }
-        }
-        // 검색어 필터
-        if (searchTerm && searchTerm.trim() !== '') {
-          const term = searchTerm.trim().toLowerCase();
-          const searchable = [
-            item.purchase_order_number,
-            item.vendor_name,
-            item.item_name,
-            item.specification,
-            item.requester_name,
-            item.remark,
-            item.project_vendor,
-            item.sales_order_number,
-            item.project_item,
-            item.unit_price_value?.toString(),
-            item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
-            item.amount_value?.toString(),
-            item.amount_value ? Number(item.amount_value).toLocaleString() : '',
-          ].map(v => (v || '').toLowerCase()).join(' ');
-          if (!searchable.includes(term)) return false;
-        }
-        // 탭별 조건
-        if (tabKey === 'pending') {
-          return item.final_manager_status !== 'approved';
-        }
-        if (tabKey === 'purchase') {
-          return item.payment_category === '구매 요청' && !item.is_payment_completed;
-        }
-        if (tabKey === 'receipt') {
-          const isFinalApproved = item.final_manager_status === 'approved';
-          const isAdvance = item.progress_type?.includes('선진행');
-          if (!(isFinalApproved || isAdvance)) return false;
-          
-          return item.progress_type !== '입고완료' ||
-            (item.progress_type === '입고완료' && isToday(item.received_at));
-        }
-        if (tabKey === 'done') {
-          return ['approved', '승인'].includes(item.final_manager_status || '');
-        }
-        return true;
-      }).map(item => item.purchase_order_number || 'no-number')
-    )).length;
-  };
+        default:
+          return true;
+      }
+    });
+    return new Set(filtered.map(item => item.purchase_order_number)).size;
+  }, [purchases, filters, isToday]);
 
   // 구매 현황 탭에서 '대기' 버튼 클릭 시 DB 업데이트 함수
   const handleCompleteReceipt = async (orderNumber: string) => {
@@ -373,6 +339,30 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       window.alert('입고 완료 처리 중 오류가 발생했습니다: ' + (err.message || err));
     }
   };
+
+  // 결제완료 처리 함수
+  const handleCompletePayment = async (orderNumber: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('purchase_requests')
+        .update({ is_payment_completed: true, payment_completed_at: now })
+        .eq('purchase_order_number', orderNumber);
+      if (error) throw error;
+      await loadMyRequests(); // DB에서 최신값 반영
+    } catch (err: any) {
+      window.alert('결제 완료 처리 중 오류가 발생했습니다: ' + (err.message || err));
+    }
+  };
+
+  const handleEmployeeChange = (employee: string) => {
+    setSelectedEmployee(employee);
+    setFilters(prev => ({
+      ...prev,
+      [activeTab]: employee
+    }));
+  };
+
 
   return (
     <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
@@ -447,7 +437,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               autoComplete="off"
               spellCheck={false}
             />
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+            <Select value={selectedEmployee} onValueChange={handleEmployeeChange}>
               <SelectTrigger className="!w-[60px] !min-w-0 !max-w-[60px] !h-8 !px-1 !py-0 text-[12px] border-0 border-b border-border !rounded-none !shadow-none bg-transparent flex-shrink-0 focus:outline-none focus:shadow-none">
                 <SelectValue placeholder="구매요청자" />
               </SelectTrigger>
@@ -491,6 +481,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             generateExcelForOrder={generateExcelForOrder}
             handleCompleteReceipt={handleCompleteReceipt}
             setPressedOrder={setPressedOrder}
+            handleCompletePayment={handleCompletePayment}
           />
           {/* 기존 테이블 렌더링 부분은 PurchaseTable로 이동 */}
           {displayData.length === 0 && (

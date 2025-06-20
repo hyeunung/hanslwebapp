@@ -28,6 +28,7 @@ interface Item {
   amount_value: number;
   amount_currency: string;
   remark: string;
+  link?: string;
 }
 
 interface FormValues {
@@ -58,20 +59,28 @@ export default function PurchaseNewMain() {
   const { user } = useAuth();
   const router = useRouter();
   const [employeeName, setEmployeeName] = useState<string>("");
-  const [employees, setEmployees] = useState<{name: string; email?: string; department?: string; position?: string; phone?: string; address?: string}[]>([]);
+  const [employees, setEmployees] = useState<{id: string; name: string; email?: string; phone?: string; adress?: string; position?: string; department?: string;}[]>([]);
   
   useEffect(() => {
     // DB에서 직원 목록 가져오기
     const loadEmployees = async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('name');
+        .select('id, name, email, phone, adress, position, department');
       if (data && !error && data.length > 0) {
-        setEmployees(data.map(dbEmp => ({ name: dbEmp.name })));
+        setEmployees(data.map(dbEmp => ({
+          id: dbEmp.id,
+          name: dbEmp.name,
+          email: dbEmp.email,
+          phone: dbEmp.phone,
+          adress: dbEmp.adress,
+          position: dbEmp.position,
+          department: dbEmp.department
+        })));
       } else if (user?.email) {
         // DB에서 못 불러오면 로그인 사용자 이름만 employees에 추가
         const fallbackName = user.email?.split('@')[0] || "사용자";
-        setEmployees([{ name: fallbackName }]);
+        setEmployees([{ id: '', name: fallbackName, email: user.email }]);
       } else {
         setEmployees([]);
       }
@@ -139,6 +148,7 @@ export default function PurchaseNewMain() {
           amount_value: 0,
           amount_currency: "KRW",
           remark: "",
+          link: "",
         },
       ],
       request_date: new Date().toISOString().slice(0, 10),
@@ -200,6 +210,11 @@ export default function PurchaseNewMain() {
   }, [watch('request_type'), watch('progress_type'), watch('payment_category'), vendor, fields.length, checkRequiredFields]);
 
   const handleSubmit = async (data: FormValues) => {
+    console.log("==== 발주요청 저장 시점 ====");
+    console.log("입력된 구매요청자 이름:", data.requester_name);
+    console.log("employees 배열:", employees);
+    const currentEmployee = employees.find(emp => emp.name === data.requester_name);
+    console.log("매칭된 직원:", currentEmployee);
     
     if (!user) {
       setError("로그인이 필요합니다.");
@@ -216,8 +231,12 @@ export default function PurchaseNewMain() {
 
     
     try {
-      // 현재 사용자의 직원 정보 찾기
-      const currentEmployee = employees.find(emp => emp.email === user.email);
+      // 구매요청자 이름에 맞는 직원 정보 찾기
+      if (!currentEmployee) {
+        setError("구매요청자 이름에 해당하는 직원이 없습니다. 이름을 정확히 입력해 주세요.");
+        setLoading(false);
+        return;
+      }
       
       // 발주번호 자동 생성 (F20250612_001 형식)
       const today = new Date();
@@ -276,18 +295,18 @@ export default function PurchaseNewMain() {
 
       
       const { data: pr, error: prError } = await supabase.from("purchase_requests").insert({
-        requester_id: user.id,
+        requester_id: currentEmployee.id,
         purchase_order_number: purchaseOrderNumber,
         requester_name: data.requester_name,
         requester_phone: currentEmployee?.phone,
         requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
-        requester_address: currentEmployee?.address,
+        requester_address: currentEmployee?.adress,
         vendor_id: Number(vendor),
         sales_order_number: data.sales_order_number,
         project_vendor: data.project_vendor,
         project_item: data.project_item,
         request_date: data.request_date,
-        delivery_request_date: data.delivery_request_date,
+        delivery_request_date: data.delivery_request_date || null,
         request_type: data.request_type,
         progress_type: data.progress_type,
         is_payment_completed: false,
@@ -297,6 +316,7 @@ export default function PurchaseNewMain() {
         unit_price_currency: fields[0]?.unit_price_currency || currency,
         po_template_type: data.po_template_type,
         contact_id: data.contact_id ? Number(data.contact_id) : null,
+        purchase_request_file_url: data.items[0]?.link, // 첫 번째 아이템의 링크를 저장
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
@@ -405,6 +425,8 @@ export default function PurchaseNewMain() {
       console.error('담당자 삭제 중 오류:', error);
     }
   };
+
+  const paymentCategory = watch('payment_category');
 
   return (
     <form 
@@ -586,7 +608,8 @@ export default function PurchaseNewMain() {
                                     unit_price_currency: currency,
                                     amount_value: 0,
                                     amount_currency: currency,
-                                    remark: ''
+                                    remark: '',
+                                    link: ''
                                   });
                                   setTimeout(() => {
                                     const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
@@ -935,6 +958,9 @@ export default function PurchaseNewMain() {
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">합계 ({currency})</th>
                   <th className="w-[160px] text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
+                  {paymentCategory === '구매 요청' && (
+                    <th className="w-[100px] text-left px-4 py-3 border-l border-[#e5e7eb]">링크</th>
+                  )}
                   <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-r border-[#e5e7eb]">삭제</th>
                 </tr>
               </thead>
@@ -965,7 +991,8 @@ export default function PurchaseNewMain() {
                                 unit_price_currency: currency,
                                 amount_value: 0,
                                 amount_currency: currency,
-                                remark: ''
+                                remark: '',
+                                link: ''
                               });
                               setTimeout(() => {
                                 const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
@@ -999,7 +1026,8 @@ export default function PurchaseNewMain() {
                                 unit_price_currency: currency,
                                 amount_value: 0,
                                 amount_currency: currency,
-                                remark: ''
+                                remark: '',
+                                link: ''
                               });
                               setTimeout(() => {
                                 const newInputs = document.querySelectorAll('.purchase-item-input-specification');
@@ -1034,7 +1062,8 @@ export default function PurchaseNewMain() {
                                 unit_price_currency: currency,
                                 amount_value: 0,
                                 amount_currency: currency,
-                                remark: ''
+                                remark: '',
+                                link: ''
                               });
                               setTimeout(() => {
                                 const newInputs = document.querySelectorAll('.purchase-item-input-quantity');
@@ -1074,7 +1103,8 @@ export default function PurchaseNewMain() {
                                   unit_price_currency: currency,
                                   amount_value: 0,
                                   amount_currency: currency,
-                                  remark: ''
+                                  remark: '',
+                                  link: ''
                                 });
                                 setTimeout(() => {
                                   const newInputs = document.querySelectorAll('.purchase-item-input-unit_price_value');
@@ -1116,7 +1146,8 @@ export default function PurchaseNewMain() {
                                 unit_price_currency: currency,
                                 amount_value: 0,
                                 amount_currency: currency,
-                                remark: ''
+                                remark: '',
+                                link: ''
                               });
                               setTimeout(() => {
                                 const newInputs = document.querySelectorAll('.purchase-item-input-remark');
@@ -1127,6 +1158,43 @@ export default function PurchaseNewMain() {
                         }}
                       />
                     </td>
+                    {paymentCategory === '구매 요청' && (
+                      <td className="w-[100px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                        <Input
+                          value={item.link || ''}
+                          onChange={e => update(idx, { ...item, link: e.target.value })}
+                          placeholder="구매 링크"
+                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-link"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const nextIdx = idx + 1;
+                              const inputs = document.querySelectorAll('.purchase-item-input-link');
+                              if (nextIdx < fields.length) {
+                                (inputs[nextIdx] as HTMLInputElement)?.focus();
+                              } else {
+                                append({
+                                  line_number: fields.length + 1,
+                                  item_name: '',
+                                  specification: '',
+                                  quantity: 1,
+                                  unit_price_value: 0,
+                                  unit_price_currency: currency,
+                                  amount_value: 0,
+                                  amount_currency: currency,
+                                  remark: '',
+                                  link: ''
+                                });
+                                setTimeout(() => {
+                                  const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
+                                  (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                                }, 10);
+                              }
+                            }
+                          }}
+                        />
+                      </td>
+                    )}
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
                       <Button type="button" size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
                         삭제
@@ -1138,9 +1206,9 @@ export default function PurchaseNewMain() {
               <tfoot>
                 <tr className="bg-[#f5f5f7] text-xs font-medium" style={{ borderTop: '4px solid #f5f5f7', borderBottom: '4px solid #f5f5f7' }}>
                   <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 font-semibold border-l border-[#e5e7eb]">총 합계</td>
-                  <td className="px-4 border-l border-[#e5e7eb]" colSpan={4}></td>
+                  <td className="px-4 border-l border-[#e5e7eb]" colSpan={paymentCategory === '구매 요청' ? 5 : 4}></td>
                   <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{totalAmount ? totalAmount.toLocaleString() : ''}</td>
-                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
+                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={paymentCategory === '구매 요청' ? 2 : 2}></td>
                 </tr>
               </tfoot>
             </table>
@@ -1177,7 +1245,8 @@ export default function PurchaseNewMain() {
                       unit_price_currency: currency,
                       amount_value: 0,
                       amount_currency: currency,
-                      remark: ''
+                      remark: '',
+                      link: ''
                     });
                   }
                 }}
@@ -1187,7 +1256,7 @@ export default function PurchaseNewMain() {
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_, idx) => remove(fields.length - idx - 1)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '' }); }}>전체삭제</Button>
+              <Button type="button" size="sm" variant="outline" className="bg-white text-red-500 border-red-200 hover:bg-red-50" onClick={() => { fields.forEach((_idx, index) => remove(fields.length - 1 - index)); append({ line_number: 1, item_name: '', specification: '', quantity: 1, unit_price_value: 0, unit_price_currency: currency, amount_value: 0, amount_currency: currency, remark: '', link: '' }); }}>전체삭제</Button>
               <Button 
                 type="submit" 
                 size="sm" 

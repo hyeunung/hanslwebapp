@@ -243,7 +243,13 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
               }
               const { error, data } = await supabase
                 .from('purchase_requests')
-                .update({ middle_manager_status: 'pending', final_manager_status: 'pending' })
+                .update({ 
+                  middle_manager_status: 'pending', 
+                  final_manager_status: 'pending',
+                  final_manager_approved_at: null,
+                  payment_completed_at: null,
+                  received_at: null
+                })
                 .eq('id', id);
               console.log("Supabase update result (reset):", { error, data });
               if (error) {

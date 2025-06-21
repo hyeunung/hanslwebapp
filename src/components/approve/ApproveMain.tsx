@@ -262,7 +262,7 @@ const ApproveMain: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 variant="ghost"
               >
-                {TAB_LABELS[tab]} <span className="ml-2 text-xs font-bold">{stats[tab]}</span>
+                {TAB_LABELS[tab]} <span className="ml-2 text-xs font-bold">{stats[tab as 'pending' | 'approved' | 'all']}</span>
               </Button>
             ))}
           </div>

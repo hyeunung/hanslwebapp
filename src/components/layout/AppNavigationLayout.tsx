@@ -11,13 +11,15 @@ import LogoutButton from "./LogoutButton";
 import { usePurchaseData } from "@/hooks/usePurchaseData";
 import HeaderBar from "./HeaderBar";
 import HeaderBrand from "./HeaderBrand";
+import EmployeeMain from "@/components/employee/EmployeeMain";
 
 const navigationItems = [
   { id: 'dashboard', icon: Home, label: '대시보드' },
   { id: 'new', icon: Plus, label: '새 발주' },
   { id: 'list', icon: FileText, label: '발주 목록' },
   { id: 'approve', icon: CheckCircle, label: '승인 관리', adminOnly: true },
-  { id: 'vendors', icon: Users, label: '업체 관리' },
+  { id: 'vendors', icon: Building2, label: '업체 관리' },
+  { id: 'employee', icon: Users, label: '직원관리', adminOnly: true },
 ];
 
 export default function AppNavigationLayout() {
@@ -30,6 +32,7 @@ export default function AppNavigationLayout() {
   else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;
   else if (currentTab === 'approve') content = <ApproveMain />;
   else if (currentTab === 'vendors') content = <VendorListMain />;
+  else if (currentTab === 'employee') content = <EmployeeMain />;
 
   // 관리자 권한 체크
   const isAdmin = currentUserRoles.includes('app_admin') || currentUserRoles.includes('final_approver') || currentUserRoles.includes('middle_manager');
@@ -42,7 +45,7 @@ export default function AppNavigationLayout() {
       <nav className="bg-gradient-to-r from-primary to-white border-b border-border shadow-sm sticky top-16 z-40">
         <div className="flex items-center space-x-8 px-8">
           {navigationItems
-            .filter(item => !item.adminOnly || isAdmin)
+            .filter(item => item.id === 'employee' || !item.adminOnly || isAdmin)
             .map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;

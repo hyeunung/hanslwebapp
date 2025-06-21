@@ -35,14 +35,18 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
       <div className="flex gap-6">
         <Button
           style={{
-            backgroundColor: (disabled || isVerified) ? '#e5e7eb' : '#A8E6CF',
-            color: (disabled || isVerified) ? '#a3a3a3' : '#207744',
-            borderRadius: '6px',
-            fontWeight: 600,
+            background: (disabled || isVerified)
+              ? '#e5e7eb'
+              : 'linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)',
+            color: (disabled || isVerified) ? '#a3a3a3' : '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
             fontSize: '1.15rem',
-            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
+            boxShadow: (disabled || isVerified)
+              ? '0 2px 8px 0 rgba(0,0,0,0.04)'
+              : '0 2px 8px 0 rgba(60, 120, 60, 0.35)'
           }}
-          className="px-8 py-3"
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-green-300"
           onClick={handleVerifyClick}
           disabled={disabled || isVerified}
         >
@@ -50,14 +54,20 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
         </Button>
         <Button
           style={{
-            backgroundColor: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver'))) ? '#e5e7eb' : '#A2C8FA',
-            color: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver'))) ? '#a3a3a3' : '#155fa0',
-            borderRadius: '6px',
-            fontWeight: 600,
+            background: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver')))
+              ? '#e5e7eb'
+              : 'linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)',
+            color: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver')))
+              ? '#a3a3a3'
+              : '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
             fontSize: '1.15rem',
-            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
+            boxShadow: (disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver')))
+              ? '0 2px 8px 0 rgba(0,0,0,0.04)'
+              : '0 2px 8px 0 rgba(60, 120, 60, 0.35)'
           }}
-          className="px-8 py-3"
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-green-300"
           onClick={onApprove}
           disabled={disabled || middleManagerStatus !== 'approved' || (!isVerified && roles.includes('final_approver'))}
         >
@@ -65,14 +75,18 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
         </Button>
         <Button
           style={{
-            backgroundColor: disabled ? '#e5e7eb' : '#FF8B94',
-            color: disabled ? '#a3a3a3' : '#8B1E2D',
-            borderRadius: '6px',
-            fontWeight: 600,
+            background: disabled
+              ? '#e5e7eb'
+              : 'linear-gradient(270deg, #ff8a8a 0%, #ff5e62 100%)',
+            color: disabled ? '#a3a3a3' : '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
             fontSize: '1.15rem',
-            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)'
+            boxShadow: disabled
+              ? '0 2px 8px 0 rgba(0,0,0,0.04)'
+              : '0 2px 8px 0 rgba(180, 60, 60, 0.35)'
           }}
-          className="px-8 py-3"
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-300"
           onClick={onReject}
           disabled={disabled}
         >
@@ -85,8 +99,44 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
   if (roles.includes("final_approver")) {
     return (
       <div className="flex gap-2">
-        <Button style={{backgroundColor:'#FFD3B6', color:'#8D5524'}} onClick={onApprove} disabled={disabled}>승인</Button>
-        <Button style={{backgroundColor:'#FF8B94', color:'#8B1E2D'}} onClick={onReject} disabled={disabled}>반려</Button>
+        <Button
+          style={{
+            background: disabled || middleManagerStatus !== 'approved'
+              ? '#e5e7eb'
+              : 'linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)',
+            color: disabled || middleManagerStatus !== 'approved' ? '#a3a3a3' : '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
+            fontSize: '1.15rem',
+            boxShadow: disabled || middleManagerStatus !== 'approved'
+              ? '0 2px 8px 0 rgba(0,0,0,0.04)'
+              : '0 2px 8px 0 rgba(60, 120, 60, 0.35)'
+          }}
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-green-300"
+          onClick={onApprove}
+          disabled={disabled || middleManagerStatus !== 'approved'}
+        >
+          승인
+        </Button>
+        <Button
+          style={{
+            background: disabled
+              ? '#e5e7eb'
+              : 'linear-gradient(270deg, #ff8a8a 0%, #ff5e62 100%)',
+            color: disabled ? '#a3a3a3' : '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
+            fontSize: '1.15rem',
+            boxShadow: disabled
+              ? '0 2px 8px 0 rgba(0,0,0,0.04)'
+              : '0 2px 8px 0 rgba(180, 60, 60, 0.35)'
+          }}
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-300"
+          onClick={onReject}
+          disabled={disabled}
+        >
+          반려
+        </Button>
       </div>
     );
   }
@@ -94,7 +144,21 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
   if (roles.includes("middle_manager")) {
     return (
       <div className="flex gap-2">
-        <Button style={{backgroundColor:'#A8E6CF', color:'#207744'}} onClick={onVerify} disabled={disabled}>검증</Button>
+        <Button
+          style={{
+            background: 'linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)',
+            color: '#fff',
+            borderRadius: '10px',
+            fontWeight: 800,
+            fontSize: '1.15rem',
+            boxShadow: '0 2px 8px 0 rgba(60, 120, 60, 0.35)'
+          }}
+          className="px-8 py-3 transition-transform hover:brightness-105 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-green-300"
+          onClick={onVerify}
+          disabled={disabled}
+        >
+          검증
+        </Button>
       </div>
     );
   }

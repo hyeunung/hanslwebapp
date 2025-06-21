@@ -59,6 +59,8 @@ export function usePurchaseData() {
   const [currentUserName, setCurrentUserName] = useState<string>("");
   // 현재 로그인한 사용자의 권한(역할)
   const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
+  // 현재 로그인한 사용자의 직원관리 role
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   // 직원 목록 로딩 중 여부
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   // 발주 목록 로딩 중 여부
@@ -168,14 +170,14 @@ export function usePurchaseData() {
       // 1. 현재 로그인한 사용자를 ID로 찾기
       let { data: currentUser, error: userError } = await supabase
         .from('employees')
-        .select('name, email, purchase_role')
+        .select('name, email, purchase_role, role')
         .eq('id', user.id)
         .single();
       // 2. ID로 못 찾으면 이메일로 재시도
       if (!currentUser && user.email) {
         const { data: userByEmail, error: emailError } = await supabase
           .from('employees')
-          .select('name, email, purchase_role')
+          .select('name, email, purchase_role, role')
           .eq('email', user.email)
           .single();
         if (userByEmail) {
@@ -187,6 +189,7 @@ export function usePurchaseData() {
       if (currentUser) {
         setCurrentUserName(currentUser.name);
         setCurrentUserRoles(currentUser.purchase_role || []);
+        setCurrentUserRole(currentUser.role || "");
       } else {
         // 이메일에서 이름 추출(없으면 기본값)
         if (user.email) {
@@ -196,6 +199,7 @@ export function usePurchaseData() {
           setCurrentUserName('기본사용자');
         }
         setCurrentUserRoles([]);
+        setCurrentUserRole("");
         if (userError) console.error('현재 사용자 정보 로딩 오류:', userError.message);
       }
       // 4. 전체 직원 목록 불러오기
@@ -214,6 +218,7 @@ export function usePurchaseData() {
       console.error('직원 정보를 불러오는데 실패했습니다:', error);
       setCurrentUserName(user.email?.split('@')[0] || '기본사용자');
       setCurrentUserRoles([]);
+      setCurrentUserRole("");
       setEmployees([{ name: user.email?.split('@')[0] || '기본사용자', email: user.email || '' }]);
     } finally {
       setIsLoadingEmployees(false); // 로딩 상태 해제
@@ -226,6 +231,7 @@ export function usePurchaseData() {
     employees, // 직원 목록
     currentUserName, // 현재 사용자 이름
     currentUserRoles, // 현재 사용자 권한
+    currentUserRole, // 현재 사용자 직원관리 role
     isLoadingEmployees, // 직원 목록 로딩 중 여부
     isLoadingPurchases, // 발주 목록 로딩 중 여부
     loadMyRequests, // 발주 목록 새로고침 함수

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
+import { usePurchaseData } from "@/hooks/usePurchaseData";
 
 // 데이터 타입 정의
 interface ItemDetail {
@@ -38,9 +39,41 @@ interface ApproveRow {
 }
 
 function renderStatusBadge(status: "approved" | "pending" | "rejected" | string) {
-  if (status === "approved" || status === "승인") return <span className="bg-green-600 text-white px-4 py-1 rounded-full text-base tracking-widest">승  인</span>;
-  if (status === "rejected" || status === "반려") return <span className="bg-red-600 text-white px-4 py-1 rounded-full text-base tracking-widest">반  려</span>;
-  return <span className="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-base tracking-widest">대  기</span>;
+  if (status === "approved" || status === "승인")
+    return (
+      <span
+        className="text-white px-4 py-1 rounded-md text-base tracking-widest shadow"
+        style={{
+          background: 'linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)',
+          boxShadow: '0 2px 8px 0 rgba(60, 120, 60, 0.35)'
+        }}
+      >
+        승  인
+      </span>
+    );
+  if (status === "rejected" || status === "반려")
+    return (
+      <span
+        className="text-white px-4 py-1 rounded-md text-base tracking-widest shadow"
+        style={{
+          background: 'linear-gradient(270deg, #ff8a8a 0%, #ff5e62 100%)',
+          boxShadow: '0 2px 8px 0 rgba(180, 60, 60, 0.35)'
+        }}
+      >
+        반  려
+      </span>
+    );
+  return (
+    <span
+      className="text-gray-600 px-4 py-1 rounded-md text-base tracking-widest shadow"
+      style={{
+        background: 'linear-gradient(270deg, #f3f4f6 0%, #e5e7eb 100%)',
+        boxShadow: '0 2px 8px 0 rgba(120, 120, 120, 0.13)'
+      }}
+    >
+      대  기
+    </span>
+  );
 }
 
 const TAB_ORDER = ["pending", "approved", "all"];
@@ -61,6 +94,7 @@ const ApproveMain: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("pending");
+  const { currentUserRoles } = usePurchaseData();
 
   useEffect(() => {
     async function fetchApproveList() {
@@ -326,6 +360,7 @@ const ApproveMain: React.FC = () => {
                               onPaymentCompletedChange={(completed) => {
                                 setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, isPaymentCompleted: completed } : r));
                               }}
+                              roles={currentUserRoles}
                             />
                           </div>
                         </td>

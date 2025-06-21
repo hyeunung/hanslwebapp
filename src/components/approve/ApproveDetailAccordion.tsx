@@ -39,6 +39,7 @@ interface ApproveDetailAccordionExtraProps {
   isPurchaseTab?: boolean;
   isPaymentCompleted?: boolean;
   onPaymentCompletedChange?: (completed: boolean) => void;
+  roles?: string[];
 }
 
 const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDetailAccordionExtraProps> = ({
@@ -61,6 +62,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   isPurchaseTab = false,
   isPaymentCompleted = false,
   onPaymentCompletedChange,
+  roles = [],
 }) => {
   // 실제 상태 관리
   const [middleManagerStatus, setMiddleManagerStatus] = useState(initialMiddleManagerStatus);
@@ -74,7 +76,6 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   // console.log('[ApproveDetailAccordion] isPurchaseTab:', isPurchaseTab, 'localIsPaymentCompleted:', localIsPaymentCompleted, 'props:', { id, paymentCategory, isPaymentCompleted });
 
   // TODO: 실제 로그인 유저의 roles를 props로 받아와야 함 (임시 예시)
-  const roles = ["app_admin"];
   const handleApprove = async () => {
     console.log("handleApprove called, id:", id);
     if (!id) {

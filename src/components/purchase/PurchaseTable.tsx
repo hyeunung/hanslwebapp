@@ -112,7 +112,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   // 각 행/열, 색상, 클릭 동작 등도 쉽게 설명하는 주석이 달려 있습니다.
   return (
     <table className="w-full min-w-max">
-      <thead className="bg-muted/10 sticky top-0">
+      <thead className="bg-muted/10 sticky top-0 border-t border-border">
         <tr className="h-12">
           {/* 탭(진행상태)에 따라 표의 맨 앞 열이 달라집니다. */}
           {activeTab === 'done' ? (
@@ -179,9 +179,9 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               key={key}
               className={`transition-colors h-12 relative border-b border-border ${
                 activeTab === 'pending' && isAdvancePayment(item.progress_type)
-                  ? 'bg-rose-100 !bg-rose-100'
+                  ? 'bg-rose-100 !bg-rose-100 cursor-pointer'
                   : isAdvancePayment(item.progress_type)
-                  ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100'
+                  ? 'bg-rose-100 hover:bg-rose-150 !bg-rose-100 cursor-pointer'
                   : isSubItem
                   ? isLastSubItem
                     ? 'bg-gray-50 hover:bg-blue-50 cursor-pointer'

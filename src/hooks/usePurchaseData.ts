@@ -114,7 +114,8 @@ export function usePurchaseData() {
           received_at,
           is_payment_completed,
           purchase_request_file_url
-        `);
+        `)
+        .order('request_date', { ascending: false });
       if (data) {
         // 받아온 데이터를 Purchase 타입에 맞게 변환하여 상태에 저장합니다.
         setPurchases(

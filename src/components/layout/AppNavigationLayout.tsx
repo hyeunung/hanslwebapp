@@ -39,7 +39,7 @@ export default function AppNavigationLayout() {
       <header className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
         <HeaderBar logoType="image" />
       </header>
-      <nav className="bg-white border-b border-border shadow-sm sticky top-16 z-40">
+      <nav className="bg-gradient-to-r from-primary to-white border-b border-border shadow-sm sticky top-16 z-40">
         <div className="flex items-center space-x-8 px-8">
           {navigationItems
             .filter(item => !item.adminOnly || isAdmin)
@@ -52,8 +52,8 @@ export default function AppNavigationLayout() {
                   onClick={() => setCurrentTab(item.id)}
                   className={`flex items-center space-x-2 py-4 px-2 border-b-2 transition-colors ${
                     isActive
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                      ? 'border-white text-white'
+                      : 'border-transparent text-white hover:text-white hover:border-border'
                   }`}
                 >
                   <Icon size={18} />

@@ -417,7 +417,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   router.replace(`/dashboard?tab=dashboard&subtab=${tab.key}`);
 }}
                 className={`px-3 py-1 min-w-[72px] font-medium text-[13px] focus:outline-none transition-shadow duration-200
-                  ${activeTab === tab.key ? 'text-white bg-gradient-to-l from-primary/90 to-primary' : 'text-muted-foreground bg-gray-100'}
+                  ${activeTab === tab.key ? 'text-white bg-gradient-to-r from-primary/90 to-primary/60' : 'text-muted-foreground bg-gray-100'}
                   ${idx === 0 ? 'rounded-tl-xl' : ''}
                   ${idx === NAV_TABS.length - 1 ? 'rounded-tr-xl' : ''}
                   border-0 transition-colors duration-150`}

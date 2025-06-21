@@ -17,8 +17,8 @@ export default function CommonLayout({ children, title, description }: CommonLay
     const isActive = pathname === path;
     return `flex items-center space-x-2 py-4 px-2 border-b-2 transition-colors ${
       isActive
-        ? 'border-primary text-primary'
-        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+        ? 'border-white text-white'
+        : 'border-transparent text-white hover:text-white hover:border-border'
     }`;
   };
 
@@ -30,7 +30,7 @@ export default function CommonLayout({ children, title, description }: CommonLay
 </header>
       
       {/* 네비게이션 */}
-      <nav className="bg-white border-b border-border shadow-sm">
+      <nav className="bg-gradient-to-r from-primary to-white border-b border-border shadow-sm">
         <div className="flex items-center space-x-8 px-8">
           <a
             href="/dashboard"

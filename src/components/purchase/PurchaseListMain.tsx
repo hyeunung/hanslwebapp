@@ -88,7 +88,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const router = useRouter();
   // 검색어, 직원 선택, 탭(진행상태) 등 화면의 상태를 관리합니다.
   const [searchTerm, setSearchTerm] = useState(""); // 검색창에 입력한 내용
-  const [selectedEmployee, setSelectedEmployee] = useState('all'); // 선택된 직원, '전체'로 기본값 설정
+  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null); // 선택된 직원, 기본값은 null로 두고 탭에 따라 자동 설정
   const initialTab = searchParams.get('subtab') || 'pending';
   const [activeTab, setActiveTab] = useState(initialTab); // 현재 선택된 탭(진행상태)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); // 펼쳐진 주문서 그룹(여러 줄짜리)
@@ -137,7 +137,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     purchases,
     activeTab,
     searchTerm,
-    selectedEmployee,
+    selectedEmployee: selectedEmployee ?? '',
     isToday,
   });
 
@@ -152,6 +152,17 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const totalPages = Math.ceil(uniqueOrderNumbers.length / itemsPerPage);
   const paginatedOrderNumbers = uniqueOrderNumbers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const paginatedData = displayData.filter(item => paginatedOrderNumbers.includes(item.purchase_order_number));
+
+  // 탭 변경 시 직원 필터 기본값 자동 설정
+  useEffect(() => {
+    if (selectedEmployee === null) {
+      if (activeTab === 'done') {
+        setSelectedEmployee('all');
+      } else if (currentUserName) {
+        setSelectedEmployee(currentUserName);
+      }
+    }
+  }, [activeTab, currentUserName, selectedEmployee]);
 
   // 필터(탭, 검색, 직원) 변경 시에만 currentPage를 1로 초기화
   useEffect(() => {
@@ -397,11 +408,8 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   const handleEmployeeChange = (employee: string) => {
     setSelectedEmployee(employee);
-    setFilters(prev => ({
-      ...prev,
-      [activeTab]: employee
-    }));
   };
+
 
   return (
     <>
@@ -450,6 +458,19 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                   onClick={() => {
                     setActiveTab(tab.key);
                     router.replace(`/dashboard?tab=dashboard&subtab=${tab.key}`);
+                    if (tab.key !== 'done' && currentUserName) {
+                      setSelectedEmployee(currentUserName);
+                      setFilters(prev => ({
+                        ...prev,
+                        [tab.key]: currentUserName,
+                      }));
+                    } else if (tab.key === 'done') {
+                      setSelectedEmployee('all');
+                      setFilters(prev => ({
+                        ...prev,
+                        done: 'all',
+                      }));
+                    }
                   }}
                   className={`px-3 py-1 min-w-[72px] font-medium text-[13px] focus:outline-none transition-shadow duration-200
                     ${activeTab === tab.key ? 'text-white bg-gradient-to-r from-primary/90 to-primary/60' : 'text-muted-foreground bg-gray-100'}
@@ -491,7 +512,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 autoComplete="off"
                 spellCheck={false}
               />
-              <Select value={selectedEmployee} onValueChange={handleEmployeeChange}>
+              <Select value={selectedEmployee ?? undefined} onValueChange={handleEmployeeChange}>
                 <SelectTrigger className="!w-[60px] !min-w-0 !max-w-[60px] !h-8 !px-1 !py-0 text-[12px] border-0 border-b border-border !rounded-none !shadow-none bg-transparent flex-shrink-0 focus:outline-none focus:shadow-none">
                   <SelectValue placeholder="구매요청자" />
                 </SelectTrigger>

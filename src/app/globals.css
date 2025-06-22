@@ -1,3 +1,10 @@
+/* === react-datepicker: 다른 달(이전/다음 달) 날짜 연하게 표시 === */
+body .react-datepicker__day--outside-month {
+  color: #c0c4cc !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+}
+
 @import 'tailwindcss';
 
 @custom-variant dark (&:is(.dark *));
@@ -256,6 +263,22 @@
 
 html, body {
   height: 100%;
+}
+
+/* === react-datepicker 커스텀: 그림자/구분선 글로벌 적용 === */
+body .react-datepicker {
+  border: none !important;
+  box-shadow: 0 4px 16px 0 rgba(0,0,0,0.13), 0 1.5px 6px 0 rgba(0,0,0,0.10) !important;
+  border-radius: 0.75rem !important;
+  background: #fff !important;
+  z-index: 10000 !important;
+  margin-top: 18px !important;
+}
+body .react-datepicker__day-names {
+  border-bottom: 0.5px solid #d1d5db !important;
+}
+body .react-datepicker__header {
+  border-bottom: none !important;
 }
 
 html {

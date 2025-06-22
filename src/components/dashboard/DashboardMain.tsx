@@ -55,7 +55,7 @@ export default function DashboardMain() {
       </motion.div>
 
       {/* Main Dashboard Grid - 전체 폭 활용 */}
-      <div className="flex gap-6 h-[calc(100vh-220px)] min-h-[600px] w-full relative">
+      <div className="flex gap-6 flex-1 min-h-0 w-full relative">
         <AnimatePresence>
           {isEmailPanelOpen && (
             <motion.div

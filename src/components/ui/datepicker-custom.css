@@ -2,15 +2,26 @@
 .react-datepicker-popper,
 .react-datepicker__portal {
   border: none !important;
-  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.18), 0 1.5px 6px 0 rgba(0,0,0,0.10) !important;
-}
-.react-datepicker {
-  border: none !important;
-  box-shadow: none !important;
 }
 
-.react-datepicker,
-.react-datepicker__portal,
-.react-datepicker-popper {
+/* 달력 본체에 그림자 강제 적용 (모달/inline 모두) */
+.react-datepicker {
+  border: none !important;
+  box-shadow: 0 4px 16px 0 rgba(0,0,0,0.13), 0 1.5px 6px 0 rgba(0,0,0,0.10) !important;
   border-radius: 0.75rem !important; /* rounded-xl (12px) */
-} 
+  background: #fff !important;
+  z-index: 10000 !important;
+}
+
+/* 요일 아래 아주 얇은 구분선 (1px, 더 진하게) */
+.react-datepicker__day-names {
+  border-bottom: 0.5px solid #d1d5db !important; /* tailwind border-gray-300, 더 얇게 */
+  margin-bottom: 0px !important;
+}
+
+/* 다른 달(이전/다음 달) 날짜 연하게 표시 */
+.react-datepicker__day--outside-month {
+  color: #c0c4cc !important; /* 연한 회색 */
+  opacity: 0.55 !important;
+  pointer-events: none;
+}

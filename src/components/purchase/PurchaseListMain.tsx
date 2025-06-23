@@ -587,7 +587,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           </button>
           {/* 페이지 숫자 최대 5개 */}
           {(() => {
-            const pageButtons = [];
+            const pageButtons: React.ReactNode[] = [];
             let start = Math.max(1, currentPage - 2);
             let end = Math.min(totalPages, start + 4);
             if (end - start < 4) start = Math.max(1, end - 4);

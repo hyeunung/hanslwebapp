@@ -88,7 +88,7 @@ export default function HeaderBrand({
       {/* 로고: 이미지 또는 아이콘, 크기/위치 모두 소수점 단위로 조절 가능 */}
       {logoType === "image" ? (
         <Image
-          src="/logo_symbol.png"
+          src="/logo_symbol.svg"
           alt="로고"
           width={logoWidth}
           height={logoHeight}

@@ -7,12 +7,12 @@ import "./datepicker-custom.css";
 // Range 지원을 위한 확장형 DatePicker
 export type DatePickerProps =
   | ({
-      value?: Date;
+      selected?: Date;
       onChange: (date: Date | null) => void;
       className?: string;
       placeholder?: string;
       range?: false;
-    } & React.ComponentProps<typeof DatePickerLib>)
+    } & Omit<React.ComponentProps<typeof DatePickerLib>, 'selected' | 'onChange'>)
   | ({
       value?: [Date | null, Date | null];
       onChange: (date: [Date | null, Date | null]) => void;
@@ -22,7 +22,7 @@ export type DatePickerProps =
     } & React.ComponentProps<typeof DatePickerLib>);
 
 export function DatePicker(props: DatePickerProps) {
-  const { range, value, onChange, className, placeholder, ...rest } = props as any;
+  const { range, selected, value, onChange, className, placeholder, ...rest } = props as any;
   if (range) {
     // range 모드: value는 [start, end], onChange도 동일
     return (
@@ -50,7 +50,7 @@ export function DatePicker(props: DatePickerProps) {
   // 단일 날짜 모드
   return (
     <DatePickerLib
-      selected={value || null}
+      selected={selected || null}
       onChange={date => onChange(date as Date | null)}
       dateFormat="yyyy-MM-dd"
       className={`h-8 px-3 border rounded-md bg-white text-xs w-full ${className || ""}`}

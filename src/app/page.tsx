@@ -14,8 +14,8 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white px-4">
-      <div className="mb-4 relative w-20 h-20 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+      <div className="relative w-60 h-60 flex items-center justify-center">
         <AnimatePresence>
           {!showEng && (
             <motion.div
@@ -32,8 +32,8 @@ export default function Home() {
               <Image
                 src="/logo_kr.svg"
                 alt="Hansl Korean Logo"
-                width={80}
-                height={80}
+                width={240}
+                height={240}
                 priority
               />
             </motion.div>
@@ -57,8 +57,8 @@ export default function Home() {
               <Image
                 src="/logo_eng.svg"
                 alt="Hansl English Logo"
-                width={80}
-                height={80}
+                width={240}
+                height={240}
                 priority
               />
             </motion.div>

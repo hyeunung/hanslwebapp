@@ -20,7 +20,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 // POST 메서드: 결제 승인 처리
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const { id } = params; // URL 파라미터에서 id 추출
   try {
     // 해당 id의 is_payment_completed와 final_manager_approved_at를 업데이트

@@ -14,25 +14,21 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-      <div className="relative w-60 h-60 flex items-center justify-center">
+      <div className="relative w-[400px] h-[400px] flex items-center justify-center">
         <AnimatePresence>
           {!showEng && (
             <motion.div
               key="kr"
-              initial={{ opacity: 1, filter: "grayscale(0%) brightness(100%)" }}
-              animate={{ opacity: 1, filter: "grayscale(0%) brightness(100%)" }}
-              exit={{
-                opacity: 0,
-                filter: "grayscale(100%) brightness(60%) blur(2px)",
-                transition: { duration: 1 }
-              }}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.7 } }}
               className="absolute w-full h-full flex items-center justify-center"
             >
               <Image
                 src="/logo_kr.svg"
                 alt="Hansl Korean Logo"
-                width={240}
-                height={240}
+                width={400}
+                height={400}
                 priority
               />
             </motion.div>
@@ -42,22 +38,15 @@ export default function Home() {
           {showEng && (
             <motion.div
               key="eng"
-              initial={{
-                opacity: 0,
-                filter: "grayscale(100%) brightness(60%) blur(2px)"
-              }}
-              animate={{
-                opacity: 1,
-                filter: "grayscale(0%) brightness(100%) blur(0px)",
-                transition: { duration: 1 }
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.7 } }}
               className="absolute w-full h-full flex items-center justify-center"
             >
               <Image
                 src="/logo_eng.svg"
                 alt="Hansl English Logo"
-                width={240}
-                height={240}
+                width={400}
+                height={400}
                 priority
               />
             </motion.div>

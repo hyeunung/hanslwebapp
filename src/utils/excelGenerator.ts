@@ -27,6 +27,31 @@ interface PurchaseOrderItem {
   currency: string;
 }
 
+// 날짜 포맷 함수
+export function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  } catch {
+    return '';
+  }
+}
+
+export function formatDateForFileName(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'unknown_date';
+    return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  } catch {
+    return 'unknown_date';
+  }
+}
+
+export function formatCurrency(value: number, currency: string): string {
+  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency }).format(value);
+}
+
 // 템플릿 기반 Excel 생성 함수 (개선된 버전)
 export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
   console.group('🔥 Excel 생성 프로세스 시작');
@@ -133,7 +158,7 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
         업체: data.vendor_name,
         발주번호: data.purchase_order_number,
         품목수: data.items.length,
-        총금액: formatCurrency(totalAmount)
+        총금액: formatCurrency(totalAmount, 'KRW')
       });
       
       // 원본 템플릿 기반 파일 저장
@@ -298,77 +323,4 @@ async function saveWorkbook(wb: XLSX.WorkBook, data: PurchaseOrderData) {
     console.error('💥 워크북 저장 중 오류:', error);
     throw error;
   }
-}
-
-// (삭제) 심플한 테스트 함수
-// export async function generateSimpleTestExcel() {
-  console.log('🧪 매우 간단한 테스트 Excel 생성 시작');
-  
-  try {
-    // 1. 새 워크북 생성
-    const wb = XLSX.utils.book_new();
-    
-    // 2. 매우 간단한 데이터
-    const simpleData = [
-      ['테스트', '성공'],
-      ['한글', '정상'],
-      ['숫자', 12345],
-      ['날짜', '2024-12-28']
-    ];
-    
-    // 3. 워크시트 생성
-    const ws = XLSX.utils.aoa_to_sheet(simpleData);
-    
-    // 4. 워크북에 추가
-    XLSX.utils.book_append_sheet(wb, ws, 'Test');
-    
-    // 5. 파일 생성
-    const excelBuffer = XLSX.write(wb, { 
-      bookType: 'xlsx', 
-      type: 'array' 
-    });
-    
-    // 6. 다운로드
-    const blob = new Blob([excelBuffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    
-    saveAs(blob, `초간단테스트_${Date.now()}.xlsx`);
-    console.log('✅ 초간단 테스트 파일 생성 완료');
-    
-  } catch (error) {
-    console.error('❌ 초간단 테스트 실패:', error);
-    // alert('테스트 Excel 생성 실패: ' + (error instanceof Error ? error.message : String(error)));
-  // }
-// }
-
-function formatDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      console.warn('⚠️ 날짜 변환 실패:', dateStr);
-      return dateStr;
-    }
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  } catch (error) {
-    console.error('❌ 날짜 포맷팅 오류:', error);
-    return dateStr;
-  }
-}
-
-function formatDateForFileName(dateStr: string): string {
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      return 'unknown_date';
-    }
-    return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  } catch (error) {
-    console.error('❌ 파일명 날짜 포맷팅 오류:', error);
-    return 'unknown_date';
-  }
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('ko-KR').format(value);
 }

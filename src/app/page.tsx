@@ -3,14 +3,23 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [showEng, setShowEng] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowEng(true), 2000); // 2초 후 전환
-    return () => clearTimeout(timer);
-  }, []);
+    const timer1 = setTimeout(() => setShowEng(true), 2000); // 2초 후 전환
+    let timer2: NodeJS.Timeout;
+    if (showEng) {
+      timer2 = setTimeout(() => router.replace("/purchase/list"), 2000); // 2초 후 이동
+    }
+    return () => {
+      clearTimeout(timer1);
+      if (timer2) clearTimeout(timer2);
+    };
+  }, [showEng, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white">

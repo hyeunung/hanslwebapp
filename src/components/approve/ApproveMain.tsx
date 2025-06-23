@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from "react";
 import ApproveDetailAccordion from "./ApproveDetailAccordion";
 import { supabase } from "@/lib/supabaseClient";

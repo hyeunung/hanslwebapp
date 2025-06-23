@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Image from "next/image";
 import { Building2, Home, FileText, Users, CheckCircle, Plus } from "lucide-react";
 import DashboardMain from "@/components/dashboard/DashboardMain";
@@ -27,7 +27,11 @@ export default function AppNavigationLayout() {
   const { currentUserRoles } = usePurchaseData();
 
   let content: React.ReactNode = null;
-  if (currentTab === 'dashboard') content = <DashboardMain />;
+  if (currentTab === 'dashboard') content = (
+    <Suspense fallback={null}>
+      <DashboardMain />
+    </Suspense>
+  );
   else if (currentTab === 'new') content = <PurchaseNewMain />;
   else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;
   else if (currentTab === 'approve') content = <ApproveMain />;

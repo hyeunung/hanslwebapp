@@ -871,7 +871,7 @@ export default function PurchaseNewMain() {
              <div className="flex-1">
                <Label className="mb-1 block text-xs">청구일</Label>
                <DatePicker 
-                 value={watch('request_date') ? new Date(watch('request_date')) : new Date()} 
+                 value={watch('request_date') ? (typeof watch('request_date') === 'string' ? new Date(watch('request_date')) : watch('request_date')) as any : new Date()} 
                  onChange={date => setValue('request_date', date ? date.toISOString().slice(0, 10) : '')} 
                  className="h-[30px] border-[#d2d2d7] bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
                />
@@ -879,7 +879,7 @@ export default function PurchaseNewMain() {
              <div className="flex-1">
                <Label className="mb-1 block text-xs">입고 요청일</Label>
                <DatePicker 
-                 value={watch('delivery_request_date') ? new Date(watch('delivery_request_date')) : undefined} 
+                 value={watch('delivery_request_date') ? (new Date(watch('delivery_request_date')) as any) : undefined} 
                  onChange={date => setValue('delivery_request_date', date ? date.toISOString().slice(0, 10) : '')} 
                  className="h-[30px] border-[#d2d2d7] bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
                  placeholder="선택하세요"

@@ -10,7 +10,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req, { params }) {
   const { id } = params;
   try {
     const now = new Date().toISOString();
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       .eq('id', Number(id));
     if (error) throw error;
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message || 'Unknown error' }, { status: 500 });
   }
 } 

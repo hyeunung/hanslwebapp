@@ -20,7 +20,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 // POST 메서드: 결제 승인 처리
-export async function POST(req: any, { params }: { params: any }) {
+export async function POST(req, { params }) {
   const { id } = params; // URL 파라미터에서 id 추출
   try {
     // 해당 id의 is_payment_completed와 final_manager_approved_at를 업데이트
@@ -32,8 +32,8 @@ export async function POST(req: any, { params }: { params: any }) {
     if (error) throw error;
     // 성공 시 JSON 응답
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (err: any) {
-    // 에러 발생 시 에러 메시지 반환
-    return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message || 'Unknown error' }, { status: 500 });
   }
 } 

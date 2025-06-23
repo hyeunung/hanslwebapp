@@ -26,7 +26,7 @@ export default function AppNavigationLayout() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const { currentUserRoles } = usePurchaseData();
 
-  let content = null;
+  let content: React.ReactNode = null;
   if (currentTab === 'dashboard') content = <DashboardMain />;
   else if (currentTab === 'new') content = <PurchaseNewMain />;
   else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;

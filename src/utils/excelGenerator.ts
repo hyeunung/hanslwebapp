@@ -158,7 +158,7 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
         업체: data.vendor_name,
         발주번호: data.purchase_order_number,
         품목수: data.items.length,
-        총금액: formatCurrency(totalAmount, 'KRW')
+        총금액: formatCurrency(totalAmount, data.items[0]?.currency || 'KRW')
       });
       
       // 원본 템플릿 기반 파일 저장

@@ -22,6 +22,7 @@ import { usePurchaseFilters } from "@/hooks/usePurchaseFilters";
 import PurchaseTable from "@/components/purchase/PurchaseTable";
 import { DatePicker } from "@/components/ui/datepicker";
 import { format } from "date-fns";
+import { useAuth } from "@/app/providers/AuthProvider";
 
 // 발주(구매) 데이터의 타입(구성요소) 정의입니다. 실제로 코드를 수정할 일이 없다면, 그냥 참고만 하셔도 됩니다.
 interface Purchase {
@@ -105,11 +106,42 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const itemsPerPage = 13;
 
   // 기간 필터 상태
+  const { user } = useAuth();
   const thisYear = new Date().getFullYear();
   const defaultStart = new Date(thisYear, 0, 1);
   const defaultEnd = new Date();
-  const [period, setPeriod] = useState<[Date|null, Date|null]>([defaultStart, defaultEnd]);
+  const [period, setPeriod] = useState<[Date | null, Date | null]>([defaultStart, defaultEnd]);
   const [dateModalOpen, setDateModalOpen] = useState(false);
+
+  // 사용자별 저장된 기간 불러오기
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('period_start, period_end')
+        .eq('user_id', user.id)
+        .single();
+      if (data) {
+        const ps = data.period_start ? new Date(data.period_start) : defaultStart;
+        const pe = data.period_end ? new Date(data.period_end) : defaultEnd;
+        setPeriod([ps, pe]);
+      }
+    })();
+  }, [user?.id]);
+
+  // 기간 변경 시 즉시 저장 (사용자별)
+  useEffect(() => {
+    if (!user) return;
+    if (!period[0] || !period[1]) return;
+    (async () => {
+      await supabase.from('user_preferences').upsert({
+        user_id: user.id,
+        period_start: period[0]?.toISOString().slice(0, 10),
+        period_end: period[1]?.toISOString().slice(0, 10),
+      });
+    })();
+  }, [period, user?.id]);
 
   // 실제 데이터(발주 목록, 직원 목록 등)는 아래 커스텀 훅에서 불러옵니다.
   // usePurchaseData: 서버에서 데이터 불러오기, 현재 로그인 사용자 정보 등 관리

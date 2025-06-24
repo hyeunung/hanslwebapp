@@ -111,7 +111,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   // 2. tbody: 실제 데이터 행들
   // 각 행/열, 색상, 클릭 동작 등도 쉽게 설명하는 주석이 달려 있습니다.
   return (
-    <table className="w-full min-w-max">
+    <table className="w-full min-w-max table-fixed">
       <thead className="bg-muted/10 sticky top-0 border-t border-border">
         <tr className="h-12">
           {/* 탭(진행상태)에 따라 표의 맨 앞 열이 달라집니다. */}
@@ -143,7 +143,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
           {showLinkColumn && (
-            <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'w-24' : 'w-14'}`}>링크</th>
+            <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>링크</th>
           )}
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
@@ -256,18 +256,18 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   {/* 구매현황 */}
                   {isGroupHeader ? (
                     <td className="px-1 py-2 text-xs text-foreground text-center w-14">
-                      {item.payment_category === '구매 요청' ? (
-                        <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
-                          style={{
-                            minWidth: 40,
-                            boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
-                            border: 'none',
-                            background: item.is_received ? '#22c55e' : '#e5e7eb',
-                            color: item.is_received ? '#fff' : '#222',
-                          }}>
-                          {item.is_received ? '입고' : '대기'}
-                        </span>
-                      ) : ''}
+                      <span
+                        className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
+                        style={{
+                          minWidth: 40,
+                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                          border: 'none',
+                          background: item.is_payment_completed ? '#22c55e' : '#e5e7eb',
+                          color: item.is_payment_completed ? '#fff' : '#222',
+                        }}
+                      >
+                        {item.is_payment_completed ? '완료' : '대기'}
+                      </span>
                     </td>
                   ) : <td className="w-14" />}
                   {/* 결제 종류 */}
@@ -351,7 +351,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                             setPressedOrder(null);
                           }}
                         >
-                          입고
+                          대기
                         </button>
                       ) : (
                         <span className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 opacity-60 select-none`} style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none', cursor: 'not-allowed' }}>대기</span>
@@ -364,15 +364,29 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   {isGroupHeader ? (
                     <>
                       <span
-                        className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800`}
-                        style={{ minWidth: 40, marginRight: 4, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
+                        className={`inline-block px-2 py-1 rounded-lg font-semibold ${item.middle_manager_status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        style={{
+                          minWidth: 40,
+                          marginRight: 4,
+                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                          border: 'none',
+                          background: item.middle_manager_status === 'approved' ? undefined : undefined,
+                          color: item.middle_manager_status === 'approved' ? undefined : undefined,
+                        }}
                       >
                         {item.middle_manager_status === 'pending' ? '대기' : item.middle_manager_status === 'approved' ? '승인' : item.middle_manager_status}
                       </span>
                       /
                       <span
-                        className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800`}
-                        style={{ minWidth: 40, marginLeft: 4, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)', border: 'none' }}
+                        className={`inline-block px-2 py-1 rounded-lg font-semibold ${item.final_manager_status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        style={{
+                          minWidth: 40,
+                          marginLeft: 4,
+                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                          border: 'none',
+                          background: item.final_manager_status === 'approved' ? undefined : undefined,
+                          color: item.final_manager_status === 'approved' ? undefined : undefined,
+                        }}
                       >
                         {item.final_manager_status === 'pending' ? '대기' : item.final_manager_status === 'approved' ? '승인' : item.final_manager_status}
                       </span>
@@ -432,7 +446,22 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
               {showLinkColumn && (
-                <td className={`px-2 py-2 text-xs text-foreground text-left truncate ${activeTab === 'purchase' ? 'w-24' : 'w-14'}`}>{/* 링크 내용 */}</td>
+                <td className={`px-2 py-2 text-xs text-foreground text-left truncate overflow-hidden whitespace-nowrap ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>
+                  {isGroupHeader ? (
+                    item.purchase_request_file_url ? (
+                      <a
+                        href={item.purchase_request_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800"
+                      >
+                        {item.purchase_request_file_url}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )
+                  ) : null}
+                </td>
               )}
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>

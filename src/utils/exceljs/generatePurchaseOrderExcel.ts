@@ -75,7 +75,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   // 행 높이 고정: 1행 39.75px(≈29.8pt), 2행부터 18px(≈13.5pt)
   sheet.getRow(1).height = 29.8; // 39.75px
   for (let r = 2; r <= 60; r++) {
-    sheet.getRow(r).height = 13.5; // 18px
+    sheet.getRow(r).height = 18; // 18pt
   }
   // 폰트 기본값: 맑은고딕, 크기 11 (2행부터), 1행은 20
   // 1행

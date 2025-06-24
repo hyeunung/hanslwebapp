@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -118,29 +118,25 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     employees,
     currentUserName,
     currentUserRoles,
-    currentUserRole,
     isLoadingEmployees,
     isLoadingPurchases,
     loadMyRequests,
     loadEmployees,
   } = usePurchaseData();
 
-  // 로그인 사용자의 직원 role (employees 테이블의 role 필드) 분류
-  const getRoleCase = useCallback((role: string | null | undefined) => {
-    if (!role) return 1; // null 또는 빈 문자열
-    if (role === 'purchase_manager') return 2;
-    if (['middle_manager', 'final_approver', 'app_admin'].includes(role)) return 3;
+  const roleCase = useMemo(() => {
+    if (!currentUserRoles || currentUserRoles.length === 0) return 1; // null
+    if (currentUserRoles.includes('purchase_manager')) return 2;
+    if (currentUserRoles.some(r => ['middle_manager', 'final_approver', 'app_admin'].includes(r))) return 3;
     return 1;
-  }, []);
+  }, [currentUserRoles]);
 
-  const roleCase = getRoleCase(currentUserRole);
-
-  // DEBUG: 현재 로그인 사용자의 role 팝업으로 확인 (필요 없으면 삭제)
+  // DEBUG alert 업데이트 (purchase_role)
   useEffect(() => {
-    if (currentUserRole) {
-      alert(`현재 로그인 사용자의 role: ${currentUserRole}`);
+    if (currentUserRoles) {
+      alert(`현재 사용자 purchase_role: ${currentUserRoles.join(', ') || '없음'}`);
     }
-  }, [currentUserRole]);
+  }, [currentUserRoles]);
 
   // 탭별 기본 직원 필터 계산
   const computeDefaultEmployee = useCallback(

@@ -259,22 +259,26 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       </span>
                     </td>
                   ) : <td className="w-14" />}
-                  {/* 구매현황 */}
+                  {/* 구매현황: 결제종류가 '구매 요청'이 아닌 경우 공백 */}
                   {isGroupHeader ? (
-                    <td className="px-1 py-2 text-xs text-foreground text-center w-14">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
-                        style={{
-                          minWidth: 40,
-                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
-                          border: 'none',
-                          background: item.is_payment_completed ? '#22c55e' : '#e5e7eb',
-                          color: item.is_payment_completed ? '#fff' : '#222',
-                        }}
-                      >
-                        {item.is_payment_completed ? '완료' : '대기'}
-                      </span>
-                    </td>
+                    item.payment_category === '구매 요청' ? (
+                      <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                        <span
+                          className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
+                          style={{
+                            minWidth: 40,
+                            boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
+                            border: 'none',
+                            background: item.is_payment_completed ? '#22c55e' : '#e5e7eb',
+                            color: item.is_payment_completed ? '#fff' : '#222',
+                          }}
+                        >
+                          {item.is_payment_completed ? '완료' : '대기'}
+                        </span>
+                      </td>
+                    ) : (
+                      <td className="w-14" />
+                    )
                   ) : <td className="w-14" />}
                   {/* 결제 종류 */}
                   {isGroupHeader ? (

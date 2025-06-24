@@ -131,13 +131,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     return 1;
   }, [currentUserRoles]);
 
-  // DEBUG alert 업데이트 (purchase_role)
-  useEffect(() => {
-    if (currentUserRoles) {
-      alert(`현재 사용자 purchase_role: ${currentUserRoles.join(', ') || '없음'}`);
-    }
-  }, [currentUserRoles]);
-
   // 탭별 기본 직원 필터 계산
   const computeDefaultEmployee = useCallback(
     (tabKey: string): string => {

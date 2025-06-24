@@ -88,7 +88,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const router = useRouter();
   // 검색어, 직원 선택, 탭(진행상태) 등 화면의 상태를 관리합니다.
   const [searchTerm, setSearchTerm] = useState(""); // 검색창에 입력한 내용
-  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null); // 선택된 직원, 기본값은 null로 두고 탭에 따라 자동 설정
+  const [selectedEmployee, setSelectedEmployee] = useState<string>(''); // 선택된 직원. 탭 변경 시 각각 기본값으로 재설정
   const initialTab = searchParams.get('subtab') || 'pending';
   const [activeTab, setActiveTab] = useState(initialTab); // 현재 선택된 탭(진행상태)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); // 펼쳐진 주문서 그룹(여러 줄짜리)
@@ -118,11 +118,57 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     employees,
     currentUserName,
     currentUserRoles,
+    currentUserRole,
     isLoadingEmployees,
     isLoadingPurchases,
     loadMyRequests,
     loadEmployees,
   } = usePurchaseData();
+
+  // 로그인 사용자의 직원 role (employees 테이블의 role 필드) 분류
+  const getRoleCase = useCallback((role: string | null | undefined) => {
+    if (!role) return 1; // null 또는 빈 문자열
+    if (role === 'purchase_manager') return 2;
+    if (['middle_manager', 'final_approver', 'app_admin'].includes(role)) return 3;
+    return 1;
+  }, []);
+
+  const roleCase = getRoleCase(currentUserRole);
+
+  // 탭별 기본 직원 필터 계산
+  const computeDefaultEmployee = useCallback(
+    (tabKey: string): string => {
+      if (!currentUserName) return 'all';
+      switch (roleCase) {
+        case 1: // role null
+          if (tabKey === 'done') return 'all';
+          return currentUserName;
+        case 2: // purchase_manager
+          if (tabKey === 'purchase' || tabKey === 'done') return 'all';
+          return currentUserName; // pending & receipt
+        case 3: // 관리자 권한
+          return 'all';
+        default:
+          return currentUserName;
+      }
+    },
+    [currentUserName, roleCase]
+  );
+
+  // 탭 변경 또는 사용자/역할 로딩 시 기본값 설정
+  useEffect(() => {
+    if (!currentUserName) return;
+    // 모든 탭의 기본값 계산
+    const newDefaults: Record<string, string> = {
+      pending: computeDefaultEmployee('pending'),
+      purchase: computeDefaultEmployee('purchase'),
+      receipt: computeDefaultEmployee('receipt'),
+      done: computeDefaultEmployee('done'),
+    };
+    setFilters(newDefaults);
+    setSelectedEmployee(newDefaults[activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentUserName, roleCase]);
 
   // 오늘 날짜와 같은지 확인하는 함수입니다. (예: 오늘 등록된 주문서 강조 등)
   const today = new Date();
@@ -153,17 +199,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const paginatedOrderNumbers = uniqueOrderNumbers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const paginatedData = displayData.filter(item => paginatedOrderNumbers.includes(item.purchase_order_number));
 
-  // 탭 변경 시 직원 필터 기본값 자동 설정
-  useEffect(() => {
-    if (selectedEmployee === null) {
-      if (activeTab === 'done') {
-        setSelectedEmployee('all');
-      } else if (currentUserName) {
-        setSelectedEmployee(currentUserName);
-      }
-    }
-  }, [activeTab, currentUserName, selectedEmployee]);
-
   // 필터(탭, 검색, 직원) 변경 시에만 currentPage를 1로 초기화
   useEffect(() => {
     setCurrentPage(1);
@@ -180,18 +215,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       setSepLeft(lastTabRef.current.offsetLeft + lastTabRef.current.offsetWidth);
     }
   }, [NAV_TABS.length, activeTab]);
-
-  useEffect(() => {
-    if (currentUserName) {
-      setFilters(prev => ({
-        ...prev,
-        pending: currentUserName,
-        purchase: currentUserName,
-        receipt: currentUserName,
-        // done은 그대로 'all' 유지
-      }));
-    }
-  }, [currentUserName]);
 
   // 주문서 그룹(여러 줄짜리)을 펼치거나 접는 함수입니다.
   const toggleGroup = (orderNumber: string) => {
@@ -339,34 +362,24 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const getTabCount = useCallback((tabKey: string) => {
     const employeeFilter = filters[tabKey] || '';
 
-    const isReceiptTabMatch = (item: Purchase) => {
-      if (item.is_received === false) {
-        if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
-        const isFinalApproved = item.final_manager_status === 'approved';
-        const isAdvance = item.progress_type?.includes('선진행');
-        return isFinalApproved || isAdvance;
-      }
-      if (item.is_received === true && isToday(item.received_at)) {
-        if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
-        const isFinalApproved = item.final_manager_status === 'approved';
-        const isAdvance = item.progress_type?.includes('선진행');
-        return isFinalApproved || isAdvance;
-      }
-      return false;
-    };
-
     const filtered = purchases.filter(item => {
-      if (employeeFilter !== 'all' && employeeFilter) {
-        if (item.requester_name !== employeeFilter) return false;
-      }
+      // 직원 필터
+      if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
 
       switch (tabKey) {
         case 'pending':
-          return item.final_manager_status !== 'approved' || (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
-        case 'purchase':
-          return item.payment_category === '구매 요청' && (!item.is_payment_completed || isToday(item.payment_completed_at));
-        case 'receipt':
-          return isReceiptTabMatch(item);
+          return ['pending', '대기', '', null].includes(item.final_manager_status as any);
+        case 'purchase': {
+          const approved = item.final_manager_status === 'approved';
+          const categoryMatch = item.payment_category === '구매 요청' || (item.progress_type || '').includes('선진행');
+          const notPaid = !item.is_payment_completed;
+          return approved && categoryMatch && notPaid;
+        }
+        case 'receipt': {
+          const notReceived = !item.is_received;
+          const cond = (item.progress_type || '').includes('선진행') || item.final_manager_status === 'approved';
+          return notReceived && cond;
+        }
         case 'done':
           return true;
         default:
@@ -374,7 +387,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       }
     });
     return new Set(filtered.map(item => item.purchase_order_number)).size;
-  }, [purchases, filters, isToday]);
+  }, [purchases, filters]);
 
   // 구매 현황 탭에서 '대기' 버튼 클릭 시 DB 업데이트 함수
   const handleCompleteReceipt = async (orderNumber: string) => {
@@ -408,6 +421,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   const handleEmployeeChange = (employee: string) => {
     setSelectedEmployee(employee);
+    setFilters(prev => ({ ...prev, [activeTab]: employee }));
   };
 
 
@@ -459,10 +473,10 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                     setActiveTab(tab.key);
                     router.replace(`/dashboard?tab=dashboard&subtab=${tab.key}`);
                     if (tab.key !== 'done' && currentUserName) {
-                      setSelectedEmployee(currentUserName);
+                      setSelectedEmployee(computeDefaultEmployee(tab.key));
                       setFilters(prev => ({
                         ...prev,
-                        [tab.key]: currentUserName,
+                        [tab.key]: computeDefaultEmployee(tab.key),
                       }));
                     } else if (tab.key === 'done') {
                       setSelectedEmployee('all');
@@ -512,7 +526,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 autoComplete="off"
                 spellCheck={false}
               />
-              <Select value={selectedEmployee ?? undefined} onValueChange={handleEmployeeChange}>
+              <Select value={selectedEmployee || undefined} onValueChange={handleEmployeeChange}>
                 <SelectTrigger className="!w-[60px] !min-w-0 !max-w-[60px] !h-8 !px-1 !py-0 text-[12px] border-0 border-b border-border !rounded-none !shadow-none bg-transparent flex-shrink-0 focus:outline-none focus:shadow-none">
                   <SelectValue placeholder="구매요청자" />
                 </SelectTrigger>

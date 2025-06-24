@@ -17,67 +17,10 @@ interface UsePurchaseFiltersProps {
 
 // [커스텀 훅] 발주 목록을 다양한 조건으로 필터링/가공합니다.
 export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedEmployee, isToday }: UsePurchaseFiltersProps) {
-  // [함수] 입고현황 탭에서 사용할 필터 조건
-  const isReceiptTabMatch = (item: Purchase) => {
-    if (item.is_received === false) {
-      if (selectedEmployee !== 'all' && selectedEmployee) {
-        if (item.requester_name !== selectedEmployee) return false;
-      }
-      const isFinalApproved = item.final_manager_status === 'approved';
-      const isAdvance = item.progress_type?.includes('선진행');
-      if (!(isFinalApproved || isAdvance)) return false;
-      return true;
-    }
-    if (item.is_received === true && isToday(item.received_at)) {
-      if (selectedEmployee !== 'all' && selectedEmployee) {
-        if (item.requester_name !== selectedEmployee) return false;
-      }
-      const isFinalApproved = item.final_manager_status === 'approved';
-      const isAdvance = item.progress_type?.includes('선진행');
-      if (!(isFinalApproved || isAdvance)) return false;
-      return true;
-    }
-    return false;
-  };
-
   // [useMemo] 필터링된 발주 목록을 계산합니다.
   const tabFilteredOrders = useMemo(() => {
-    if (activeTab === 'receipt') {
-      return purchases.filter(isReceiptTabMatch);
-    }
-    if (activeTab === 'done') {
-      return purchases.filter(item => {
-        // '전체 항목' 탭에서는 담당자 필터만 적용
-        if (selectedEmployee && selectedEmployee !== 'all' && item.requester_name !== selectedEmployee) {
-          return false;
-        }
-
-        if (searchTerm && searchTerm.trim() !== '') {
-          const term = searchTerm.trim().toLowerCase();
-          const searchable = [
-            item.purchase_order_number,
-            item.vendor_name,
-            item.item_name,
-            item.specification,
-            item.requester_name,
-            item.remark,
-            item.project_vendor,
-            item.sales_order_number,
-            item.project_item,
-            item.unit_price_value?.toString(),
-            item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : '',
-            item.amount_value?.toString(),
-            item.amount_value ? Number(item.amount_value).toLocaleString() : '',
-          ].map(v => (v || '').toLowerCase()).join(' ');
-          if (!searchable.includes(term)) return false;
-        }
-        return true;
-      });
-    }
-    return purchases.filter(item => {
-      if (selectedEmployee !== 'all' && selectedEmployee) {
-        if (item.requester_name !== selectedEmployee) return false;
-      }
+    const matchesSearchAndEmployee = (item: Purchase) => {
+      if (selectedEmployee && selectedEmployee !== 'all' && item.requester_name !== selectedEmployee) return false;
       if (searchTerm && searchTerm.trim() !== '') {
         const term = searchTerm.trim().toLowerCase();
         const searchable = [
@@ -97,27 +40,34 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
         ].map(v => (v || '').toLowerCase()).join(' ');
         if (!searchable.includes(term)) return false;
       }
-      if (activeTab === 'pending') {
-        return item.final_manager_status !== 'approved' ||
-          (item.final_manager_status === 'approved' && isToday(item.final_manager_approved_at));
-      }
-      if (activeTab === 'purchase') {
-        return item.payment_category === '구매 요청' &&
-          (!item.is_payment_completed || isToday(item.payment_completed_at));
-      }
-      if (activeTab === 'receipt') {
-        const isFinalApproved = item.final_manager_status === 'approved';
-        const isAdvance = item.progress_type?.includes('선진행');
-        if (!(isFinalApproved || isAdvance)) return false;
-        return item.progress_type !== '입고완료' ||
-          (item.progress_type === '입고완료' && isToday(item.received_at));
-      }
-      if (activeTab === 'done') {
-        return ['approved', '승인'].includes(item.final_manager_status || '');
-      }
       return true;
+    };
+
+    const filtered = purchases.filter(item => {
+      if (!matchesSearchAndEmployee(item)) return false;
+
+      switch (activeTab) {
+        case 'pending':
+          return ['pending', '대기', '', null].includes(item.final_manager_status as any);
+        case 'purchase': {
+          const approved = item.final_manager_status === 'approved';
+          const categoryMatch = item.payment_category === '구매 요청' || (item.progress_type || '').includes('선진행');
+          const notPaid = !item.is_payment_completed;
+          return approved && categoryMatch && notPaid;
+        }
+        case 'receipt': {
+          const notReceived = !item.is_received;
+          const cond = (item.progress_type || '').includes('선진행') || item.final_manager_status === 'approved';
+          return notReceived && cond;
+        }
+        case 'done':
+          return true; // 전체 항목
+        default:
+          return true;
+      }
     });
-  }, [purchases, activeTab, searchTerm, selectedEmployee, isToday]);
+    return filtered;
+  }, [purchases, activeTab, searchTerm, selectedEmployee]);
 
   // [useMemo] 발주번호별로 그룹핑된 데이터 생성
   const orderNumberGroups = useMemo(() => {

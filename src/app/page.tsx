@@ -10,8 +10,8 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setVisible(false), 2000); // 2초 후 페이드아웃
-    const timer2 = setTimeout(() => router.replace("/purchase/list"), 4000); // 4초 후 이동
+    const timer1 = setTimeout(() => setVisible(false), 1500); // 1.5초 후 페이드아웃
+    const timer2 = setTimeout(() => router.replace("/purchase/list"), 1500); // 1.5초 후 바로 이동
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);

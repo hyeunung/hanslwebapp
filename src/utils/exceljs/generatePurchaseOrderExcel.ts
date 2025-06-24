@@ -72,12 +72,23 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     }
   });
 
-  // 모든 행에 대해 픽셀 기준 15.75px에 근접하게 11.8pt로 지정
-  for (let r = 2; r <= 50; r++) {
-    sheet.getRow(r).height = 11.8;
+  // 행 높이 고정: 1행 39.75px(≈29.8pt), 2행부터 18px(≈13.5pt)
+  sheet.getRow(1).height = 29.8; // 39.75px
+  for (let r = 2; r <= 60; r++) {
+    sheet.getRow(r).height = 13.5; // 18px
   }
-  // 1행: 39.75px = 약 29.8pt (1pt ≈ 1.333px)
-  sheet.getRow(1).height = 29.8;
+  // 폰트 기본값: 맑은고딕, 크기 11 (2행부터), 1행은 20
+  // 1행
+  sheet.getRow(1).eachCell(cell => {
+    cell.font = { ...(cell.font || {}), name: '맑은 고딕', size: 20 };
+  });
+
+  // 나머지 행 기본 폰트 설정 (필요시 뒤에서 개별 셀에서 다시 bold 지정)
+  for (let r = 2; r <= 60; r++) {
+    sheet.getRow(r).eachCell(cell => {
+      cell.font = { ...(cell.font || {}), name: '맑은 고딕', size: 11 };
+    });
+  }
 
   // 1. 병합 범위 템플릿과 1:1 적용
   sheet.mergeCells('A1:G1');
@@ -288,7 +299,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   };
 
   // 열 너비 (템플릿 기준)
-  const colWidths = { A:5.5, B:11.83, C:30.83, D:11.83, E:14.83, F:16.83, G:38.17 };
+  const colWidths = { A:4.7, B:23, C:30, D:11, E:15, F:16, G:37 };
   Object.entries(colWidths).forEach(([col, width]) => {
     sheet.getColumn(col).width = width;
   });

@@ -59,6 +59,7 @@ interface PurchaseTableProps {
   handleCompleteReceipt: (orderNumber: string) => Promise<void>;
   setPressedOrder: (orderNumber: string | null) => void;
   handleCompletePayment: (orderNumber: string) => Promise<void>;
+  handleDeleteOrder: (orderNumber: string) => Promise<void>;
 }
 
 // 이 함수가 실제로 표(테이블)를 화면에 그려줍니다.
@@ -74,6 +75,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   handleCompleteReceipt,
   setPressedOrder,
   handleCompletePayment,
+  handleDeleteOrder,
 }) => {
   // '구매현황' 탭일 때만 링크 열 표시
   const showLinkColumn = activeTab === 'purchase';
@@ -105,6 +107,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   };
 
   const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('purchase_manager');
+  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin');
 
   // 아래가 실제로 표(테이블)를 그리는 부분입니다.
   // 1. thead: 표의 맨 위(제목줄)
@@ -150,6 +153,9 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
           {activeTab !== 'purchase' && (
             <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
+          )}
+          {activeTab === 'done' && (
+            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">삭제</th>
           )}
         </tr>
       </thead>
@@ -360,7 +366,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   </td>
                 ) : <td className="w-24" />
               ) : (
-                <td className="px-2 py-2 text-xs text-foreground text-center w-35">
+                <td className="px-3 py-2 text-xs text-foreground font-medium text-left w-36">
                   {isGroupHeader ? (
                     <>
                       <span
@@ -395,8 +401,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                 </td>
               )}
               {/* 이하 공통 컬럼들 */}
-              <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-36">
-                <div className="flex flex-col items-center gap-1">
+              <td className="px-3 py-2 text-xs text-foreground font-medium text-left w-36">
+                <div className="flex flex-col items-start gap-1">
                   <span className="truncate flex items-center gap-1">
                     {/* 엑셀 다운로드 아이콘: 그룹 헤더(첫 행)에만 표시 */}
                     {isGroupHeader && (
@@ -439,12 +445,12 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.item_name}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-left truncate w-32">{item.item_name}</td>
               <td className={`px-2 py-2 text-xs text-foreground truncate relative ${activeTab === 'purchase' ? 'w-80' : 'w-32'}`}>{item.specification}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-32">{item.remark}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-left truncate w-32" title={item.remark}>{item.remark}</td>
               {showLinkColumn && (
                 <td className={`px-2 py-2 text-xs text-foreground text-left truncate overflow-hidden whitespace-nowrap ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>
                   {isGroupHeader ? (
@@ -468,6 +474,29 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
               {activeTab !== 'purchase' && (
                 <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
+              )}
+
+              {/* 삭제 – done 탭에서만 표시 */}
+              {activeTab === 'done' && (
+                isGroupHeader ? (
+                  <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                    {canDelete ? (
+                      <button
+                        className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-red-500/90 to-red-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteOrder(item.purchase_order_number!);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    ) : (
+                      <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                        삭제
+                      </span>
+                    )}
+                  </td>
+                ) : <td className="w-14" />
               )}
             </tr>
           );

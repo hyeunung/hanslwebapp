@@ -77,6 +77,42 @@ function renderStatusBadge(status: "approved" | "pending" | "rejected" | string)
   );
 }
 
+// 요청유형 배지 렌더러
+function renderRequestTypeBadge(type: string) {
+  const baseStyle =
+    "inline-block px-3 py-1 rounded-md text-[13px] font-semibold shadow";
+  switch (type) {
+    case "원자재": // Raw material – green (same as 승인 배지)
+      return (
+        <span
+          className={`${baseStyle} text-white`}
+          style={{
+            background:
+              "linear-gradient(270deg, #6fd47e 0%, #5fcf6c 100%)",
+            boxShadow: "0 2px 8px 0 rgba(60, 120, 60, 0.35)",
+          }}
+        >
+          원자재
+        </span>
+      );
+    case "소모품": // Consumable – orange example colour
+      return (
+        <span
+          className={`${baseStyle} text-white`}
+          style={{
+            background:
+              "linear-gradient(270deg, #ffb76b 0%, #ff8b2b 100%)",
+            boxShadow: "0 2px 8px 0 rgba(180, 120, 60, 0.35)",
+          }}
+        >
+          소모품
+        </span>
+      );
+    default:
+      return <span className={baseStyle}>{type}</span>;
+  }
+}
+
 const TAB_ORDER = ["pending", "approved", "all"];
 const TAB_LABELS: Record<string, string> = {
   pending: "대기",
@@ -96,6 +132,34 @@ const ApproveMain: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("pending");
   const { currentUserRoles } = usePurchaseData();
+
+  /* ------------------------------------------------------------------
+   * 역할별 요청유형 필터링
+   *  - raw_material_manager  ➜  "원자재" 요청만 표시
+   *  - consumable_manager    ➜  "소모품" 요청만 표시
+   *    (두 역할 모두 가진 경우엔 두 유형 모두 표시)
+   * ------------------------------------------------------------------ */
+  const roleFilteredList = React.useMemo(() => {
+    // 두 역할을 모두 가진 경우엔 전체(요청유형 필터 미적용)
+    const hasRawRole = currentUserRoles.includes("raw_material_manager");
+    const hasConsumableRole = currentUserRoles.includes("consumable_manager");
+
+    // 아무 역할도 없으면 그대로 반환
+    if (!hasRawRole && !hasConsumableRole) return approveList;
+
+    // raw_only 또는 consumable_only
+    if (hasRawRole && !hasConsumableRole) {
+      return approveList.filter((row) => row.requestType === "원자재");
+    }
+    if (!hasRawRole && hasConsumableRole) {
+      return approveList.filter((row) => row.requestType === "소모품");
+    }
+
+    // 둘 다 있을 땐 둘 다 허용
+    return approveList.filter((row) =>
+      row.requestType === "원자재" || row.requestType === "소모품"
+    );
+  }, [approveList, currentUserRoles]);
 
   useEffect(() => {
     async function fetchApproveList() {
@@ -188,15 +252,21 @@ const ApproveMain: React.FC = () => {
     fetchApproveList();
   }, []);
 
-  // 탭별 필터링
+  // ------------------------------------------------------------------
+  // 탭별 필터링 (역할 필터 통과한 리스트에 적용)
+  // ------------------------------------------------------------------
   const getFilteredList = () => {
     if (activeTab === "pending") {
-      return approveList.filter(r => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending");
+      return roleFilteredList.filter(
+        (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
+      );
     }
     if (activeTab === "approved") {
-      return approveList.filter(r => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved");
+      return roleFilteredList.filter(
+        (r) => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved"
+      );
     }
-    return approveList;
+    return roleFilteredList;
   };
   const filteredList = getFilteredList().filter(row => {
     const search = searchTerm.toLowerCase();
@@ -237,11 +307,17 @@ const ApproveMain: React.FC = () => {
     return matchesSearch;
   });
 
-  // 통계
+  // ------------------------------------------------------------------
+  // 통계 (역할 필터 반영)
+  // ------------------------------------------------------------------
   const stats = {
-    pending: approveList.filter(r => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending").length,
-    approved: approveList.filter(r => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved").length,
-    all: approveList.length
+    pending: roleFilteredList.filter(
+      (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
+    ).length,
+    approved: roleFilteredList.filter(
+      (r) => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved"
+    ).length,
+    all: roleFilteredList.length,
   };
 
   return (
@@ -319,7 +395,7 @@ const ApproveMain: React.FC = () => {
                       <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
                       <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
                       <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
-                      <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.requestType}</td>
+                      <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{renderRequestTypeBadge(row.requestType)}</td>
                       <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
                       <td className="text-center px-2 py-2 w-20 min-w-[5.5rem]">{row.contactName}</td>
                       <td className="text-center px-2 py-2 w-48 min-w-[12rem]">{row.items[0]?.itemName}</td>

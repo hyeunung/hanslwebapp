@@ -157,8 +157,10 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   sheet.getCell('F2').value = data.requester_name;
   sheet.getCell('F3').value = '대구광역시 달서구 성서공단북로305';
   sheet.getCell('F4').value = data.purchase_order_number;
-  sheet.getCell('F5').value = data.vendor_phone || '';
-  sheet.getCell('F6').value = data.vendor_fax || '';
+  sheet.getCell('F5').value = '(053) 626-7805';
+  sheet.getCell('F6').value = '(053) 657-7905';
+  sheet.getCell('F5').alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getCell('F6').alignment = { horizontal: 'center', vertical: 'middle' };
 
   // 8행: 테이블 헤더
   const tableHeaders = ['No', '품명', '규격', '수량', '단가', '금액', '비고'];

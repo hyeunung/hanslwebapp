@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import EmailButton from "@/components/purchase/EmailButton";
 import { supabase } from "@/lib/supabaseClient";
-// import { generateSimpleTestExcel } from "@/utils/excelGenerator";
-import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
 import Image from "next/image";
 import { usePurchaseData } from "@/hooks/usePurchaseData";
 import { usePurchaseFilters } from "@/hooks/usePurchaseFilters";
@@ -23,6 +21,7 @@ import PurchaseTable from "@/components/purchase/PurchaseTable";
 import { DatePicker } from "@/components/ui/datepicker";
 import { format } from "date-fns";
 import { useAuth } from "@/app/providers/AuthProvider";
+import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
 
 // 발주(구매) 데이터의 타입(구성요소) 정의입니다. 실제로 코드를 수정할 일이 없다면, 그냥 참고만 하셔도 됩니다.
 interface Purchase {
@@ -342,7 +341,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     };
 
     try {
-      // ExcelJS 기반으로 생성
+      // 코드 기반 ExcelJS 생성 (템플릿 없이 서식 직접 정의)
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
       const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
       // 파일 다운로드
@@ -452,6 +451,29 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     setFilters(prev => ({ ...prev, [activeTab]: employee }));
   };
 
+  // New handleDeleteOrder function
+  const handleDeleteOrder = async (orderNumber: string) => {
+    if (!window.confirm(`발주번호 ${orderNumber} 의 모든 항목을 삭제하시겠습니까?`)) return;
+    try {
+      // 1) purchase_requests 삭제
+      const { error: reqErr } = await supabase
+        .from('purchase_requests')
+        .delete()
+        .eq('purchase_order_number', orderNumber);
+      if (reqErr) throw reqErr;
+
+      // 2) purchase_request_items (상세 품목) 삭제
+      await supabase
+        .from('purchase_request_items')
+        .delete()
+        .eq('purchase_order_number', orderNumber);
+
+      // 3) 프론트 데이터 새로고침
+      await loadMyRequests();
+    } catch (err: any) {
+      window.alert('주문 삭제 중 오류가 발생했습니다: ' + (err.message || err));
+    }
+  };
 
   return (
     <>
@@ -599,6 +621,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               handleCompleteReceipt={handleCompleteReceipt}
               setPressedOrder={setPressedOrder}
               handleCompletePayment={handleCompletePayment}
+              handleDeleteOrder={handleDeleteOrder}
             />
             {/* 기존 테이블 렌더링 부분은 PurchaseTable로 이동 */}
             {displayData.length === 0 && (

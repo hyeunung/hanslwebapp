@@ -6,49 +6,28 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const [showEng, setShowEng] = useState(false);
+  const [visible, setVisible] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setShowEng(true), 2000); // 2초 후 전환
-    let timer2: NodeJS.Timeout;
-    if (showEng) {
-      timer2 = setTimeout(() => router.replace("/purchase/list"), 2000); // 2초 후 이동
-    }
+    const timer1 = setTimeout(() => setVisible(false), 2000); // 2초 후 페이드아웃
+    const timer2 = setTimeout(() => router.replace("/purchase/list"), 4000); // 4초 후 이동
     return () => {
       clearTimeout(timer1);
-      if (timer2) clearTimeout(timer2);
+      clearTimeout(timer2);
     };
-  }, [showEng, router]);
+  }, [router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white">
       <div className="relative w-[400px] h-[400px] flex items-center justify-center">
         <AnimatePresence>
-          {!showEng && (
-            <motion.div
-              key="kr"
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.7 } }}
-              className="absolute w-full h-full flex items-center justify-center"
-            >
-              <Image
-                src="/logo_kr.svg"
-                alt="Hansl Korean Logo"
-                width={400}
-                height={400}
-                priority
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {showEng && (
+          {visible && (
             <motion.div
               key="eng"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { duration: 0.7 } }}
+              exit={{ opacity: 0, transition: { duration: 0.7 } }}
               className="absolute w-full h-full flex items-center justify-center"
             >
               <Image

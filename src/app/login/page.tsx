@@ -54,7 +54,8 @@ export default function LoginPage() {
   const onSubmit = async (data: any) => {
     setLoading(true);
     setError("");
-    const { email, password } = data;
+    const email = `${data.email}@hansl.com`;
+    const { password } = data;
     let signInResult;
     if (autoLogin) {
       // 자동 로그인: 기존 supabase 인스턴스(세션 브라우저 저장)
@@ -84,7 +85,8 @@ export default function LoginPage() {
   const onSignup = async (data: any) => {
     setSignupLoading(true);
     setSignupMsg("");
-    const { email, password } = data;
+    const email = `${data.email}@hansl.com`;
+    const { password } = data;
     const { error } = await supabase.auth.signUp({ email, password });
     setSignupLoading(false);
     if (error) {
@@ -116,19 +118,25 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold mb-4 text-center">로그인</h1>
         <form onSubmit={handleSubmit(onSubmit)} onKeyDown={e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); } }}>
           <div className="flex flex-col gap-4">
+            {/* 로그인 아이디 입력란 (이메일이 아닌 아이디만 입력, @hansl.com 고정) */}
             <Controller
               name="email"
               control={control}
               defaultValue=""
-              rules={{ required: "이메일을 입력하세요." }}
+              rules={{ required: "아이디를 입력하세요." }}
               render={({ field, fieldState }) => (
-                <Input
-                  {...field}
-                  type="email"
-                  placeholder="이메일"
-                  autoComplete="email"
-                  className={fieldState.error ? "border-destructive" : ""}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    {...field}
+                    type="text"
+                    placeholder="아이디"
+                    autoComplete="username"
+                    className={fieldState.error ? "border-destructive" : ""}
+                    value={field.value}
+                    onChange={e => field.onChange(e.target.value.replace(/@.*/, ""))}
+                  />
+                  <span className="text-sm">@hansl.com</span>
+                </div>
               )}
             />
             <Controller
@@ -187,13 +195,25 @@ export default function LoginPage() {
           </DialogHeader>
           <form onSubmit={handleSignupSubmit(onSignup)} onKeyDown={e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); } }}>
             <div className="flex flex-col gap-4 mt-2">
+              {/* 회원가입 아이디 입력란 (이메일이 아닌 아이디만 입력, @hansl.com 고정) */}
               <Controller
                 name="email"
                 control={signupControl}
                 defaultValue=""
-                rules={{ required: "이메일을 입력하세요." }}
+                rules={{ required: "아이디를 입력하세요." }}
                 render={({ field }) => (
-                  <Input {...field} type="email" placeholder="이메일" className={signupErrors.email ? "border-destructive" : ""} />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      {...field}
+                      type="text"
+                      placeholder="아이디"
+                      autoComplete="username"
+                      className={signupErrors.email ? "border-destructive" : ""}
+                      value={field.value}
+                      onChange={e => field.onChange(e.target.value.replace(/@.*/, ""))}
+                    />
+                    <span className="text-sm">@hansl.com</span>
+                  </div>
                 )}
               />
               <Controller
@@ -205,6 +225,26 @@ export default function LoginPage() {
                   <Input {...field} type="password" placeholder="비밀번호" className={signupErrors.password ? "border-destructive" : ""} />
                 )}
               />
+              {/* 비밀번호 확인 입력란 추가 */}
+              <Controller
+                name="passwordConfirm"
+                control={signupControl}
+                defaultValue=""
+                rules={{
+                  required: "비밀번호 확인을 입력하세요.",
+                  validate: (value, formValues) =>
+                    value === formValues.password || "비밀번호가 일치하지 않습니다.",
+                }}
+                render={({ field }) => (
+                  <Input {...field} type="password" placeholder="비밀번호 확인" className={signupErrors.passwordConfirm ? "border-destructive" : ""} />
+                )}
+              />
+              {/* 비밀번호 확인 에러 메시지 */}
+              {signupErrors.passwordConfirm && (
+                <Alert variant="destructive">
+                  <AlertDescription>{typeof signupErrors.passwordConfirm.message === 'string' ? signupErrors.passwordConfirm.message : ''}</AlertDescription>
+                </Alert>
+              )}
               {signupMsg && (
                 <Alert variant={signupMsg.includes("완료") ? "default" : "destructive"}>
                   <AlertDescription>{signupMsg}</AlertDescription>

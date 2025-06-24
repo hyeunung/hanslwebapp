@@ -135,6 +135,13 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   const roleCase = getRoleCase(currentUserRole);
 
+  // DEBUG: 현재 로그인 사용자의 role 팝업으로 확인 (필요 없으면 삭제)
+  useEffect(() => {
+    if (currentUserRole) {
+      alert(`현재 로그인 사용자의 role: ${currentUserRole}`);
+    }
+  }, [currentUserRole]);
+
   // 탭별 기본 직원 필터 계산
   const computeDefaultEmployee = useCallback(
     (tabKey: string): string => {

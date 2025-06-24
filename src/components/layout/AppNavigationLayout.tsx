@@ -22,21 +22,35 @@ const navigationItems = [
   { id: 'employee', icon: Users, label: '직원관리', adminOnly: true },
 ];
 
-export default function AppNavigationLayout() {
-  const [currentTab, setCurrentTab] = useState('dashboard');
+interface AppNavigationLayoutProps {
+  /** 초기 선택 탭 (대시보드, 새 발주, 목록 등) */
+  initialTab?: 'dashboard' | 'new' | 'list' | 'approve' | 'vendors' | 'employee';
+  /** 메인 컨텐츠를 재정의할 때 사용. children 이 전달되면 내부 탭별 렌더링 대신 children 을 그대로 출력 */
+  children?: React.ReactNode;
+}
+
+export default function AppNavigationLayout({ initialTab = 'dashboard', children }: AppNavigationLayoutProps) {
   const { currentUserRoles } = usePurchaseData();
 
+  // 네비 탭은 state 로 관리하되, 초기값을 props 로 지정 가능
+  const [currentTab, setCurrentTab] = useState(initialTab);
+
+  // children 이 전달된 경우, overrideContent 로 사용
   let content: React.ReactNode = null;
-  if (currentTab === 'dashboard') content = (
-    <Suspense fallback={null}>
-      <DashboardMain />
-    </Suspense>
-  );
-  else if (currentTab === 'new') content = <PurchaseNewMain />;
-  else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;
-  else if (currentTab === 'approve') content = <ApproveMain />;
-  else if (currentTab === 'vendors') content = <VendorListMain />;
-  else if (currentTab === 'employee') content = <EmployeeMain />;
+  if (currentTab === initialTab && children) {
+    content = children;
+  } else {
+    if (currentTab === 'dashboard') content = (
+      <Suspense fallback={null}>
+        <DashboardMain />
+      </Suspense>
+    );
+    else if (currentTab === 'new') content = <PurchaseNewMain />;
+    else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;
+    else if (currentTab === 'approve') content = <ApproveMain />;
+    else if (currentTab === 'vendors') content = <VendorListMain />;
+    else if (currentTab === 'employee') content = <EmployeeMain />;
+  }
 
   // 관리자 권한 체크
   const isAdmin = currentUserRoles.includes('app_admin') || currentUserRoles.includes('final_approver') || currentUserRoles.includes('middle_manager');
@@ -56,7 +70,7 @@ export default function AppNavigationLayout() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setCurrentTab(item.id)}
+                  onClick={() => setCurrentTab(item.id as any)}
                   className={`flex items-center space-x-2 py-4 px-2 border-b-2 transition-colors ${
                     isActive
                       ? 'border-white text-white'

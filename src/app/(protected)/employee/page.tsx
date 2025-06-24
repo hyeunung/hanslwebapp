@@ -1,5 +1,10 @@
 import EmployeeMain from '@/components/employee/EmployeeMain';
+import AppNavigationLayout from '@/components/layout/AppNavigationLayout';
 
 export default function EmployeePage() {
-  return <EmployeeMain />;
+  return (
+    <AppNavigationLayout initialTab="employee">
+      <EmployeeMain />
+    </AppNavigationLayout>
+  );
 } 

@@ -413,7 +413,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   return (
     <>
-      <Card className="h-full flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full">
+      <Card className="flex flex-col bg-card border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-auto w-full" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         <CardHeader className="pt-[16px] pb-0 px-0 bg-muted/20 relative">
           {showEmailButton && (
             <>
@@ -446,7 +446,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-hidden p-0 pt-0 mt-0 gap-0">
+        <CardContent className="flex-1 overflow-auto p-0 pt-0 mt-0 gap-0">
           {/* 탭 바를 CardContent로 이동, separator 위에 위치 */}
           <div className="relative flex items-center justify-between w-full" style={{ minWidth: 320 }}>
             <div className="flex">

@@ -155,9 +155,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     loadEmployees,
   } = usePurchaseData();
 
-  // purchase_manager 권한이 없는 사용자는 특정 직원(정현웅, 정희웅)의 요청을 볼 수 없도록 필터링
+  // purchase_manager나 app_admin 권한이 있는 사용자는 모든 요청을 볼 수 있습니다.
   const visiblePurchases = useMemo(() => {
-    if (currentUserRoles && currentUserRoles.includes('purchase_manager')) {
+    if (currentUserRoles && (currentUserRoles.includes('purchase_manager') || currentUserRoles.includes('app_admin'))) {
       return purchases;
     }
     return purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');

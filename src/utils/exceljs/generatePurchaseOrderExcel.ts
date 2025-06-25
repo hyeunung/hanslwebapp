@@ -124,7 +124,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   } catch (e) {}
 
   // 2. 제목 (B1:H1 병합, 중앙정렬)
-  sheet.getCell('D1').value = '     발 주 서';
+  sheet.getCell('D1').value = '                발 주 서';
   sheet.getCell('D1').alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
   sheet.getCell('D1').font = { bold: true, size: 20 };
 

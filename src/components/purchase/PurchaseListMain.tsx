@@ -155,6 +155,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     loadEmployees,
   } = usePurchaseData();
 
+  // purchase_manager 권한이 없는 사용자는 특정 직원(정현웅, 정희웅)의 요청을 볼 수 없도록 필터링
+  const visiblePurchases = useMemo(() => {
+    if (currentUserRoles && currentUserRoles.includes('purchase_manager')) {
+      return purchases;
+    }
+    return purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
+  }, [purchases, currentUserRoles]);
+
   const roleCase = useMemo(() => {
     if (!currentUserRoles || currentUserRoles.length === 0) return 1; // null
     if (currentUserRoles.includes('purchase_manager')) return 2;
@@ -207,7 +215,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // usePurchaseFilters: 검색어, 탭, 직원 등 조건에 따라 실제로 보여줄 데이터만 골라줍니다.
   const { tabFilteredOrders, orderNumberGroups, displayData: rawDisplayData } = usePurchaseFilters({
-    purchases,
+    purchases: visiblePurchases,
     activeTab,
     searchTerm,
     selectedEmployee: selectedEmployee ?? '',
@@ -256,7 +264,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // 특정 주문서의 엑셀 파일을 생성하는 함수입니다. (버튼 클릭 시 실행)
   const generateExcelForOrder = async (orderNumber: string) => {
-    const orderItems = purchases.filter(item => item.purchase_order_number === orderNumber);
+    const orderItems = visiblePurchases.filter(item => item.purchase_order_number === orderNumber);
     if (orderItems.length === 0) {
       alert('해당 발주번호의 데이터를 찾을 수 없습니다.');
       return;
@@ -378,10 +386,10 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   }
 
   // Compact stats 계산 복구
-  const pendingOrderNumbers = Array.from(new Set(purchases.filter(item => item.middle_manager_status === '대기' || item.final_manager_status === '대기').map(item => item.purchase_order_number)));
-  const approvedOrderNumbers = Array.from(new Set(purchases.filter(item => item.middle_manager_status === '승인' && item.final_manager_status === '승인').map(item => item.purchase_order_number)));
+  const pendingOrderNumbers = Array.from(new Set(visiblePurchases.filter(item => item.middle_manager_status === '대기' || item.final_manager_status === '대기').map(item => item.purchase_order_number)));
+  const approvedOrderNumbers = Array.from(new Set(visiblePurchases.filter(item => item.middle_manager_status === '승인' && item.final_manager_status === '승인').map(item => item.purchase_order_number)));
   const stats = {
-    total: purchases.length,
+    total: visiblePurchases.length,
     pending: pendingOrderNumbers.length,
     approved: approvedOrderNumbers.length,
   };
@@ -389,7 +397,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const getTabCount = useCallback((tabKey: string) => {
     const employeeFilter = filters[tabKey] || '';
 
-    const filtered = purchases.filter(item => {
+    const filtered = visiblePurchases.filter(item => {
       // 직원 필터
       if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
 
@@ -414,7 +422,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       }
     });
     return new Set(filtered.map(item => item.purchase_order_number)).size;
-  }, [purchases, filters]);
+  }, [visiblePurchases, filters]);
 
   // 구매 현황 탭에서 '대기' 버튼 클릭 시 DB 업데이트 함수
   const handleCompleteReceipt = async (orderNumber: string) => {

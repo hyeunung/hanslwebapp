@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ApproveDetailAccordion from "./ApproveDetailAccordion";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -139,7 +139,7 @@ const ApproveMain: React.FC = () => {
    *  - consumable_manager    ➜  "소모품" 요청만 표시
    *    (두 역할 모두 가진 경우엔 두 유형 모두 표시)
    * ------------------------------------------------------------------ */
-  const roleFilteredList = React.useMemo(() => {
+  const roleFilteredList = useMemo(() => {
     // 두 역할을 모두 가진 경우엔 전체(요청유형 필터 미적용)
     const hasRawRole = currentUserRoles.includes("raw_material_manager");
     const hasConsumableRole = currentUserRoles.includes("consumable_manager");
@@ -160,6 +160,15 @@ const ApproveMain: React.FC = () => {
       row.requestType === "원자재" || row.requestType === "소모품"
     );
   }, [approveList, currentUserRoles]);
+
+  /* ------------------------------------------------------------------
+   * 특정 직원(정현웅, 정희웅) 요청 건 비노출 – purchase_manager 제외
+   * ------------------------------------------------------------------ */
+  const visibleList = useMemo(() => {
+    if (currentUserRoles.includes("purchase_manager")) return roleFilteredList;
+    const restricted = ["정현웅", "정희웅"];
+    return roleFilteredList.filter(row => !restricted.includes(row.requesterName));
+  }, [roleFilteredList, currentUserRoles]);
 
   useEffect(() => {
     async function fetchApproveList() {
@@ -257,16 +266,16 @@ const ApproveMain: React.FC = () => {
   // ------------------------------------------------------------------
   const getFilteredList = () => {
     if (activeTab === "pending") {
-      return roleFilteredList.filter(
+      return visibleList.filter(
         (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
       );
     }
     if (activeTab === "approved") {
-      return roleFilteredList.filter(
+      return visibleList.filter(
         (r) => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved"
       );
     }
-    return roleFilteredList;
+    return visibleList;
   };
   const filteredList = getFilteredList().filter(row => {
     const search = searchTerm.toLowerCase();
@@ -311,13 +320,13 @@ const ApproveMain: React.FC = () => {
   // 통계 (역할 필터 반영)
   // ------------------------------------------------------------------
   const stats = {
-    pending: roleFilteredList.filter(
+    pending: visibleList.filter(
       (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
     ).length,
-    approved: roleFilteredList.filter(
+    approved: visibleList.filter(
       (r) => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved"
     ).length,
-    all: roleFilteredList.length,
+    all: visibleList.length,
   };
 
   return (

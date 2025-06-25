@@ -409,7 +409,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                     {/* 엑셀 다운로드 아이콘: 그룹 헤더(첫 행)에만 표시 */}
                     {isGroupHeader && (
                       <Image
-                        src="/logo_symbol.svg"
+                        src="/excels-icon.svg"
                         alt="엑셀 다운로드"
                         width={16}
                         height={16}

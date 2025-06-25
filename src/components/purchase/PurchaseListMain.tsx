@@ -398,6 +398,11 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     const employeeFilter = filters[tabKey] || '';
 
     const filtered = visiblePurchases.filter(item => {
+      // 날짜 필터 (기간 범위)
+      if (period[0] && period[1]) {
+        const d = new Date(item.request_date);
+        if (d < period[0] || d > period[1]) return false;
+      }
       // 직원 필터
       if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
 
@@ -428,7 +433,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       }
     });
     return new Set(filtered.map(item => item.purchase_order_number)).size;
-  }, [visiblePurchases, filters]);
+  }, [visiblePurchases, filters, period]);
 
   // 구매 현황 탭에서 '대기' 버튼 클릭 시 DB 업데이트 함수
   const handleCompleteReceipt = async (orderNumber: string) => {

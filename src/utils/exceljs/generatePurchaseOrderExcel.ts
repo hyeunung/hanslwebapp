@@ -179,7 +179,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     sheet.getCell(String.fromCharCode(65 + i) + '8').value = tableHeaders[i];
     sheet.getCell(String.fromCharCode(65 + i) + '8').font = { bold: true };
     if(i===6){
-       sheet.getCell('G8').alignment = { horizontal:'left', vertical:'middle' };
+       sheet.getCell('G8').alignment = { horizontal:'center', vertical:'middle' };
     }
   }
 
@@ -322,7 +322,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   }
 
   // G열 전체 좌측 정렬 및 자동 줄바꿈 보장
-  for (let r = 8; r <= lastRow; r++) {
+  for (let r = 9; r <= lastRow; r++) {
     sheet.getCell('G' + r).alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
   }
 

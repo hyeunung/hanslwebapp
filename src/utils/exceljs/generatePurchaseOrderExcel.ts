@@ -75,7 +75,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   // 행 높이 고정: 1행 39.75px(≈29.8pt), 2행부터 18px(≈13.5pt)
   sheet.getRow(1).height = 29.8; // 39.75px
   for (let r = 2; r <= 60; r++) {
-    sheet.getRow(r).height = 18; // 18pt
+    sheet.getRow(r).height = 13.5; // 18px≈13.5pt
   }
   // 폰트 기본값: 맑은고딕, 크기 11 (2행부터), 1행은 20
   // 1행
@@ -303,12 +303,12 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
       1행 : 39.75pt
       2행~lastRow : 18pt
   ----------------------------------- */
-  sheet.getRow(1).height = 39.75;
+  sheet.getRow(1).height = 29.8; // 39.75px≈29.8pt
   sheet.getRow(1).eachCell(c => { c.font = { ...(c.font || {}), name: '맑은 고딕', size: 20 }; });
 
   for (let r = 2; r <= lastRow; r++) {
     const row = sheet.getRow(r);
-    row.height = 18;
+    row.height = 13.5; // 18px≈13.5pt
     row.eachCell(c => {
       c.font = { ...(c.font || {}), name: '맑은 고딕', size: 11 };
     });

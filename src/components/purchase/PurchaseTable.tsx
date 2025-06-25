@@ -62,6 +62,25 @@ interface PurchaseTableProps {
   handleDeleteOrder: (orderNumber: string) => Promise<void>;
 }
 
+// 공통 Pill 렌더러
+const renderPill = (status?: string) => (
+  <span
+    className={`inline-block px-2 py-1 rounded-lg font-semibold ${status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+    style={{ minWidth: 40, boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)' }}
+  >
+    {status === 'pending' ? '대기' : status === 'approved' ? '승인' : status}
+  </span>
+);
+
+// 중간/최종 상태를 나란히 중앙 정렬로 나타내는 컴포넌트
+const StatusPair: React.FC<{ mid?: string; final?: string }> = ({ mid = 'pending', final = 'pending' }) => (
+  <div className="flex items-center justify-center gap-1">
+    {renderPill(mid)}
+    <span className="text-xs font-semibold">/</span>
+    {renderPill(final)}
+  </div>
+);
+
 // 이 함수가 실제로 표(테이블)를 화면에 그려줍니다.
 const PurchaseTable: React.FC<PurchaseTableProps> = ({
   displayData,
@@ -368,38 +387,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   </td>
                 ) : <td className="w-24" />
               ) : (
-                <td className="px-3 py-2 text-xs text-foreground font-medium text-left w-36">
-                  {isGroupHeader ? (
-                    <>
-                      <span
-                        className={`inline-block px-2 py-1 rounded-lg font-semibold ${item.middle_manager_status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}
-                        style={{
-                          minWidth: 40,
-                          marginRight: 4,
-                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
-                          border: 'none',
-                          background: item.middle_manager_status === 'approved' ? undefined : undefined,
-                          color: item.middle_manager_status === 'approved' ? undefined : undefined,
-                        }}
-                      >
-                        {item.middle_manager_status === 'pending' ? '대기' : item.middle_manager_status === 'approved' ? '승인' : item.middle_manager_status}
-                      </span>
-                      /
-                      <span
-                        className={`inline-block px-2 py-1 rounded-lg font-semibold ${item.final_manager_status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}
-                        style={{
-                          minWidth: 40,
-                          marginLeft: 4,
-                          boxShadow: '0 2px 3px 0.5px rgba(0,0,0,0.15)',
-                          border: 'none',
-                          background: item.final_manager_status === 'approved' ? undefined : undefined,
-                          color: item.final_manager_status === 'approved' ? undefined : undefined,
-                        }}
-                      >
-                        {item.final_manager_status === 'pending' ? '대기' : item.final_manager_status === 'approved' ? '승인' : item.final_manager_status}
-                      </span>
-                    </>
-                  ) : ''}
+                <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-36">
+                  {isGroupHeader && <StatusPair mid={item.middle_manager_status} final={item.final_manager_status} />}
                 </td>
               )}
               {/* 이하 공통 컬럼들 */}

@@ -38,7 +38,7 @@ export interface Purchase {
   is_received: boolean; // 입고 완료 여부
   received_at: string; // 입고 완료일
   final_manager_approved_at?: string | null; // 최종 승인일
-  purchase_request_file_url?: string; // 구매 요청 링크
+  link?: string; // 구매 요청 링크
 }
 
 // [타입 정의] 직원 데이터의 구조를 설명합니다.
@@ -113,7 +113,7 @@ export function usePurchaseData() {
           is_received,
           received_at,
           is_payment_completed,
-          purchase_request_file_url
+          link
         `)
         .order('request_date', { ascending: false });
       if (data) {
@@ -148,7 +148,7 @@ export function usePurchaseData() {
             is_received: !!row.is_received,
             received_at: row.received_at as string,
             is_payment_completed: !!row.is_payment_completed,
-            purchase_request_file_url: row.purchase_request_file_url as string | undefined,
+            link: row.link as string | undefined,
           }))
         );
       }

@@ -43,7 +43,7 @@ export interface PurchaseTableItem {
   groupSize?: number;
   isSubItem?: boolean;
   isLastSubItem?: boolean;
-  purchase_request_file_url?: string;
+  link?: string;
 }
 
 // 이 컴포넌트가 화면에 표를 그릴 때 필요한 입력값(데이터, 함수 등) 목록입니다.
@@ -456,14 +456,14 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               {showLinkColumn && (
                 <td className={`px-2 py-2 text-xs text-foreground text-left truncate overflow-hidden whitespace-nowrap ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>
                   {isGroupHeader ? (
-                    item.purchase_request_file_url ? (
+                    item.link ? (
                       <a
-                        href={item.purchase_request_file_url}
+                        href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 underline hover:text-blue-800"
                       >
-                        {item.purchase_request_file_url}
+                        {item.link}
                       </a>
                     ) : (
                       <span className="text-gray-400">-</span>

@@ -316,7 +316,6 @@ export default function PurchaseNewMain() {
         unit_price_currency: fields[0]?.unit_price_currency || currency,
         po_template_type: data.po_template_type,
         contact_id: data.contact_id ? Number(data.contact_id) : null,
-        purchase_request_file_url: data.items[0]?.link, // 첫 번째 아이템의 링크를 저장
       }).select("id").single();
       if (prError || !pr) throw prError || new Error("등록 실패");
       const prId = pr.id;
@@ -332,6 +331,7 @@ export default function PurchaseNewMain() {
           amount_value: item.amount_value,
           amount_currency: currency,
           remark: item.remark,
+          link: item.link || null,
         });
         if (itemErr) throw itemErr;
       }

@@ -50,10 +50,16 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
         case 'pending':
           return ['pending', '대기', '', null].includes(item.final_manager_status as any);
         case 'purchase': {
-          const approved = item.final_manager_status === 'approved';
-          const categoryMatch = item.payment_category === '구매 요청' || (item.progress_type || '').includes('선진행');
+          // 조건: (1) 선진행 & 구매 요청 & 결제 미완료  OR  (2) 일반 & 구매 요청 & 결제 미완료 & 최종승인
+          const isRequest = item.payment_category === '구매 요청';
           const notPaid = !item.is_payment_completed;
-          return approved && categoryMatch && notPaid;
+          if (!isRequest || !notPaid) return false;
+
+          const isSeonJin = (item.progress_type || '').includes('선진행');
+          const isIlban = (item.progress_type || '').includes('일반');
+          const finalApproved = item.final_manager_status === 'approved';
+
+          return (isSeonJin) || (isIlban && finalApproved);
         }
         case 'receipt': {
           const notReceived = !item.is_received;

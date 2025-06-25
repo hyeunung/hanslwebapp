@@ -178,6 +178,9 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   for (let i = 0; i < tableHeaders.length; i++) {
     sheet.getCell(String.fromCharCode(65 + i) + '8').value = tableHeaders[i];
     sheet.getCell(String.fromCharCode(65 + i) + '8').font = { bold: true };
+    if(i===6){
+       sheet.getCell('G8').alignment = { horizontal:'left', vertical:'middle' };
+    }
   }
 
   // 품목이 45개를 넘으면 아래로 밀어서 합계/하단 정보 출력
@@ -213,7 +216,9 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     sheet.getCell('F' + rowIdx).value = amountWithCurrency;
     sheet.getCell('F' + rowIdx).alignment = { horizontal: 'right', vertical: 'middle' };
     // G열은 비워둠
-    sheet.getCell('G' + rowIdx).value = (item.remark !== undefined && item.remark !== null) ? String(item.remark) : '';
+    const gCell = sheet.getCell('G' + rowIdx);
+    gCell.value = (item.remark !== undefined && item.remark !== null) ? String(item.remark) : '';
+    gCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
   }
 
   // 품목이 45개보다 적으면 빈 행 추가
@@ -312,6 +317,11 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     row.eachCell(c => {
       c.font = { ...(c.font || {}), name: '맑은 고딕', size: 11 };
     });
+  }
+
+  // G열 전체 좌측 정렬 및 자동 줄바꿈 보장
+  for (let r = 8; r <= lastRow; r++) {
+    sheet.getCell('G' + r).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
   }
 
   // 9. 파일 생성

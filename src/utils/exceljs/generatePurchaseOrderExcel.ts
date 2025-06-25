@@ -220,7 +220,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     // G열은 비워둠
     const gCell = sheet.getCell('G' + rowIdx);
     gCell.value = (item.remark !== undefined && item.remark !== null) ? String(item.remark) : '';
-    gCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+    gCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false, shrinkToFit: true };
   }
 
   // 품목이 45개보다 적으면 빈 행 추가
@@ -323,7 +323,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
 
   // G열 전체 좌측 정렬 및 자동 줄바꿈 보장
   for (let r = 9; r <= lastRow; r++) {
-    sheet.getCell('G' + r).alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+    sheet.getCell('G' + r).alignment = { horizontal: 'left', vertical: 'middle', wrapText: false, shrinkToFit: true };
   }
 
   // 9. 파일 생성

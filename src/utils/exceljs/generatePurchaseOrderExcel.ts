@@ -324,6 +324,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   // G열 전체 좌측 정렬 및 자동 줄바꿈 보장
   for (let r = 9; r <= lastRow; r++) {
     sheet.getCell('G' + r).alignment = { horizontal: 'left', vertical: 'middle', wrapText: false, shrinkToFit: true };
+    sheet.getCell('B' + r).alignment = { horizontal: 'left', vertical: 'middle' };
   }
 
   // 9. 파일 생성

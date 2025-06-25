@@ -53,7 +53,7 @@ export default function AppNavigationLayout({ initialTab = 'dashboard', children
   }
 
   // 관리자 권한 체크
-  const isAdmin = currentUserRoles.includes('app_admin') || currentUserRoles.includes('final_approver') || currentUserRoles.includes('middle_manager');
+  const isAdmin = currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo') || currentUserRoles.includes('final_approver') || currentUserRoles.includes('middle_manager');
 
   return (
     <div className="min-h-screen bg-background">

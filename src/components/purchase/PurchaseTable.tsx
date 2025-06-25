@@ -106,8 +106,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
     return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
   };
 
-  const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('purchase_manager');
-  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin');
+  const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo') || currentUserRoles.includes('purchase_manager');
+  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
 
   // 아래가 실제로 표(테이블)를 그리는 부분입니다.
   // 1. thead: 표의 맨 위(제목줄)
@@ -343,7 +343,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                         입고
                       </span>
                     ) : (
-                      currentUserName === item.requester_name || currentUserRoles.includes('app_admin') ? (
+                      currentUserName === item.requester_name || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo') ? (
                         <button
                           className={`inline-block px-2 py-1 rounded-lg font-semibold bg-gray-200 text-gray-800 transition-all duration-150 focus:outline-none select-none relative overflow-hidden ${pressedOrder === item.purchase_order_number ? 'scale-90' : ''}`}
                           style={{

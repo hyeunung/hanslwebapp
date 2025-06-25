@@ -29,8 +29,8 @@ const ApproveActionButtons: React.FC<ApproveActionButtonsProps> = ({
     setIsVerified(true);
     onVerify();
   };
-  // app_admin: 모든 버튼
-  if (roles.includes("app_admin")) {
+  // app_admin 또는 ceo: 모든 버튼
+  if (roles.includes("app_admin") || roles.includes("ceo")) {
     return (
       <div className="flex gap-6">
         <Button

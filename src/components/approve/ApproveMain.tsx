@@ -165,7 +165,7 @@ const ApproveMain: React.FC = () => {
    * 특정 직원(정현웅, 정희웅) 요청 건 비노출 – purchase_manager 제외
    * ------------------------------------------------------------------ */
   const visibleList = useMemo(() => {
-    if (currentUserRoles.includes("purchase_manager")) return roleFilteredList;
+    if (currentUserRoles.includes("purchase_manager") || currentUserRoles.includes("app_admin") || currentUserRoles.includes("ceo")) return roleFilteredList;
     const restricted = ["정현웅", "정희웅"];
     return roleFilteredList.filter(row => !restricted.includes(row.requesterName));
   }, [roleFilteredList, currentUserRoles]);

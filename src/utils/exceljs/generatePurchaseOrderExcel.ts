@@ -188,12 +188,6 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   const itemRows = sortedItems.length;
   const sumRow = baseRow + Math.max(itemRows, minRows); // 합계 위치
 
-  // 2~8행, 합계행(sumRow)은 16px(=12pt)로 지정
-  for (let r = 2; r <= 8; r++) {
-    sheet.getRow(r).height = 12;
-  }
-  sheet.getRow(sumRow).height = 12;
-
   // 품목 데이터
   for (let i = 0; i < sortedItems.length; i++) {
     const item = sortedItems[i];
@@ -303,6 +297,22 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   Object.entries(colWidths).forEach(([col, width]) => {
     sheet.getColumn(col).width = width;
   });
+
+  /* -----------------------------------
+      최종 행 높이/폰트 일괄 적용
+      1행 : 39.75pt
+      2행~lastRow : 18pt
+  ----------------------------------- */
+  sheet.getRow(1).height = 39.75;
+  sheet.getRow(1).eachCell(c => { c.font = { ...(c.font || {}), name: '맑은 고딕', size: 20 }; });
+
+  for (let r = 2; r <= lastRow; r++) {
+    const row = sheet.getRow(r);
+    row.height = 18;
+    row.eachCell(c => {
+      c.font = { ...(c.font || {}), name: '맑은 고딕', size: 11 };
+    });
+  }
 
   // 9. 파일 생성
   const buffer = await workbook.xlsx.writeBuffer();

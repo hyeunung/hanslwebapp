@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-Deno.serve(async (req)=>{
+
+Deno.serve(async (req) => {
   // CORS 헤더 설정
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

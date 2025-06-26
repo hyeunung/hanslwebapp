@@ -119,6 +119,8 @@ export default function PurchaseNewMain() {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [contactsForEdit, setContactsForEdit] = useState<{ id?: number; contact_name: string; contact_email: string; contact_phone: string; position: string; isNew?: boolean }[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  // 중복 제출 방지용 ref
+  const isSubmittingRef = useRef(false);
 
   const userId = user?.id || 'guest';
   // react-table 기반 품목 테이블로 대체
@@ -335,11 +337,15 @@ export default function PurchaseNewMain() {
         });
         if (itemErr) throw itemErr;
       }
-      setTimeout(() => router.push("/purchase/list"), 2000);
+      router.push("/purchase/list");
+      // 컴포넌트가 곧 언마운트되므로 loading 해제 불필요
+      return;
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
     } finally {
+      // 오류가 있었을 때만 실행됨 (성공 시에는 return으로 빠짐)
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -958,9 +964,7 @@ export default function PurchaseNewMain() {
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">합계 ({currency})</th>
                   <th className="w-[160px] text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
-                  {paymentCategory === '구매 요청' && (
-                    <th className="w-[100px] text-left px-4 py-3 border-l border-[#e5e7eb]">링크</th>
-                  )}
+                  <th className="w-[200px] text-left px-4 py-3 border-l border-[#e5e7eb]">링크</th>
                   <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-r border-[#e5e7eb]">삭제</th>
                 </tr>
               </thead>
@@ -1158,43 +1162,41 @@ export default function PurchaseNewMain() {
                         }}
                       />
                     </td>
-                    {paymentCategory === '구매 요청' && (
-                      <td className="w-[100px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
-                        <Input
-                          value={item.link || ''}
-                          onChange={e => update(idx, { ...item, link: e.target.value })}
-                          placeholder="구매 링크"
-                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-link"
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const nextIdx = idx + 1;
-                              const inputs = document.querySelectorAll('.purchase-item-input-link');
-                              if (nextIdx < fields.length) {
-                                (inputs[nextIdx] as HTMLInputElement)?.focus();
-                              } else {
-                                append({
-                                  line_number: fields.length + 1,
-                                  item_name: '',
-                                  specification: '',
-                                  quantity: 1,
-                                  unit_price_value: 0,
-                                  unit_price_currency: currency,
-                                  amount_value: 0,
-                                  amount_currency: currency,
-                                  remark: '',
-                                  link: ''
-                                });
-                                setTimeout(() => {
-                                  const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
-                                  (newInputs[nextIdx] as HTMLInputElement)?.focus();
-                                }, 10);
-                              }
+                    <td className="w-[200px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                      <Input
+                        value={item.link || ''}
+                        onChange={e => update(idx, { ...item, link: e.target.value })}
+                        placeholder="구매 링크 URL"
+                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-link"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextIdx = idx + 1;
+                            const inputs = document.querySelectorAll('.purchase-item-input-link');
+                            if (nextIdx < fields.length) {
+                              (inputs[nextIdx] as HTMLInputElement)?.focus();
+                            } else {
+                              append({
+                                line_number: fields.length + 1,
+                                item_name: '',
+                                specification: '',
+                                quantity: 1,
+                                unit_price_value: 0,
+                                unit_price_currency: currency,
+                                amount_value: 0,
+                                amount_currency: currency,
+                                remark: '',
+                                link: ''
+                              });
+                              setTimeout(() => {
+                                const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
+                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                              }, 10);
                             }
-                          }}
-                        />
-                      </td>
-                    )}
+                          }
+                        }}
+                      />
+                    </td>
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
                       <Button type="button" size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
                         삭제
@@ -1206,9 +1208,9 @@ export default function PurchaseNewMain() {
               <tfoot>
                 <tr className="bg-[#f5f5f7] text-xs font-medium" style={{ borderTop: '4px solid #f5f5f7', borderBottom: '4px solid #f5f5f7' }}>
                   <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 font-semibold border-l border-[#e5e7eb]">총 합계</td>
-                  <td className="px-4 border-l border-[#e5e7eb]" colSpan={paymentCategory === '구매 요청' ? 5 : 4}></td>
+                  <td className="px-4 border-l border-[#e5e7eb]" colSpan={5}></td>
                   <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{totalAmount ? totalAmount.toLocaleString() : ''}</td>
-                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={paymentCategory === '구매 요청' ? 2 : 2}></td>
+                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>

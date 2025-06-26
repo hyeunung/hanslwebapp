@@ -54,6 +54,7 @@ interface Purchase {
   is_received: boolean;
   received_at: string;
   final_manager_approved_at?: string | null;
+  link?: string;
 }
 
 interface Employee {
@@ -352,23 +353,27 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       // 코드 기반 ExcelJS 생성 (템플릿 없이 서식 직접 정의)
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
       const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
-      // 파일 다운로드
-      if (window.navigator && (window.navigator as any).msSaveOrOpenBlob) {
-        (window.navigator as any).msSaveOrOpenBlob(blob, filename);
-      } else {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(link.href);
-        }, 100);
+
+      // 1) Supabase Storage 업로드 (public bucket: po-files)
+      const { error: upErr } = await supabase.storage.from('po-files').upload(filename, blob, {
+        upsert: true,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from('po-files').getPublicUrl(filename);
+      const fileUrl = pub?.publicUrl;
+
+      if (fileUrl) {
+        // 2) Slack DM 알림 호출
+        await fetch('/api/notify-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
+        });
       }
-    } catch (error) {
-      console.error('Excel 생성 오류:', error);
-      window.alert('Excel 파일 생성 중 오류가 발생했습니다.');
+    } catch (uploadErr) {
+      console.error('파일 업로드/슬랙 알림 오류:', uploadErr);
     }
   };
 

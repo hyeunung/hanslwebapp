@@ -96,8 +96,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   handleCompletePayment,
   handleDeleteOrder,
 }) => {
-  // '구매현황' 탭일 때만 링크 열 표시
-  const showLinkColumn = activeTab === 'purchase';
+  // '구매현황'과 '전체 항목' 탭일 때 링크 열 표시
+  const showLinkColumn = activeTab === 'purchase' || activeTab === 'done';
 
   // 날짜를 '월-일' 형식으로 바꿔주는 함수입니다. (예: 2024-06-01 → 06-01)
   const formatDate = (dateStr: string) => {
@@ -165,7 +165,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
           {showLinkColumn && (
-            <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>링크</th>
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">링크</th>
           )}
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
           <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
@@ -443,16 +443,17 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
               <td className="px-2 py-2 text-xs text-foreground text-left truncate w-32" title={item.remark}>{item.remark}</td>
               {showLinkColumn && (
-                <td className={`px-2 py-2 text-xs text-foreground text-left truncate overflow-hidden whitespace-nowrap ${activeTab === 'purchase' ? 'w-12' : 'w-7'}`}>
+                <td className="px-2 py-2 text-xs text-foreground text-left w-32">
                   {isGroupHeader ? (
                     item.link ? (
                       <a
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 underline hover:text-blue-800"
+                        className="text-blue-600 underline hover:text-blue-800 break-all"
+                        title={item.link}
                       >
-                        {item.link}
+                        {item.link.length > 30 ? `${item.link.substring(0, 30)}...` : item.link}
                       </a>
                     ) : (
                       <span className="text-gray-400">-</span>

@@ -545,7 +545,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                   type="button"
                   onClick={() => {
                     setActiveTab(tab.key);
-                    router.replace(`/dashboard?tab=dashboard&subtab=${tab.key}`);
+                    router.replace(`/purchase/list?subtab=${tab.key}`);
                     if (tab.key !== 'done' && currentUserName) {
                       setSelectedEmployee(computeDefaultEmployee(tab.key));
                       setFilters(prev => ({

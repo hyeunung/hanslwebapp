@@ -1,5 +1,5 @@
 "use client";
-import { useState, Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import Image from "next/image";
 import { Building2, Home, FileText, Users, CheckCircle, Plus } from "lucide-react";
 import DashboardMain from "@/components/dashboard/DashboardMain";
@@ -12,6 +12,7 @@ import { usePurchaseData } from "@/hooks/usePurchaseData";
 import HeaderBar from "./HeaderBar";
 import HeaderBrand from "./HeaderBrand";
 import EmployeeMain from "@/components/employee/EmployeeMain";
+import { usePathname, useRouter } from "next/navigation";
 
 const navigationItems = [
   { id: 'dashboard', icon: Home, label: '대시보드' },
@@ -23,7 +24,7 @@ const navigationItems = [
 ];
 
 interface AppNavigationLayoutProps {
-  /** 초기 선택 탭 (대시보드, 새 발주, 목록 등) */
+  /** 초기 선택 탭 (대시보드, 새 발주, 목록 등) – fallback when pathname cannot be matched */
   initialTab?: 'dashboard' | 'new' | 'list' | 'approve' | 'vendors' | 'employee';
   /** 메인 컨텐츠를 재정의할 때 사용. children 이 전달되면 내부 탭별 렌더링 대신 children 을 그대로 출력 */
   children?: React.ReactNode;
@@ -31,13 +32,24 @@ interface AppNavigationLayoutProps {
 
 export default function AppNavigationLayout({ initialTab = 'dashboard', children }: AppNavigationLayoutProps) {
   const { currentUserRoles } = usePurchaseData();
+  const pathname = usePathname();
+  const router = useRouter();
 
-  // 네비 탭은 state 로 관리하되, 초기값을 props 로 지정 가능
-  const [currentTab, setCurrentTab] = useState(initialTab);
+  // pathname 을 기반으로 현재 탭 계산
+  const currentTab = useMemo(() => {
+    if (pathname.startsWith('/purchase/new')) return 'new' as const;
+    if (pathname.startsWith('/purchase/list')) return 'list' as const;
+    if (pathname.startsWith('/purchase/approve')) return 'approve' as const;
+    if (pathname.startsWith('/vendor')) return 'vendors' as const;
+    if (pathname.startsWith('/employee')) return 'employee' as const;
+    if (pathname.startsWith('/dashboard')) return 'dashboard' as const;
+    // 그 외에는 fallback
+    return initialTab;
+  }, [pathname, initialTab]);
 
   // children 이 전달된 경우, overrideContent 로 사용
   let content: React.ReactNode = null;
-  if (currentTab === initialTab && children) {
+  if (children && currentTab === initialTab) {
     content = children;
   } else {
     if (currentTab === 'dashboard') content = (
@@ -70,7 +82,17 @@ export default function AppNavigationLayout({ initialTab = 'dashboard', children
               return (
                 <button
                   key={item.id}
-                  onClick={() => setCurrentTab(item.id as any)}
+                  onClick={() => {
+                    const routeMap: Record<string, string> = {
+                      dashboard: '/dashboard',
+                      new: '/purchase/new',
+                      list: '/purchase/list',
+                      approve: '/purchase/approve',
+                      vendors: '/vendor',
+                      employee: '/employee',
+                    };
+                    router.push(routeMap[item.id]);
+                  }}
                   className={`flex items-center space-x-2 py-4 px-2 border-b-2 transition-colors ${
                     isActive
                       ? 'border-white text-white'

@@ -1,0 +1,38 @@
+# 한슬 웹앱 개발 규칙
+
+## 기본 원칙
+- 절대 추측해서 작업하지 말 것
+- 항상 step-by-step으로 진행
+- 모든 변경사항은 되돌릴 수 있도록 진행
+
+## MCP 사용 규칙
+- 코드 생성/수정: `filesystem mcp` 필수 사용
+- DB 관련 작업: `supabase mcp` 필수 사용  
+- 모든 대화: `memorybank mcp` 기본 적용
+- 복잡한 문제: `sequential thinking mcp` 사용
+
+## 🚨 데이터베이스 마이그레이션 필수 규칙
+
+### ❌ 절대 금지
+- 데이터베이스에서 직접 함수/트리거 수정
+- Supabase 대시보드에서 SQL 직접 실행
+
+### ✅ 올바른 프로세스
+1. **마이그레이션 파일 수정**: `scripts/migrations/20250626b_update_purchase_notifications.sql`
+2. **Supabase 마이그레이션**: SQL을 데이터베이스에 적용
+3. **Git 커밋**: 변경사항 버전관리에 반영
+
+### 마이그레이션 파일 관리
+- 위치: `scripts/migrations/`
+- 알림 시스템: `20250626b_update_purchase_notifications.sql`
+- 명명 규칙: `YYYYMMDD[a-z]_description.sql`
+
+### 현재 알림 시스템 상태
+- 최종 결제 알림: 요청유형별 분리 (원자재→양승진, 소모품→황연순)
+- 구매 요청 알림: 선진행/최종승인 시 Lead Buyer에게 알림
+
+## 왜 마이그레이션 파일을 사용해야 하는가?
+- 버전관리: Git에 모든 변경사항 기록
+- 추적성: 언제 무엇이 변경되었는지 명확
+- 재현성: 다른 환경에서도 동일 적용
+- 롤백: 문제 시 이전 버전으로 복원 

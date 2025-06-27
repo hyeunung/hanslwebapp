@@ -299,6 +299,22 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
     top: { style: 'thin' }
   };
 
+  // A1~A7 왼쪽 테두리 굵게 명시적 설정 (덮어쓰기 방지)
+  for (let r = 1; r <= 7; r++) {
+    const currentBorder = sheet.getCell('A' + r).border || {};
+    sheet.getCell('A' + r).border = {
+      ...currentBorder,
+      left: { style: 'medium' }
+    };
+  }
+
+  // 합계 행(A열) 왼쪽 테두리 굵게 명시적 설정
+  const sumCellBorder = sheet.getCell('A' + sumRow).border || {};
+  sheet.getCell('A' + sumRow).border = {
+    ...sumCellBorder,
+    left: { style: 'medium' }
+  };
+
   // 열 너비 (템플릿 기준)
   const colWidths = { A:4.7, B:23, C:30, D:11, E:15, F:16, G:37 };
   Object.entries(colWidths).forEach(([col, width]) => {

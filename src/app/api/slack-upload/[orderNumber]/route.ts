@@ -61,7 +61,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      file_id: result.files?.[0]?.id,
+      file_id: (result as any).file?.id || null,
       message: '파일이 슬랙에 성공적으로 업로드되었습니다.'
     });
 

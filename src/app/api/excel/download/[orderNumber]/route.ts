@@ -9,10 +9,10 @@ const supabase = createClient(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
-    const orderNumber = params.orderNumber;
+    const { orderNumber } = await params;
 
     // 발주번호로 데이터 조회
     const { data: orderItems, error: itemsError } = await supabase

@@ -13,10 +13,10 @@ const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
-    const { orderNumber } = params;
+    const { orderNumber } = await params;
     const { channel_id, initial_comment } = await request.json();
     
     if (!orderNumber || !channel_id) {

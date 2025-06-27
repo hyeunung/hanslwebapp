@@ -365,25 +365,35 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       window.URL.revokeObjectURL(url);
 
       // 1) Supabase Storage 업로드 (public bucket: po-files)
+      console.log('Storage 업로드 시도:', filename);
       const { error: upErr } = await supabase.storage.from('po-files').upload(filename, blob, {
         upsert: true,
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      if (upErr) throw upErr;
+      
+      if (upErr) {
+        console.error('Storage 업로드 실패:', upErr);
+        alert(`Storage 업로드 실패: ${upErr.message}`);
+        return; // 업로드 실패 시 알림 전송하지 않음
+      }
 
+      console.log('Storage 업로드 성공');
       const { data: pub } = supabase.storage.from('po-files').getPublicUrl(filename);
       const fileUrl = pub?.publicUrl;
 
       if (fileUrl) {
+        console.log('Slack 알림 전송 시도:', fileUrl);
         // 2) Slack DM 알림 호출
         await fetch('/api/notify-download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
         });
+        console.log('Slack 알림 전송 완료');
       }
     } catch (uploadErr) {
       console.error('파일 업로드/슬랙 알림 오류:', uploadErr);
+      alert(`업로드 중 오류가 발생했습니다: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
     }
   };
 

@@ -273,6 +273,13 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
     const firstItem = orderItems[0];
     
+    // 다운로드 버튼 활성화 조건과 동일한 조건 체크
+    const isAdvancePayment = (progress_type?: string) => {
+      return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
+    };
+    
+    const shouldUploadToStorage = isAdvancePayment(firstItem.progress_type) || firstItem.final_manager_status === 'approved';
+    
     // 업체 상세 정보 및 담당자 정보 조회
     let vendorInfo = {
       vendor_name: firstItem.vendor_name,
@@ -355,9 +362,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       
       // 다운로드용 파일명: 발주서_{업체명}_발주번호
       const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
-      
-      // Storage 저장용 파일명: {발주번호}
-      const storageFilename = `${excelData.purchase_order_number}.xlsx`;
 
       // 💡 사용자에게 즉시 다운로드 제공
       const url = window.URL.createObjectURL(blob);
@@ -369,32 +373,46 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      // Storage 업로드 시도 (정책 테스트)
-      console.log('Storage 업로드 시도:', storageFilename);
-      const { error: upErr } = await supabase.storage.from('po-files').upload(storageFilename, blob, {
-        upsert: true,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      
-             if (upErr) {
-         console.error('Storage 업로드 실패:', upErr);
-         console.error('에러 상세:', upErr);
-         alert(`Storage 업로드 실패: ${upErr.message}`);
-         return;
-       }
-
-      console.log('Storage 업로드 성공!');
-      const { data: pub } = supabase.storage.from('po-files').getPublicUrl(storageFilename);
-      const fileUrl = pub?.publicUrl;
-
-      if (fileUrl) {
-        console.log('Slack 알림 전송 시도:', fileUrl);
-        await fetch('/api/notify-download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
+      // Storage 업로드 조건 체크: 선진행이거나 최종승인된 경우만
+      if (shouldUploadToStorage) {
+        // Storage 저장용 파일명: {발주번호}
+        const storageFilename = `${excelData.purchase_order_number}.xlsx`;
+        
+        console.log('다운로드 활성화 조건 만족 - Storage 업로드 시도:', storageFilename);
+        const { error: upErr } = await supabase.storage.from('po-files').upload(storageFilename, blob, {
+          upsert: true,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
-        console.log('Slack 알림 전송 완료');
+        
+        if (upErr) {
+          console.error('Storage 업로드 실패:', upErr);
+          console.error('에러 상세:', upErr);
+          // Storage 실패해도 다운로드는 성공했으므로 alert 제거
+          console.warn('Storage 저장 실패했지만 다운로드는 완료됨');
+          return;
+        }
+
+        console.log('Storage 업로드 성공!');
+        const { data: pub } = supabase.storage.from('po-files').getPublicUrl(storageFilename);
+        const fileUrl = pub?.publicUrl;
+
+        if (fileUrl) {
+          console.log('Slack 알림 전송 시도:', fileUrl);
+          await fetch('/api/notify-download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
+          });
+          console.log('Slack 알림 전송 완료');
+        }
+      } else {
+        console.log('다운로드 활성화 조건 미충족 - Storage 업로드 및 알림 건너뜀');
+        console.log('조건:', { 
+          progress_type: firstItem.progress_type,
+          final_manager_status: firstItem.final_manager_status,
+          isAdvancePayment: isAdvancePayment(firstItem.progress_type),
+          shouldUpload: shouldUploadToStorage
+        });
       }
        
     } catch (err) {

@@ -355,6 +355,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       
       // 다운로드용 파일명: 발주서_{업체명}_발주번호
       const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
+      
+      // Storage 저장용 파일명: {발주번호}
+      const storageFilename = `${excelData.purchase_order_number}.xlsx`;
 
       // 💡 사용자에게 즉시 다운로드 제공
       const url = window.URL.createObjectURL(blob);
@@ -366,9 +369,34 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      // Storage 업로드 및 알림 기능 임시 비활성화 (RLS 정책 문제)
-      console.log('엑셀 다운로드 완료:', downloadFilename);
+      // Storage 업로드 시도 (정책 테스트)
+      console.log('Storage 업로드 시도:', storageFilename);
+      const { error: upErr } = await supabase.storage.from('po-files').upload(storageFilename, blob, {
+        upsert: true,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       
+             if (upErr) {
+         console.error('Storage 업로드 실패:', upErr);
+         console.error('에러 상세:', upErr);
+         alert(`Storage 업로드 실패: ${upErr.message}`);
+         return;
+       }
+
+      console.log('Storage 업로드 성공!');
+      const { data: pub } = supabase.storage.from('po-files').getPublicUrl(storageFilename);
+      const fileUrl = pub?.publicUrl;
+
+      if (fileUrl) {
+        console.log('Slack 알림 전송 시도:', fileUrl);
+        await fetch('/api/notify-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
+        });
+        console.log('Slack 알림 전송 완료');
+      }
+       
     } catch (err) {
       console.error('엑셀 생성 오류:', err);
       alert(`엑셀 생성 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);

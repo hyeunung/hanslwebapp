@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## 데이터베이스 마이그레이션 프로세스 규칙
+
+### 알림 시스템 수정 시 필수 프로세스
+- **절대 데이터베이스에서 직접 수정하지 말 것**
+- 반드시 마이그레이션 파일을 통해 변경사항 관리
+
+### 마이그레이션 파일 관리
+- 파일 위치: `scripts/migrations/`
+- 명명 규칙: `YYYYMMDD[a-z]_description.sql`
+- 기존 파일: `20250626b_update_purchase_notifications.sql` (알림 시스템)
+
+### 올바른 수정 프로세스
+1. **마이그레이션 파일 수정**: `scripts/migrations/20250626b_update_purchase_notifications.sql` 내용 수정
+2. **Supabase 마이그레이션**: 수정된 SQL을 데이터베이스에 적용
+3. **Git 커밋**: 변경사항을 버전관리에 반영
+
+### 왜 마이그레이션 파일을 사용해야 하는가?
+- ✅ 버전관리: 모든 변경사항이 Git에 기록
+- ✅ 추적 가능: 언제 무엇이 변경되었는지 명확
+- ✅ 재현 가능: 다른 환경에서도 동일하게 적용 가능
+- ✅ 롤백 가능: 문제 발생 시 이전 버전으로 복원
+
+### 알림 시스템 현재 상태
+- 최종 결제 알림: 요청유형별 담당자 분리 (원자재 → 양승진, 소모품 → 황연순)
+- 구매 요청 선진행 알림: payment_category = '구매 요청' + progress_type = '선진행'
+- 구매 요청 최종승인 알림: payment_category = '구매 요청' + final_manager_status = 'approved'

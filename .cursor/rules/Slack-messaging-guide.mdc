@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Slack 메시지 전송 시스템 규칙
+
+## 기본 원칙
+- **기존 엣지 함수 재사용**: 새로운 DM 전송 함수 만들지 말고 기존 `slack-dm-sender` 활용
+- **비동기 처리 필수**: `PERFORM net.http_post()` 사용, `SELECT http_post()` 금지
+- **역할 기반 대상자 관리**: `employees` 테이블의 `purchase_role` 활용
+
+## 필수 사용 패턴
+
+### 엣지 함수 호출
+```sql
+PERFORM net.http_post(
+    url := 'https://qvhbigvdfyvhoegkhvef.supabase.co/functions/v1/slack-dm-sender',
+    headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer [anon_key]'
+    ),
+    body := jsonb_build_object(
+        'user_id', target_slack_id,
+        'message', message_text
+    )
+);
+```
+
+### 대상자 조회
+```sql
+-- 역할 기반 조회 (권장)
+SELECT array_agg(e.slack_id) INTO target_slack_ids
+FROM employees e
+WHERE e.purchase_role @> ARRAY['middle_manager'];
+```
+
+## 중요 주의사항
+
+### ❌ 절대 금지
+- 새로운 Slack 전송 엣지 함수 생성
+- 동기적 HTTP 요청 (`SELECT http_post()`)
+- Slack ID 하드코딩 (employees 테이블 활용)
+
+### ✅ 필수 준수
+- 기존 `slack-dm-sender` 엣지 함수 재사용
+- `PERFORM net.http_post()` 비동기 처리
+- 역할 기반 대상자 선정
+- 마이그레이션 파일을 통한 변경사항 관리
+
+## 구현 위치
+- **엣지 함수**: `supabase/functions/slack-dm-sender/index.ts` (기존 재사용)
+- **마이그레이션**: `scripts/migrations/YYYYMMDD_description.sql`
+- **트리거 함수**: 마이그레이션 파일 내에서 정의
+
+## 주요 Slack ID
+- 채널: `'C08SQT4509E'` (입고-현황 채널)
+- 채널: `'C08KYUMC532'` (발주ll구매요청 채널)
+
+이 규칙을 준수하여 일관된 Slack 메시지 전송 시스템을 구축하세요.

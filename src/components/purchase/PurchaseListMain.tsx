@@ -354,6 +354,16 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
       const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
 
+      // 💡 사용자에게 즉시 다운로드 제공
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
       // 1) Supabase Storage 업로드 (public bucket: po-files)
       const { error: upErr } = await supabase.storage.from('po-files').upload(filename, blob, {
         upsert: true,

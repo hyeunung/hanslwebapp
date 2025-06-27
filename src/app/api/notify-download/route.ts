@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { purchase_order_number, file_url } = await request.json();
+    const { purchase_order_number, storage_url } = await request.json();
 
     if (!purchase_order_number) {
       return NextResponse.json(
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 웹앱 엑셀 다운로드 API URL 생성
-    const downloadUrl = `https://work.hansl.com/api/excel/download/${purchase_order_number}`;
-    console.log('생성된 다운로드 URL:', downloadUrl);
+    // Storage URL 사용 또는 웹앱 API URL 생성
+    const downloadUrl = storage_url || `https://work.hansl.com/api/excel/download/${purchase_order_number}`;
+    console.log('사용된 다운로드 URL:', downloadUrl);
     
     const message = `발주번호 : ${purchase_order_number}에 대한 <${downloadUrl}|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;
 
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: `${leadBuyers.length}명의 Lead Buyer에게 엑셀 다운로드 알림이 전송되었습니다.`,
       download_url: downloadUrl,
+      is_storage_url: !!storage_url,
       sent_count: slackResults.filter(result => result.status === 'fulfilled').length,
       failed_count: failedResults.length
     });

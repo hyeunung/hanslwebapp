@@ -375,17 +375,49 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
       // Storage 업로드 조건 체크: 선진행이거나 최종승인된 경우만
       if (shouldUploadToStorage) {
-        console.log('다운로드 활성화 조건 만족 - Slack 알림 전송');
+        console.log('다운로드 활성화 조건 만족 - Storage 업로드 및 Slack 알림 전송');
         
-        // Slack 알림 전송 (웹앱 다운로드 API URL 사용)
-        await fetch('/api/notify-download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number }),
-        });
-        console.log('Slack 알림 전송 완료');
+        try {
+          // Storage용 파일명: 발주번호.xlsx
+          const storageFilename = `${excelData.purchase_order_number}.xlsx`;
+          
+          // Supabase Storage에 업로드 (다운로드 메타데이터 포함)
+          const { error: uploadError } = await supabase.storage
+            .from('po-files')
+            .upload(storageFilename, blob, {
+              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              cacheControl: 'no-cache',
+              upsert: true
+            });
+          
+          if (uploadError) {
+            console.error('Storage 업로드 오류:', uploadError);
+          } else {
+            console.log('Storage 업로드 성공:', storageFilename);
+            
+            // Storage URL 생성 (다운로드 옵션 포함)
+            const { data: urlData } = supabase.storage
+              .from('po-files')
+              .getPublicUrl(storageFilename, {
+                download: downloadFilename
+              });
+            
+            // Slack 알림 전송 (Storage URL 사용)
+            await fetch('/api/notify-download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                purchase_order_number: excelData.purchase_order_number,
+                storage_url: urlData.publicUrl
+              }),
+            });
+            console.log('Slack 알림 전송 완료');
+          }
+        } catch (storageErr) {
+          console.error('Storage 처리 오류:', storageErr);
+        }
       } else {
-        console.log('다운로드 활성화 조건 미충족 - Slack 알림 건너뜀');
+        console.log('다운로드 활성화 조건 미충족 - Storage 업로드 및 Slack 알림 건너뜀');
         console.log('조건:', { 
           progress_type: firstItem.progress_type,
           final_manager_status: firstItem.final_manager_status,

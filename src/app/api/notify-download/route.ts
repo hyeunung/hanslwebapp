@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Slack DM 메시지 생성 (실제 엑셀 파일 URL 사용)
-    const message = `발주번호 : ${purchase_order_number}에 대한 <${file_url}|발주서>다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;
+    console.log('생성된 파일 URL:', file_url);
+    
+    const message = `발주번호 : ${purchase_order_number}에 대한 <${file_url}|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;
 
     // 모든 Lead Buyer에게 알림 전송
     const slackPromises = leadBuyers.map(buyer => 

@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
   try {
     const { purchase_order_number, file_url } = await request.json();
 
-    if (!purchase_order_number || !file_url) {
+    if (!purchase_order_number) {
       return NextResponse.json(
-        { error: 'purchase_order_number와 file_url이 필요합니다.' },
+        { error: 'purchase_order_number가 필요합니다.' },
         { status: 400 }
       );
     }
@@ -34,10 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Slack DM 메시지 생성 (실제 엑셀 파일 URL 사용)
-    console.log('생성된 파일 URL:', file_url);
+    // 웹앱 엑셀 다운로드 API URL 생성
+    const downloadUrl = `https://hanslwebapp.vercel.app/api/excel/download/${purchase_order_number}`;
+    console.log('생성된 다운로드 URL:', downloadUrl);
     
-    const message = `발주번호 : ${purchase_order_number}에 대한 <${file_url}|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;
+    const message = `발주번호 : ${purchase_order_number}에 대한 <${downloadUrl}|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;
 
     // 모든 Lead Buyer에게 알림 전송
     const slackPromises = leadBuyers.map(buyer => 
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       message: `${leadBuyers.length}명의 Lead Buyer에게 엑셀 다운로드 알림이 전송되었습니다.`,
-      file_url: file_url,
+      download_url: downloadUrl,
       sent_count: slackResults.filter(result => result.status === 'fulfilled').length,
       failed_count: failedResults.length
     });

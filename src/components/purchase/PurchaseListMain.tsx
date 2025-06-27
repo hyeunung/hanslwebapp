@@ -375,38 +375,17 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
       // Storage 업로드 조건 체크: 선진행이거나 최종승인된 경우만
       if (shouldUploadToStorage) {
-        // Storage 저장용 파일명: {발주번호}
-        const storageFilename = `${excelData.purchase_order_number}.xlsx`;
+        console.log('다운로드 활성화 조건 만족 - Slack 알림 전송');
         
-        console.log('다운로드 활성화 조건 만족 - Storage 업로드 시도:', storageFilename);
-        const { error: upErr } = await supabase.storage.from('po-files').upload(storageFilename, blob, {
-          upsert: true,
-          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // Slack 알림 전송 (웹앱 다운로드 API URL 사용)
+        await fetch('/api/notify-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number }),
         });
-        
-        if (upErr) {
-          console.error('Storage 업로드 실패:', upErr);
-          console.error('에러 상세:', upErr);
-          // Storage 실패해도 다운로드는 성공했으므로 alert 제거
-          console.warn('Storage 저장 실패했지만 다운로드는 완료됨');
-          return;
-        }
-
-        console.log('Storage 업로드 성공!');
-        const { data: pub } = supabase.storage.from('po-files').getPublicUrl(storageFilename);
-        const fileUrl = pub?.publicUrl;
-
-        if (fileUrl) {
-          console.log('Slack 알림 전송 시도:', fileUrl);
-          await fetch('/api/notify-download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ purchase_order_number: excelData.purchase_order_number, file_url: fileUrl }),
-          });
-          console.log('Slack 알림 전송 완료');
-        }
+        console.log('Slack 알림 전송 완료');
       } else {
-        console.log('다운로드 활성화 조건 미충족 - Storage 업로드 및 알림 건너뜀');
+        console.log('다운로드 활성화 조건 미충족 - Slack 알림 건너뜀');
         console.log('조건:', { 
           progress_type: firstItem.progress_type,
           final_manager_status: firstItem.final_manager_status,

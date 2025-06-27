@@ -352,21 +352,26 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     try {
       // 코드 기반 ExcelJS 생성 (템플릿 없이 서식 직접 정의)
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
-      const filename = `발주서_${excelData.purchase_order_number}_${excelData.vendor_name}_${formatDateForFileName(excelData.request_date)}.xlsx`;
+      
+      // 다운로드용 파일명: 발주서_{업체명}_발주번호
+      const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
+      
+      // Storage 저장용 파일명: {발주번호}
+      const storageFilename = `${excelData.purchase_order_number}.xlsx`;
 
       // 💡 사용자에게 즉시 다운로드 제공
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
       // 1) Supabase Storage 업로드 (public bucket: po-files)
-      console.log('Storage 업로드 시도:', filename);
-      const { error: upErr } = await supabase.storage.from('po-files').upload(filename, blob, {
+      console.log('Storage 업로드 시도:', storageFilename);
+      const { error: upErr } = await supabase.storage.from('po-files').upload(storageFilename, blob, {
         upsert: true,
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
@@ -378,7 +383,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       }
 
       console.log('Storage 업로드 성공');
-      const { data: pub } = supabase.storage.from('po-files').getPublicUrl(filename);
+      const { data: pub } = supabase.storage.from('po-files').getPublicUrl(storageFilename);
       const fileUrl = pub?.publicUrl;
 
       if (fileUrl) {

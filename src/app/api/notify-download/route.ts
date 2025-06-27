@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 웹앱 엑셀 다운로드 API URL 생성
-    const downloadUrl = `https://hanslwebapp.vercel.app/api/excel/download/${purchase_order_number}`;
+    const downloadUrl = `https://work.hansl.com/api/excel/download/${purchase_order_number}`;
     console.log('생성된 다운로드 URL:', downloadUrl);
     
     const message = `발주번호 : ${purchase_order_number}에 대한 <${downloadUrl}|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.`;

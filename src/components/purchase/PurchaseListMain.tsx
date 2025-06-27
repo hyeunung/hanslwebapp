@@ -381,13 +381,17 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           // Storage용 파일명: 발주번호.xlsx
           const storageFilename = `${excelData.purchase_order_number}.xlsx`;
           
+          // 기존 파일이 있으면 삭제 후 업로드
+          await supabase.storage
+            .from('po-files')
+            .remove([storageFilename]);
+          
           // Supabase Storage에 업로드 (다운로드 메타데이터 포함)
           const { error: uploadError } = await supabase.storage
             .from('po-files')
             .upload(storageFilename, blob, {
               contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              cacheControl: 'no-cache',
-              upsert: true
+              cacheControl: 'no-cache'
             });
           
           if (uploadError) {

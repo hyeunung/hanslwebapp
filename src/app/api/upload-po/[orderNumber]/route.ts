@@ -2,18 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generatePurchaseOrderExcelJS, PurchaseOrderData } from '@/utils/exceljs/generatePurchaseOrderExcel';
 
+// Service Role 클라이언트 (Storage 업로드 권한)
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-// Storage 업로드용 Service Role 클라이언트
-const supabaseServiceRole = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderNumber: string }> }
 ) {
@@ -34,6 +29,20 @@ export async function GET(
     }
 
     const firstItem = orderItems[0];
+    
+    // 자동 업로드 조건 체크
+    const isAdvancePayment = (progress_type?: string) => {
+      return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
+    };
+    
+    const shouldUploadToStorage = isAdvancePayment(firstItem.progress_type) || firstItem.final_manager_status === 'approved';
+    
+    if (!shouldUploadToStorage) {
+      return NextResponse.json(
+        { message: '업로드 조건을 만족하지 않습니다.', conditions: { progress_type: firstItem.progress_type, final_manager_status: firstItem.final_manager_status } },
+        { status: 200 }
+      );
+    }
     
     // 업체 상세 정보 및 담당자 정보 조회
     let vendorInfo = {
@@ -113,55 +122,62 @@ export async function GET(
 
     // 엑셀 파일 생성
     const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
-    const buffer = await blob.arrayBuffer();
     
-    // 파일명 생성 (다운로드용과 Storage용)
-    const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
+    // Storage 업로드
     const storageFilename = `${excelData.purchase_order_number}.xlsx`;
-
-    // User-Agent 확인하여 트리거에서 호출된 경우 Storage에도 업로드
-    const userAgent = request.headers.get('user-agent') || '';
-    const isAutoUploadTrigger = userAgent.includes('Auto-Upload-Trigger');
-
-    if (isAutoUploadTrigger) {
-      try {
-        // 기존 파일이 있으면 삭제 후 업로드 (Service Role 사용)
-        await supabaseServiceRole.storage
-          .from('po-files')
-          .remove([storageFilename]);
-        
-        // Supabase Storage에 업로드 (Service Role 사용)
-        const { error: uploadError } = await supabaseServiceRole.storage
-          .from('po-files')
-          .upload(storageFilename, buffer, {
-            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            cacheControl: 'no-cache'
-          });
-        
-        if (uploadError) {
-          console.error('Storage 업로드 오류:', uploadError);
-        } else {
-          console.log('Storage 업로드 성공:', storageFilename);
-        }
-      } catch (storageErr) {
-        console.error('Storage 처리 오류:', storageErr);
+    const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
+    
+    try {
+      // 기존 파일 삭제
+      await supabase.storage
+        .from('po-files')
+        .remove([storageFilename]);
+      
+      // Supabase Storage에 업로드
+      const { error: uploadError } = await supabase.storage
+        .from('po-files')
+        .upload(storageFilename, blob, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          cacheControl: 'no-cache'
+        });
+      
+      if (uploadError) {
+        console.error('Storage 업로드 오류:', uploadError);
+        return NextResponse.json(
+          { error: 'Storage 업로드 실패', details: uploadError },
+          { status: 500 }
+        );
       }
+      
+      // Storage URL 생성
+      const { data: urlData } = supabase.storage
+        .from('po-files')
+        .getPublicUrl(storageFilename, {
+          download: downloadFilename
+        });
+      
+      console.log('Storage 업로드 성공:', storageFilename);
+      
+      return NextResponse.json({
+        success: true,
+        message: `발주서 ${orderNumber} Storage 업로드 완료`,
+        storage_url: urlData.publicUrl,
+        filename: storageFilename
+      });
+      
+    } catch (storageErr) {
+      console.error('Storage 처리 오류:', storageErr);
+      return NextResponse.json(
+        { error: 'Storage 처리 중 오류 발생', details: storageErr },
+        { status: 500 }
+      );
     }
 
-    // HTTP 응답으로 엑셀 파일 반환
-    return new NextResponse(buffer, {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(downloadFilename)}`,
-        'Cache-Control': 'no-cache',
-      },
-    });
-
   } catch (error) {
-    console.error('엑셀 생성 오류:', error);
+    console.error('발주서 업로드 오류:', error);
     return NextResponse.json(
-      { error: '엑셀 파일 생성 중 오류가 발생했습니다.' },
+      { error: '발주서 업로드 중 오류가 발생했습니다.', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
-} 
+}

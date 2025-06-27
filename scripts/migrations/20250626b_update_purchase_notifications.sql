@@ -50,7 +50,8 @@ BEGIN
             WHERE e.purchase_role @> ARRAY['Lead Buyer'];
             
             message_text := format(
-                '<https://work.hansl.com/purchase/email/%s|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.',
+                '발주번호 : %s에 대한 <https://work.hansl.com/purchase/email/%s|발주서>다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.',
+                COALESCE(NEW.purchase_order_number, '미지정'),
                 NEW.id
             );
             
@@ -151,7 +152,8 @@ BEGIN
         WHERE e.purchase_role @> ARRAY['Lead Buyer'];
         
         message_text := format(
-            '<https://work.hansl.com/purchase/email/%s|발주서> 다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.',
+            '발주번호 : %s에 대한 <https://work.hansl.com/purchase/email/%s|발주서>다운로드가 활성화 되었습니다. 업무에 참고 바랍니다.',
+            COALESCE(NEW.purchase_order_number, '미지정'),
             NEW.id
         );
         

@@ -35,8 +35,8 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 요청 본문 파싱
-    const { user_id, message, file_upload } = await req.json();
+    // 요청 본문 파싱 - blocks 파라미터 추가
+    const { user_id, message, blocks, file_upload, notification_id } = await req.json();
     if (!user_id || !message) {
       return new Response(JSON.stringify({
         error: 'user_id and message are required'
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Sending DM to user: ${user_id}, message: ${message}`);
+    console.log(`Sending DM to user: ${user_id}, message: ${message}${blocks ? ' with Block Kit' : ''}`);
     
     // 파일 업로드가 요청된 경우
     if (file_upload && file_upload.order_number) {
@@ -114,21 +114,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 일반 메시지 전송 (파일 업로드 실패시 또는 파일 업로드 없는 경우)
+    // Slack 메시지 전송을 위한 페이로드 구성
+    const messagePayload: any = {
+      channel: user_id,
+      text: message // fallback text
+    };
+
+    // Block Kit이 제공된 경우 추가
+    if (blocks && Array.isArray(blocks)) {
+      messagePayload.blocks = blocks;
+      console.log('Block Kit 메시지 전송:', JSON.stringify(blocks, null, 2));
+    }
+
+    // Slack 메시지 전송
     const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${slackUserToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        channel: user_id,
-        text: message
-      })
+      body: JSON.stringify(messagePayload)
     });
+    
     const slackData = await slackResponse.json();
+    
     if (!slackData.ok) {
       console.error('Slack API error:', slackData);
+      
+      // notification_id가 있으면 실패 상태로 업데이트
+      if (notification_id) {
+        try {
+          await supabase
+            .from('notifications')
+            .update({ 
+              status: 'failed', 
+              failed_reason: slackData.error || 'Unknown error' 
+            })
+            .eq('id', notification_id);
+        } catch (updateError) {
+          console.error('Failed to update notification status:', updateError);
+        }
+      }
+      
       return new Response(JSON.stringify({
         error: 'Failed to send Slack message',
         details: slackData.error
@@ -140,10 +167,26 @@ Deno.serve(async (req) => {
         }
       });
     }
+    
+    // 성공한 경우 notification 상태 업데이트
+    if (notification_id) {
+      try {
+        await supabase
+          .from('notifications')
+          .update({ 
+            status: 'sent', 
+            sent_at: new Date().toISOString() 
+          })
+          .eq('id', notification_id);
+      } catch (updateError) {
+        console.error('Failed to update notification status:', updateError);
+      }
+    }
+    
     console.log('Slack message sent successfully:', slackData);
     return new Response(JSON.stringify({
       success: true,
-      message: 'DM sent successfully',
+      message: blocks ? 'Block Kit message sent successfully' : 'DM sent successfully',
       slack_response: slackData
     }), {
       status: 200,

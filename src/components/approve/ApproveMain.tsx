@@ -133,6 +133,42 @@ const ApproveMain: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("pending");
   const { currentUserRoles } = usePurchaseData();
 
+  // 삭제 권한 확인 (발주 목록과 동일)
+  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+
+  // 삭제 처리 함수
+  const handleDeleteOrder = async (orderNumber: string) => {
+    if (!canDelete) {
+      alert('삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (!confirm(`발주번호 ${orderNumber}을(를) 삭제하시겠습니까?\n\n관련된 모든 데이터(품목 등)가 함께 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      // purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
+      const { error } = await supabase
+        .from('purchase_requests')
+        .delete()
+        .eq('purchase_order_number', orderNumber);
+
+      if (error) {
+        console.error('삭제 오류:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+        return;
+      }
+
+      // 로컬 상태에서도 제거
+      setApproveList(prev => prev.filter(item => item.purchaseOrderNumber !== orderNumber));
+      alert('삭제가 완료되었습니다.');
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   /* ------------------------------------------------------------------
    * 역할별 요청유형 필터링
    *  - raw_material_manager  ➜  "원자재" 요청만 표시
@@ -173,90 +209,71 @@ const ApproveMain: React.FC = () => {
   useEffect(() => {
     async function fetchApproveList() {
       setLoading(true);
-      const { data: requests, error } = await supabase
-        .from("purchase_requests")
-        .select(`
-          id,
-          request_type,
-          payment_category,
-          request_date,
-          delivery_request_date,
-          project_vendor,
-          sales_order_number,
-          project_item,
-          purchase_order_number,
-          progress_type,
-          vendor_id,
-          contact_id,
-          middle_manager_status,
-          final_manager_status,
-          requester_name,
-          is_payment_completed
-        `)
-        .order("request_date", { ascending: false });
-      if (error) {
-        console.error("승인관리 데이터 조회 오류", error);
+      try {
+        // 한 번의 조인 쿼리로 모든 데이터 조회 (발주목록과 동일한 방식)
+        const { data: requests, error } = await supabase
+          .from("purchase_requests")
+          .select(`
+            *,
+            vendors (
+              vendor_name
+            ),
+            vendor_contacts (
+              contact_name
+            ),
+            purchase_request_items (
+              line_number,
+              item_name,
+              specification,
+              quantity,
+              unit_price_value,
+              amount_value,
+              remark
+            )
+          `)
+          .order("request_date", { ascending: false });
+          
+        if (error) {
+          console.error("승인관리 데이터 조회 오류", error);
+          setLoading(false);
+          return;
+        }
+        
+        // 데이터 변환 (조인 결과를 ApproveRow 형태로 변환)
+        const rows: ApproveRow[] = (requests || []).map((row: any) => ({
+          id: row.id.toString(),
+          requestType: row.request_type,
+          paymentCategory: row.payment_category,
+          vendorName: row.vendors?.vendor_name || "",
+          contactName: row.vendor_contacts?.contact_name || "",
+          requesterName: row.requester_name,
+          requestDate: row.request_date,
+          deliveryRequestDate: row.delivery_request_date,
+          projectVendor: row.project_vendor,
+          salesOrderNumber: row.sales_order_number,
+          projectItem: row.project_item,
+          purchaseOrderNumber: row.purchase_order_number,
+          progressType: row.progress_type,
+          items: (row.purchase_request_items || []).map((item: any) => ({
+            lineNumber: item.line_number,
+            itemName: item.item_name,
+            specification: item.specification,
+            quantity: item.quantity,
+            unitPriceValue: item.unit_price_value,
+            amountValue: item.amount_value,
+            remark: item.remark,
+          })).sort((a, b) => a.lineNumber - b.lineNumber),
+          middleManagerStatus: row.middle_manager_status || "pending",
+          finalManagerStatus: row.final_manager_status || "pending",
+          isPaymentCompleted: !!row.is_payment_completed,
+        }));
+        
+        setApproveList(rows);
+      } catch (error) {
+        console.error("승인관리 데이터 로딩 오류:", error);
+      } finally {
         setLoading(false);
-        return;
       }
-      const rows: ApproveRow[] = await Promise.all(
-        (requests || []).map(async (row: any) => {
-          // 업체명
-          let vendorName = "";
-          if (row.vendor_id) {
-            const { data: vendor } = await supabase
-              .from("vendors")
-              .select("vendor_name")
-              .eq("id", row.vendor_id)
-              .single();
-            vendorName = vendor?.vendor_name || "";
-          }
-          // 담당자
-          let contactName = "";
-          if (row.contact_id) {
-            const { data: contact } = await supabase
-              .from("vendor_contacts")
-              .select("contact_name")
-              .eq("id", row.contact_id)
-              .single();
-            contactName = contact?.contact_name || "";
-          }
-          // 품목 리스트
-          const { data: items } = await supabase
-            .from("purchase_request_items")
-            .select("line_number, item_name, specification, quantity, unit_price_value, amount_value, remark")
-            .eq("purchase_request_id", row.id);
-          return {
-            id: row.id.toString(),
-            requestType: row.request_type,
-            paymentCategory: row.payment_category,
-            vendorName,
-            contactName,
-            requesterName: row.requester_name,
-            requestDate: row.request_date,
-            deliveryRequestDate: row.delivery_request_date,
-            projectVendor: row.project_vendor,
-            salesOrderNumber: row.sales_order_number,
-            projectItem: row.project_item,
-            purchaseOrderNumber: row.purchase_order_number,
-            progressType: row.progress_type,
-            items: (items || []).map((item: any) => ({
-              lineNumber: item.line_number,
-              itemName: item.item_name,
-              specification: item.specification,
-              quantity: item.quantity,
-              unitPriceValue: item.unit_price_value,
-              amountValue: item.amount_value,
-              remark: item.remark,
-            })).sort((a, b) => a.lineNumber - b.lineNumber),
-            middleManagerStatus: row.middle_manager_status || "pending",
-            finalManagerStatus: row.final_manager_status || "pending",
-            isPaymentCompleted: !!row.is_payment_completed,
-          };
-        })
-      );
-      setApproveList(rows);
-      setLoading(false);
     }
     fetchApproveList();
   }, []);
@@ -376,6 +393,7 @@ const ApproveMain: React.FC = () => {
                 <tr className="h-10">
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">중간관리자</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">최종관리자</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20">구매요구자</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">요청유형</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
@@ -385,16 +403,16 @@ const ApproveMain: React.FC = () => {
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-72 text-center">비고</th>
-                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8.5rem]">발주번호</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">신청일</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">삭제</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={14} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
+                  <tr><td colSpan={15} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
                 ) : filteredList.length === 0 ? (
-                  <tr><td colSpan={14} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={15} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
                 ) : filteredList.map((row) => (
                   <React.Fragment key={row.id}>
                     <tr
@@ -403,6 +421,7 @@ const ApproveMain: React.FC = () => {
                     >
                       <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.middleManagerStatus)}</td>
                       <td className="text-center px-2 py-2 w-12 min-w-[3.5rem]">{renderStatusBadge(row.finalManagerStatus)}</td>
+                      <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.purchaseOrderNumber}</td>
                       <td className="text-center px-2 py-2 w-20">{row.requesterName || '-'}</td>
                       <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{renderRequestTypeBadge(row.requestType)}</td>
                       <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
@@ -412,13 +431,29 @@ const ApproveMain: React.FC = () => {
                       <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
                       <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
                       <td className="text-center px-2 py-2 w-72">{row.items[0]?.remark || '-'}</td>
-                      <td className="text-center px-2 py-2 w-32 min-w-[8.5rem]">{row.purchaseOrderNumber}</td>
                       <td className="text-center px-2 py-2">{row.deliveryRequestDate}</td>
                       <td className="text-center px-2 py-2">{row.requestDate}</td>
+                      <td className="text-center px-2 py-2 w-16">
+                        {canDelete ? (
+                          <button
+                            className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-red-500/90 to-red-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteOrder(row.purchaseOrderNumber!);
+                            }}
+                          >
+                            삭제
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                            삭제
+                          </span>
+                        )}
+                      </td>
                     </tr>
                     {expandedRowId === row.id && (
                       <tr>
-                        <td colSpan={14} className="p-0 bg-transparent">
+                        <td colSpan={15} className="p-0 bg-transparent">
                           <div className="flex justify-center w-full mt-0 mb-8">
                             <ApproveDetailAccordion
                               id={row.id}

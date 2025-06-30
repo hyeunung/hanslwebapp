@@ -158,10 +158,20 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // purchase_manager나 app_admin 권한이 있는 사용자는 모든 요청을 볼 수 있습니다.
   const visiblePurchases = useMemo(() => {
+    console.log('🔍 [DEBUG] usePurchaseData에서 가져온 총 purchases:', purchases.length);
+    console.log('🔍 [DEBUG] 현재 사용자 권한:', currentUserRoles);
+    
+    let result;
     if (currentUserRoles && (currentUserRoles.includes('purchase_manager') || currentUserRoles.includes('app_admin'))) {
-      return purchases;
+      result = purchases;
+      console.log('🔍 [DEBUG] purchase_manager/app_admin 권한으로 모든 데이터 표시');
+    } else {
+      result = purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
+      console.log('🔍 [DEBUG] 정현웅, 정희웅 제외 후 데이터 수:', result.length);
     }
-    return purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
+    
+    console.log('🔍 [DEBUG] visiblePurchases 고유 발주번호 수:', new Set(result.map(p => p.purchase_order_number)).size);
+    return result;
   }, [purchases, currentUserRoles]);
 
   const roleCase = useMemo(() => {
@@ -228,6 +238,11 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     const d = new Date(item.request_date);
     return period[0] && period[1] && d >= period[0] && d <= period[1];
   });
+  
+  console.log('🔍 [DEBUG] 기간 필터 전 rawDisplayData 수:', rawDisplayData.length);
+  console.log('🔍 [DEBUG] 기간 필터 후 displayData 수:', displayData.length);
+  console.log('🔍 [DEBUG] 기간 필터 후 고유 발주번호 수:', new Set(displayData.map(item => item.purchase_order_number)).size);
+  console.log('🔍 [DEBUG] 현재 설정된 기간:', period[0], '~', period[1]);
 
   // 페이지네이션 계산 (그룹 헤더 기준)
   const uniqueOrderNumbers = Array.from(new Set(displayData.map(item => item.purchase_order_number)));
@@ -536,24 +551,20 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // New handleDeleteOrder function
   const handleDeleteOrder = async (orderNumber: string) => {
-    if (!window.confirm(`발주번호 ${orderNumber} 의 모든 항목을 삭제하시겠습니까?`)) return;
+    if (!window.confirm(`발주번호 ${orderNumber} 의 모든 항목을 삭제하시겠습니까?\n\n관련된 모든 데이터(품목 등)가 함께 삭제됩니다.`)) return;
     try {
-      // 1) purchase_requests 삭제
+      // purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
       const { error: reqErr } = await supabase
         .from('purchase_requests')
         .delete()
         .eq('purchase_order_number', orderNumber);
       if (reqErr) throw reqErr;
 
-      // 2) purchase_request_items (상세 품목) 삭제
-      await supabase
-        .from('purchase_request_items')
-        .delete()
-        .eq('purchase_order_number', orderNumber);
-
-      // 3) 프론트 데이터 새로고침
+      // 프론트 데이터 새로고침
       await loadMyRequests();
+      alert('삭제가 완료되었습니다.');
     } catch (err: any) {
+      console.error('삭제 오류:', err);
       window.alert('주문 삭제 중 오류가 발생했습니다: ' + (err.message || err));
     }
   };

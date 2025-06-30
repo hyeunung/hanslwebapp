@@ -88,33 +88,47 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
   // [useMemo] 실제 테이블에 표시할 데이터(그룹 헤더/하위 항목 등) 생성
   const displayData = useMemo(() => {
     const result: (Purchase & { isGroupHeader?: boolean; groupSize?: number; isSubItem?: boolean; isLastSubItem?: boolean })[] = [];
-    Object.entries(orderNumberGroups).forEach(([orderNumber, items]) => {
-      if (items.length > 1) {
+    
+    tabFilteredOrders.forEach((purchase) => {
+      const purchaseItems = purchase.items || [];
+      
+      if (purchaseItems.length > 1) {
+        // 여러 품목이 있는 경우: 헤더 + 하위 항목들
         const headerItem = {
-          ...items[0],
+          ...purchase,
           isGroupHeader: true,
-          groupSize: items.length
+          groupSize: purchaseItems.length
         };
         result.push(headerItem);
-        if (headerItem && headerItem.purchase_order_number) {
-          items.slice(1).forEach((item, index) => {
-            result.push({
-              ...item,
-              isSubItem: true,
-              isLastSubItem: index === items.length - 2
-            });
+        
+        // 나머지 품목들을 하위 항목으로 추가
+        purchaseItems.slice(1).forEach((item, index) => {
+          result.push({
+            ...purchase,
+            item_name: item.item_name,
+            specification: item.specification,
+            quantity: item.quantity,
+            unit_price_value: item.unit_price_value,
+            amount_value: item.amount_value,
+            remark: item.remark,
+            link: item.link,
+            line_number: item.line_number,
+            isSubItem: true,
+            isLastSubItem: index === purchaseItems.length - 2
           });
-        }
+        });
       } else {
+        // 품목이 하나인 경우
         result.push({
-          ...items[0],
+          ...purchase,
           isGroupHeader: true,
           groupSize: 1
         });
       }
     });
+    
     return result;
-  }, [orderNumberGroups]);
+  }, [tabFilteredOrders]);
 
   // 훅에서 가공된 데이터 반환
   return {

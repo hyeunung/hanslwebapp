@@ -427,7 +427,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       />
                     )}
                     {item.purchase_order_number}
-                    {isGroupHeader && item.groupSize && item.groupSize > 1 && ` (${item.groupSize}건)`}
+                    {isGroupHeader && item.groupSize && item.groupSize > 1 && ` (외 ${item.groupSize - 1}개)`}
                   </span>
                 </div>
               </td>

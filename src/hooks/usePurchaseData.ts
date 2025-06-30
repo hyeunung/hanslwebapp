@@ -7,6 +7,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
 
+// [타입 정의] 품목 데이터 구조
+export interface PurchaseItem {
+  line_number: number;
+  item_name: string;
+  specification: string;
+  quantity: number;
+  unit_price_value: number;
+  amount_value: number;
+  remark: string;
+  link?: string;
+}
+
 // [타입 정의] 발주(구매) 데이터의 구조를 설명합니다.
 export interface Purchase {
   id: number; // 발주 요청 고유번호
@@ -21,12 +33,12 @@ export interface Purchase {
   vendor_name: string; // 업체명
   vendor_payment_schedule: string; // 업체 결제 조건
   requester_name: string; // 구매 요청자 이름
-  item_name: string; // 품명
-  specification: string; // 규격
-  quantity: number; // 수량
-  unit_price_value: number; // 단가
-  amount_value: number; // 합계
-  remark: string; // 비고
+  item_name: string; // 품명 (첫 번째 품목)
+  specification: string; // 규격 (첫 번째 품목)
+  quantity: number; // 수량 (첫 번째 품목)
+  unit_price_value: number; // 단가 (첫 번째 품목)
+  amount_value: number; // 합계 (첫 번째 품목)
+  remark: string; // 비고 (첫 번째 품목)
   project_vendor: string; // PJ업체
   sales_order_number: string; // 수주번호
   project_item: string; // 프로젝트 아이템
@@ -38,7 +50,8 @@ export interface Purchase {
   is_received: boolean; // 입고 완료 여부
   received_at: string; // 입고 완료일
   final_manager_approved_at?: string | null; // 최종 승인일
-  link?: string; // 구매 요청 링크
+  link?: string; // 구매 요청 링크 (첫 번째 품목)
+  items?: PurchaseItem[]; // 전체 품목 리스트
 }
 
 // [타입 정의] 직원 데이터의 구조를 설명합니다.
@@ -75,83 +88,84 @@ export function usePurchaseData() {
     // eslint-disable-next-line
   }, [user?.id]);
 
-  // [함수] 발주(구매) 목록을 Supabase에서 불러옵니다.
+  // [함수] 발주(구매) 목록을 Supabase에서 불러옵니다. (효율적인 조인 쿼리 방식)
   async function loadMyRequests() {
     if (!user) return;
     setIsLoadingPurchases(true);
     try {
-      // purchase_request_view(뷰)에서 필요한 필드만 선택해서 가져옵니다.
-      const { data, error } = await supabase
-        .from('purchase_request_view')
+      // 한 번의 쿼리로 모든 관련 데이터 조회 (nested select 사용)
+      const { data: requests, error: requestsError } = await supabase
+        .from('purchase_requests')
         .select(`
-          purchase_request_id,
-          purchase_order_number,
-          request_date,
-          delivery_request_date,
-          progress_type,
-          is_payment_completed,
-          payment_completed_at,
-          payment_category,
-          currency,
-          request_type,
-          vendor_name,
-          vendor_payment_schedule,
-          requester_name,
-          item_name,
-          specification,
-          quantity,
-          unit_price_value,
-          amount_value,
-          remark,
-          project_vendor,
-          sales_order_number,
-          project_item,
-          line_number,
-          contact_name,
-          middle_manager_status,
-          final_manager_status,
-          is_received,
-          received_at,
-          is_payment_completed,
-          link
+          *,
+          vendors (
+            vendor_name,
+            vendor_payment_schedule
+          ),
+          vendor_contacts (
+            contact_name
+          ),
+          purchase_request_items (
+            item_name,
+            specification,
+            quantity,
+            unit_price_value,
+            amount_value,
+            remark,
+            line_number,
+            link
+          )
         `)
-        .order('request_date', { ascending: false });
-      if (data) {
-        // 받아온 데이터를 Purchase 타입에 맞게 변환하여 상태에 저장합니다.
-        setPurchases(
-          (data as Array<Record<string, unknown>>).map((row) => ({
-            id: Number(row.purchase_request_id),
-            purchase_order_number: row.purchase_order_number as string,
-            request_date: row.request_date as string,
-            delivery_request_date: row.delivery_request_date as string,
-            progress_type: row.progress_type as string,
-            payment_completed_at: row.payment_completed_at as string,
-            payment_category: row.payment_category as string,
-            currency: row.currency as string,
-            request_type: row.request_type as string,
-            vendor_name: row.vendor_name as string,
-            vendor_payment_schedule: row.vendor_payment_schedule as string,
-            requester_name: row.requester_name as string,
-            item_name: row.item_name as string,
-            specification: row.specification as string,
-            quantity: Number(row.quantity),
-            unit_price_value: Number(row.unit_price_value),
-            amount_value: Number(row.amount_value),
-            remark: row.remark as string,
-            project_vendor: row.project_vendor as string,
-            sales_order_number: row.sales_order_number as string,
-            project_item: row.project_item as string,
-            line_number: Number(row.line_number),
-            contact_name: row.contact_name ? String(row.contact_name) : '',
-            middle_manager_status: row.middle_manager_status as string,
-            final_manager_status: row.final_manager_status as string,
-            is_received: !!row.is_received,
-            received_at: row.received_at as string,
-            is_payment_completed: !!row.is_payment_completed,
-            link: row.link as string | undefined,
-          }))
-        );
-      }
+        .order('request_date', { ascending: false })
+        .limit(2000);
+
+      if (requestsError) throw requestsError;
+      
+      console.log('🔍 [DEBUG] 조인 쿼리로 가져온 총 레코드 수:', requests?.length || 0);
+      
+      // 데이터 변환 및 Purchase 객체 생성
+      const purchases: Purchase[] = (requests || []).map((request: any) => {
+        // 첫 번째 품목 정보 (기존 방식과 호환성 유지)
+        const firstItem = request.purchase_request_items?.[0] || {};
+        
+        return {
+          id: Number(request.id),
+          purchase_order_number: request.purchase_order_number as string,
+          request_date: request.request_date as string,
+          delivery_request_date: request.delivery_request_date as string,
+          progress_type: request.progress_type as string,
+          payment_completed_at: request.payment_completed_at as string,
+          payment_category: request.payment_category as string,
+          currency: request.currency as string,
+          request_type: request.request_type as string,
+          vendor_name: request.vendors?.vendor_name || '',
+          vendor_payment_schedule: request.vendors?.vendor_payment_schedule || '',
+          requester_name: request.requester_name as string,
+          item_name: firstItem.item_name as string || '',
+          specification: firstItem.specification as string || '',
+          quantity: Number(firstItem.quantity) || 0,
+          unit_price_value: Number(firstItem.unit_price_value) || 0,
+          amount_value: Number(firstItem.amount_value) || 0,
+          remark: firstItem.remark as string || '',
+          project_vendor: request.project_vendor as string,
+          sales_order_number: request.sales_order_number as string,
+          project_item: request.project_item as string,
+          line_number: Number(firstItem.line_number) || 1,
+          contact_name: request.vendor_contacts?.contact_name || '',
+          middle_manager_status: request.middle_manager_status as string,
+          final_manager_status: request.final_manager_status as string,
+          is_received: !!request.is_received,
+          received_at: request.received_at as string,
+          is_payment_completed: !!request.is_payment_completed,
+          link: firstItem.link as string | undefined,
+          // 전체 품목 리스트 추가
+          items: request.purchase_request_items || []
+        };
+      });
+      
+      console.log('🔍 [DEBUG] 조인 쿼리로 생성된 Purchase 객체 수:', purchases.length);
+      console.log('🔍 [DEBUG] 고유 발주번호 수:', new Set(purchases.map(item => item.purchase_order_number)).size);
+      setPurchases(purchases);
     } catch (error) {
       // 에러 발생 시 콘솔에 출력
       console.error('발주 데이터 로딩 오류:', error);

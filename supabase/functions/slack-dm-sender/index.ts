@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 요청 본문 파싱 - blocks 파라미터 추가
-    const { user_id, message, blocks, file_upload, notification_id } = await req.json();
+    const { user_id, message, blocks, file_upload } = await req.json();
     if (!user_id || !message) {
       return new Response(JSON.stringify({
         error: 'user_id and message are required'
@@ -141,21 +141,6 @@ Deno.serve(async (req) => {
     if (!slackData.ok) {
       console.error('Slack API error:', slackData);
       
-      // notification_id가 있으면 실패 상태로 업데이트
-      if (notification_id) {
-        try {
-          await supabase
-            .from('notifications')
-            .update({ 
-              status: 'failed', 
-              failed_reason: slackData.error || 'Unknown error' 
-            })
-            .eq('id', notification_id);
-        } catch (updateError) {
-          console.error('Failed to update notification status:', updateError);
-        }
-      }
-      
       return new Response(JSON.stringify({
         error: 'Failed to send Slack message',
         details: slackData.error
@@ -166,21 +151,6 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         }
       });
-    }
-    
-    // 성공한 경우 notification 상태 업데이트
-    if (notification_id) {
-      try {
-        await supabase
-          .from('notifications')
-          .update({ 
-            status: 'sent', 
-            sent_at: new Date().toISOString() 
-          })
-          .eq('id', notification_id);
-      } catch (updateError) {
-        console.error('Failed to update notification status:', updateError);
-      }
     }
     
     console.log('Slack message sent successfully:', slackData);

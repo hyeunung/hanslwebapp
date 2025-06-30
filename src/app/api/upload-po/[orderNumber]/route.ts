@@ -15,38 +15,51 @@ export async function POST(
   try {
     const { orderNumber } = await params;
 
-    // 발주번호로 데이터 조회
-    const { data: orderItems, error: itemsError } = await supabase
-      .from('purchase_request_view')
+    // 발주번호로 구매 요청 데이터 조회
+    const { data: purchaseRequest, error: requestError } = await supabase
+      .from('purchase_requests')
       .select('*')
-      .eq('purchase_order_number', orderNumber);
+      .eq('purchase_order_number', orderNumber)
+      .single();
 
-    if (itemsError || !orderItems || orderItems.length === 0) {
+    if (requestError || !purchaseRequest) {
       return NextResponse.json(
         { error: '해당 발주번호의 데이터를 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
 
-    const firstItem = orderItems[0];
+    // 품목 데이터 조회
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('purchase_request_items')
+      .select('*')
+      .eq('purchase_order_number', orderNumber)
+      .order('line_number');
+
+    if (itemsError || !orderItems || orderItems.length === 0) {
+      return NextResponse.json(
+        { error: '해당 발주번호의 품목 데이터를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
     
     // 자동 업로드 조건 체크
     const isAdvancePayment = (progress_type?: string) => {
       return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
     };
     
-    const shouldUploadToStorage = isAdvancePayment(firstItem.progress_type) || firstItem.final_manager_status === 'approved';
+    const shouldUploadToStorage = isAdvancePayment(purchaseRequest.progress_type) || purchaseRequest.final_manager_status === 'approved';
     
     if (!shouldUploadToStorage) {
       return NextResponse.json(
-        { message: '업로드 조건을 만족하지 않습니다.', conditions: { progress_type: firstItem.progress_type, final_manager_status: firstItem.final_manager_status } },
+        { message: '업로드 조건을 만족하지 않습니다.', conditions: { progress_type: purchaseRequest.progress_type, final_manager_status: purchaseRequest.final_manager_status } },
         { status: 200 }
       );
     }
     
     // 업체 상세 정보 및 담당자 정보 조회
     let vendorInfo = {
-      vendor_name: firstItem.vendor_name,
+      vendor_name: '',
       vendor_phone: '',
       vendor_fax: '',
       vendor_contact_name: '',
@@ -54,40 +67,34 @@ export async function POST(
     };
 
     try {
-      // purchase_requests 테이블에서 vendor_id, contact_id 조회
-      const { data: prData, error: prError } = await supabase
-        .from('purchase_requests')
-        .select('vendor_id, contact_id')
-        .eq('purchase_order_number', orderNumber)
-        .single();
-
-      if (prData && !prError) {
-        const vendorId = prData.vendor_id;
-        const contactId = prData.contact_id;
-        
-        // vendor 정보 조회
+      const vendorId = purchaseRequest.vendor_id;
+      const contactId = purchaseRequest.contact_id;
+      
+      // vendor 정보 조회
+      if (vendorId) {
         const { data: vendorData, error: vendorError } = await supabase
           .from('vendors')
-          .select('vendor_phone, vendor_fax, vendor_payment_schedule')
+          .select('vendor_name, vendor_phone, vendor_fax, vendor_payment_schedule')
           .eq('id', vendorId)
           .single();
 
         if (vendorData && !vendorError) {
+          vendorInfo.vendor_name = vendorData.vendor_name || '';
           vendorInfo.vendor_phone = vendorData.vendor_phone || '';
           vendorInfo.vendor_fax = vendorData.vendor_fax || '';
           vendorInfo.vendor_payment_schedule = vendorData.vendor_payment_schedule || '';
         }
+      }
 
-        // vendor_contacts에서 contact_id로 담당자 정보 조회
-        if (contactId) {
-          const { data: contactData, error: contactError } = await supabase
-            .from('vendor_contacts')
-            .select('contact_name, contact_phone, contact_email')
-            .eq('id', contactId)
-            .single();
-          if (contactData && !contactError) {
-            vendorInfo.vendor_contact_name = contactData.contact_name || '';
-          }
+      // vendor_contacts에서 contact_id로 담당자 정보 조회
+      if (contactId) {
+        const { data: contactData, error: contactError } = await supabase
+          .from('vendor_contacts')
+          .select('contact_name, contact_phone, contact_email')
+          .eq('id', contactId)
+          .single();
+        if (contactData && !contactError) {
+          vendorInfo.vendor_contact_name = contactData.contact_name || '';
         }
       }
     } catch (error) {
@@ -96,17 +103,17 @@ export async function POST(
 
     // 엑셀 데이터 준비
     const excelData = {
-      purchase_order_number: firstItem.purchase_order_number || '',
-      request_date: firstItem.request_date,
-      delivery_request_date: firstItem.delivery_request_date,
-      requester_name: firstItem.requester_name,
+      purchase_order_number: purchaseRequest.purchase_order_number || '',
+      request_date: purchaseRequest.request_date,
+      delivery_request_date: purchaseRequest.delivery_request_date,
+      requester_name: purchaseRequest.requester_name,
       vendor_name: vendorInfo.vendor_name,
       vendor_contact_name: vendorInfo.vendor_contact_name,
       vendor_phone: vendorInfo.vendor_phone,
       vendor_fax: vendorInfo.vendor_fax,
-      project_vendor: firstItem.project_vendor,
-      sales_order_number: firstItem.sales_order_number,
-      project_item: firstItem.project_item,
+      project_vendor: purchaseRequest.project_vendor,
+      sales_order_number: purchaseRequest.sales_order_number,
+      project_item: purchaseRequest.project_item,
       vendor_payment_schedule: vendorInfo.vendor_payment_schedule,
       items: orderItems.map(item => ({
         line_number: item.line_number,
@@ -116,7 +123,7 @@ export async function POST(
         unit_price_value: item.unit_price_value,
         amount_value: item.amount_value,
         remark: item.remark,
-        currency: item.currency
+        currency: purchaseRequest.currency || 'KRW'
       }))
     };
 

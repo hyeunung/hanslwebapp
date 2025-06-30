@@ -337,8 +337,10 @@ export default function PurchaseNewMain() {
         });
         if (itemErr) throw itemErr;
       }
-      router.push("/purchase/list");
-      // 컴포넌트가 곧 언마운트되므로 loading 해제 불필요
+      
+      // 발주 요청 성공 후 발주 목록으로 이동
+      console.log('발주 요청 완료, 발주 목록으로 이동');
+      window.location.href = '/purchase/list'; // 강제 페이지 이동으로 확실한 이동 보장
       return;
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");

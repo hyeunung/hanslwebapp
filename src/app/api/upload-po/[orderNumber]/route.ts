@@ -43,20 +43,32 @@ export async function POST(
       );
     }
     
-    // 자동 업로드 조건 체크
-    const isAdvancePayment = (progress_type?: string) => {
-      return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
+    // 엑셀 데이터 준비
+    const excelData = {
+      purchase_order_number: purchaseRequest.purchase_order_number || '',
+      request_date: purchaseRequest.request_date,
+      delivery_request_date: purchaseRequest.delivery_request_date,
+      requester_name: purchaseRequest.requester_name,
+      vendor_name: '',
+      vendor_contact_name: '',
+      vendor_phone: '',
+      vendor_fax: '',
+      project_vendor: purchaseRequest.project_vendor,
+      sales_order_number: purchaseRequest.sales_order_number,
+      project_item: purchaseRequest.project_item,
+      vendor_payment_schedule: '',
+      items: orderItems.map(item => ({
+        line_number: item.line_number,
+        item_name: item.item_name,
+        specification: item.specification,
+        quantity: item.quantity,
+        unit_price_value: item.unit_price_value,
+        amount_value: item.amount_value,
+        remark: item.remark,
+        currency: purchaseRequest.currency || 'KRW'
+      }))
     };
-    
-    const shouldUploadToStorage = isAdvancePayment(purchaseRequest.progress_type) || purchaseRequest.final_manager_status === 'approved';
-    
-    if (!shouldUploadToStorage) {
-      return NextResponse.json(
-        { message: '업로드 조건을 만족하지 않습니다.', conditions: { progress_type: purchaseRequest.progress_type, final_manager_status: purchaseRequest.final_manager_status } },
-        { status: 200 }
-      );
-    }
-    
+
     // 업체 상세 정보 및 담당자 정보 조회
     let vendorInfo = {
       vendor_name: '',
@@ -102,30 +114,11 @@ export async function POST(
     }
 
     // 엑셀 데이터 준비
-    const excelData = {
-      purchase_order_number: purchaseRequest.purchase_order_number || '',
-      request_date: purchaseRequest.request_date,
-      delivery_request_date: purchaseRequest.delivery_request_date,
-      requester_name: purchaseRequest.requester_name,
-      vendor_name: vendorInfo.vendor_name,
-      vendor_contact_name: vendorInfo.vendor_contact_name,
-      vendor_phone: vendorInfo.vendor_phone,
-      vendor_fax: vendorInfo.vendor_fax,
-      project_vendor: purchaseRequest.project_vendor,
-      sales_order_number: purchaseRequest.sales_order_number,
-      project_item: purchaseRequest.project_item,
-      vendor_payment_schedule: vendorInfo.vendor_payment_schedule,
-      items: orderItems.map(item => ({
-        line_number: item.line_number,
-        item_name: item.item_name,
-        specification: item.specification,
-        quantity: item.quantity,
-        unit_price_value: item.unit_price_value,
-        amount_value: item.amount_value,
-        remark: item.remark,
-        currency: purchaseRequest.currency || 'KRW'
-      }))
-    };
+    excelData.vendor_name = vendorInfo.vendor_name;
+    excelData.vendor_contact_name = vendorInfo.vendor_contact_name;
+    excelData.vendor_phone = vendorInfo.vendor_phone;
+    excelData.vendor_fax = vendorInfo.vendor_fax;
+    excelData.vendor_payment_schedule = vendorInfo.vendor_payment_schedule;
 
     // 엑셀 파일 생성
     const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);

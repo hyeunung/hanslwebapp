@@ -41,6 +41,13 @@ export async function GET(
       .eq('purchase_order_number', orderNumber)
       .order('line_number');
 
+    console.log('=== DEBUG START ===');
+    console.log('[DEBUG] orderNumber:', orderNumber);
+    console.log('[DEBUG] orderItems 조회 결과:', orderItems);
+    console.log('[DEBUG] itemsError:', itemsError);
+    console.log('[DEBUG] orderItems.length:', orderItems?.length);
+    console.log('=== DEBUG END ===');
+
     if (itemsError || !orderItems || orderItems.length === 0) {
       return NextResponse.json(
         { error: '해당 발주번호의 품목 데이터를 찾을 수 없습니다.' },

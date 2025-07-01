@@ -134,7 +134,7 @@ const ApproveMain: React.FC = () => {
   const { currentUserRoles } = usePurchaseData();
 
   // 삭제 권한 확인 (발주 목록과 동일)
-  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+  const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
 
   // 삭제 처리 함수
   const handleDeleteOrder = async (orderNumber: string) => {

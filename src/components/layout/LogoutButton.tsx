@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 export default function LogoutButton() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   if (!user) return null;
   return (

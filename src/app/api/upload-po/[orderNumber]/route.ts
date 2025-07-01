@@ -121,20 +121,34 @@ export async function POST(
     excelData.vendor_payment_schedule = vendorInfo.vendor_payment_schedule;
 
     // 엑셀 파일 생성
+    console.log('엑셀 파일 생성 시작:', orderNumber);
     const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
+    console.log('엑셀 파일 생성 완료, blob 타입:', typeof blob, 'blob 크기:', blob.size);
     
     // Storage 업로드
     const storageFilename = `${excelData.purchase_order_number}.xlsx`;
     const downloadFilename = `발주서_${excelData.vendor_name}_${excelData.purchase_order_number}.xlsx`;
     
+    console.log('Storage 업로드 시작:', storageFilename);
+    
     try {
       // 기존 파일 삭제
-      await supabase.storage
+      const { error: removeError } = await supabase.storage
         .from('po-files')
         .remove([storageFilename]);
       
+      if (removeError) {
+        console.warn('기존 파일 삭제 오류 (무시):', removeError);
+      }
+      
       // Supabase Storage에 업로드
-      const { error: uploadError } = await supabase.storage
+      console.log('Storage 업로드 시도:', {
+        filename: storageFilename,
+        blobSize: blob.size,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('po-files')
         .upload(storageFilename, blob, {
           contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -142,12 +156,17 @@ export async function POST(
         });
       
       if (uploadError) {
-        console.error('Storage 업로드 오류:', uploadError);
+        console.error('Storage 업로드 오류 상세:', {
+          error: uploadError,
+          message: uploadError.message
+        });
         return NextResponse.json(
-          { error: 'Storage 업로드 실패', details: uploadError },
+          { error: 'Storage 업로드 실패', details: uploadError, filename: storageFilename },
           { status: 500 }
         );
       }
+      
+      console.log('Storage 업로드 성공:', uploadData);
       
       // Storage URL 생성
       const { data: urlData } = supabase.storage
@@ -156,7 +175,7 @@ export async function POST(
           download: downloadFilename
         });
       
-      console.log('Storage 업로드 성공:', storageFilename);
+      console.log('Storage 업로드 완료:', storageFilename, 'URL:', urlData.publicUrl);
       
       return NextResponse.json({
         success: true,
@@ -166,9 +185,17 @@ export async function POST(
       });
       
     } catch (storageErr) {
-      console.error('Storage 처리 오류:', storageErr);
+      console.error('Storage 처리 예외 오류:', {
+        error: storageErr,
+        message: storageErr instanceof Error ? storageErr.message : String(storageErr),
+        stack: storageErr instanceof Error ? storageErr.stack : undefined
+      });
       return NextResponse.json(
-        { error: 'Storage 처리 중 오류 발생', details: storageErr },
+        { 
+          error: 'Storage 처리 중 오류 발생', 
+          details: storageErr instanceof Error ? storageErr.message : String(storageErr),
+          filename: storageFilename
+        },
         { status: 500 }
       );
     }

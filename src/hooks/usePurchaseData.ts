@@ -63,7 +63,7 @@ export interface Employee {
 
 // [커스텀 훅] 발주/직원 데이터와 현재 사용자 정보를 관리합니다.
 export function usePurchaseData() {
-  const { user } = useAuth(); // 현재 로그인한 사용자 정보
+  const { user, loading } = useAuth(); // 현재 로그인한 사용자 정보
   // 발주(구매) 목록 상태
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   // 직원 목록 상태

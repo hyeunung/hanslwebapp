@@ -56,7 +56,7 @@ interface EmployeeOption {
 
 export default function PurchaseNewMain() {
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [employeeName, setEmployeeName] = useState<string>("");
   const [employees, setEmployees] = useState<{id: string; name: string; email?: string; phone?: string; adress?: string; position?: string; department?: string;}[]>([]);
@@ -338,9 +338,17 @@ export default function PurchaseNewMain() {
         if (itemErr) throw itemErr;
       }
       
-      // 발주 요청 성공 후 발주 목록으로 이동
-      console.log('발주 요청 완료, 발주 목록으로 이동');
-      window.location.href = '/purchase/list'; // 강제 페이지 이동으로 확실한 이동 보장
+      // 발주 요청 성공 후 발주 목록으로 이동 (SPA 방식)
+      console.log('발주 요청 완료, 발주 목록으로 이동', { purchaseOrderNumber });
+      
+      try {
+        await router.push('/purchase/list');
+        console.log('라우팅 성공: /purchase/list로 이동 완료');
+      } catch (routerError) {
+        console.error('라우팅 에러:', routerError);
+        // 대체 라우팅 방법
+        window.location.href = '/purchase/list';
+      }
       return;
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
@@ -966,7 +974,9 @@ export default function PurchaseNewMain() {
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">단가 ({currency})</th>
                   <th className="w-[89px] text-right px-4 py-3 border-l border-[#e5e7eb]">합계 ({currency})</th>
                   <th className="w-[160px] text-left px-4 py-3 border-l border-[#e5e7eb]">비고</th>
-                  <th className="w-[200px] text-left px-4 py-3 border-l border-[#e5e7eb]">링크</th>
+                  {paymentCategory === '구매 요청' && (
+                    <th className="w-[200px] text-left px-4 py-3 border-l border-[#e5e7eb]">링크</th>
+                  )}
                   <th className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 py-3 border-l border-r border-[#e5e7eb]">삭제</th>
                 </tr>
               </thead>
@@ -1048,8 +1058,11 @@ export default function PurchaseNewMain() {
                       <Input
                         type="text"
                         inputMode="numeric"
-                        value={item.quantity}
-                        onChange={e => update(idx, { ...item, quantity: Number(e.target.value) })}
+                        value={isNaN(item.quantity) ? '' : item.quantity.toString()}
+                        onChange={e => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          update(idx, { ...item, quantity: val ? Number(val) : 1 });
+                        }}
                         className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-center rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-quantity"
                         onKeyDown={e => {
                           if (e.key === 'Enter') {
@@ -1088,7 +1101,8 @@ export default function PurchaseNewMain() {
                           value={item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : ""}
                           onChange={e => {
                             const raw = e.target.value.replace(/,/g, "");
-                            update(idx, { ...item, unit_price_value: Number(raw) });
+                            const numVal = raw ? Number(raw) : 0;
+                            update(idx, { ...item, unit_price_value: isNaN(numVal) ? 0 : numVal });
                           }}
                           className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white overflow-x-hidden purchase-item-input-unit_price_value"
                           placeholder="단가"
@@ -1164,41 +1178,43 @@ export default function PurchaseNewMain() {
                         }}
                       />
                     </td>
-                    <td className="w-[200px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
-                      <Input
-                        value={item.link || ''}
-                        onChange={e => update(idx, { ...item, link: e.target.value })}
-                        placeholder="구매 링크 URL"
-                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-link"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const nextIdx = idx + 1;
-                            const inputs = document.querySelectorAll('.purchase-item-input-link');
-                            if (nextIdx < fields.length) {
-                              (inputs[nextIdx] as HTMLInputElement)?.focus();
-                            } else {
-                              append({
-                                line_number: fields.length + 1,
-                                item_name: '',
-                                specification: '',
-                                quantity: 1,
-                                unit_price_value: 0,
-                                unit_price_currency: currency,
-                                amount_value: 0,
-                                amount_currency: currency,
-                                remark: '',
-                                link: ''
-                              });
-                              setTimeout(() => {
-                                const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
-                                (newInputs[nextIdx] as HTMLInputElement)?.focus();
-                              }, 10);
+                    {paymentCategory === '구매 요청' && (
+                      <td className="w-[200px] p-0 align-middle border-l border-[#e5e7eb] break-words whitespace-normal">
+                        <Input
+                          value={item.link || ''}
+                          onChange={e => update(idx, { ...item, link: e.target.value })}
+                          placeholder="구매 링크 URL"
+                          className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white purchase-item-input-link"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const nextIdx = idx + 1;
+                              const inputs = document.querySelectorAll('.purchase-item-input-link');
+                              if (nextIdx < fields.length) {
+                                (inputs[nextIdx] as HTMLInputElement)?.focus();
+                              } else {
+                                append({
+                                  line_number: fields.length + 1,
+                                  item_name: '',
+                                  specification: '',
+                                  quantity: 1,
+                                  unit_price_value: 0,
+                                  unit_price_currency: currency,
+                                  amount_value: 0,
+                                  amount_currency: currency,
+                                  remark: '',
+                                  link: ''
+                                });
+                                setTimeout(() => {
+                                  const newInputs = document.querySelectorAll('.purchase-item-input-item_name');
+                                  (newInputs[nextIdx] as HTMLInputElement)?.focus();
+                                }, 10);
+                              }
                             }
-                          }
-                        }}
-                      />
-                    </td>
+                          }}
+                        />
+                      </td>
+                    )}
                     <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 border-l border-r border-[#e5e7eb] align-middle">
                       <Button type="button" size="sm" variant="outline" className="h-7 min-w-[40px] px-3 p-0 text-red-500 border-red-200 hover:bg-red-50" onClick={() => remove(idx)}>
                         삭제
@@ -1212,7 +1228,7 @@ export default function PurchaseNewMain() {
                   <td className="w-[36px] min-w-[36px] max-w-[36px] text-center px-0 font-semibold border-l border-[#e5e7eb]">총 합계</td>
                   <td className="px-4 border-l border-[#e5e7eb]" colSpan={5}></td>
                   <td className="text-right px-4 font-semibold border-l border-[#e5e7eb] text-foreground">{totalAmount ? totalAmount.toLocaleString() : ''}</td>
-                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={2}></td>
+                  <td className="px-4 border-l border-r border-[#e5e7eb]" colSpan={paymentCategory === '구매 요청' ? 2 : 1}></td>
                 </tr>
               </tfoot>
             </table>

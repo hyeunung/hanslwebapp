@@ -106,7 +106,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
   const itemsPerPage = 13;
 
   // 기간 필터 상태
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const thisYear = new Date().getFullYear();
   const defaultStart = new Date(thisYear, 0, 1);
   const defaultEnd = new Date();
@@ -280,52 +280,65 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // 특정 주문서의 엑셀 파일을 생성하는 함수입니다. (버튼 클릭 시 실행)
   const generateExcelForOrder = async (orderNumber: string) => {
-    const orderItems = visiblePurchases.filter(item => item.purchase_order_number === orderNumber);
-    if (orderItems.length === 0) {
-      alert('해당 발주번호의 데이터를 찾을 수 없습니다.');
-      return;
-    }
-
-    const firstItem = orderItems[0];
-    
-    // 다운로드 버튼 활성화 조건과 동일한 조건 체크
-    const isAdvancePayment = (progress_type?: string) => {
-      return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
-    };
-    
-    const shouldUploadToStorage = isAdvancePayment(firstItem.progress_type) || firstItem.final_manager_status === 'approved';
-    
-    // 업체 상세 정보 및 담당자 정보 조회
-    let vendorInfo = {
-      vendor_name: firstItem.vendor_name,
-      vendor_phone: '',
-      vendor_fax: '',
-      vendor_contact_name: '',
-      vendor_payment_schedule: ''
-    };
-
     try {
-      // purchase_requests 테이블에서 vendor_id, contact_id 조회
-      const { data: prData, error: prError } = await supabase
+      // 🔥 수정: visiblePurchases 대신 DB에서 직접 모든 품목 조회
+      // 1. 발주 요청 정보 조회
+      const { data: purchaseRequest, error: requestError } = await supabase
         .from('purchase_requests')
-        .select('vendor_id, contact_id')
+        .select('*')
         .eq('purchase_order_number', orderNumber)
         .single();
 
-      if (prData && !prError) {
-        const vendorId = prData.vendor_id;
-        const contactId = prData.contact_id;
-        // vendor 정보 조회
-        const { data: vendorData, error: vendorError } = await supabase
-          .from('vendors')
-          .select('vendor_phone, vendor_fax, vendor_payment_schedule')
-          .eq('id', vendorId)
-          .single();
+      if (requestError || !purchaseRequest) {
+        alert('해당 발주번호의 데이터를 찾을 수 없습니다.');
+        return;
+      }
 
-        if (vendorData && !vendorError) {
-          vendorInfo.vendor_phone = vendorData.vendor_phone || '';
-          vendorInfo.vendor_fax = vendorData.vendor_fax || '';
-          vendorInfo.vendor_payment_schedule = vendorData.vendor_payment_schedule || '';
+      // 2. 품목 데이터 조회 (모든 품목)
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('purchase_request_items')
+        .select('*')
+        .eq('purchase_order_number', orderNumber)
+        .order('line_number');
+
+      if (itemsError || !orderItems || orderItems.length === 0) {
+        alert('해당 발주번호의 품목 데이터를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 다운로드 버튼 활성화 조건과 동일한 조건 체크
+      const isAdvancePayment = (progress_type?: string) => {
+        return progress_type === '선진행' || progress_type?.trim() === '선진행' || progress_type?.includes('선진행');
+      };
+      
+      const shouldUploadToStorage = isAdvancePayment(purchaseRequest.progress_type) || purchaseRequest.final_manager_status === 'approved';
+    
+      // 업체 상세 정보 및 담당자 정보 조회
+      let vendorInfo = {
+        vendor_name: purchaseRequest.vendor_name,
+        vendor_phone: '',
+        vendor_fax: '',
+        vendor_contact_name: '',
+        vendor_payment_schedule: ''
+      };
+
+      try {
+        const vendorId = purchaseRequest.vendor_id;
+        const contactId = purchaseRequest.contact_id;
+        
+        // vendor 정보 조회
+        if (vendorId) {
+          const { data: vendorData, error: vendorError } = await supabase
+            .from('vendors')
+            .select('vendor_phone, vendor_fax, vendor_payment_schedule')
+            .eq('id', vendorId)
+            .single();
+
+          if (vendorData && !vendorError) {
+            vendorInfo.vendor_phone = vendorData.vendor_phone || '';
+            vendorInfo.vendor_fax = vendorData.vendor_fax || '';
+            vendorInfo.vendor_payment_schedule = vendorData.vendor_payment_schedule || '';
+          }
         }
 
         // vendor_contacts에서 contact_id로 담당자 정보 조회
@@ -337,41 +350,37 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             .single();
           if (contactData && !contactError) {
             vendorInfo.vendor_contact_name = contactData.contact_name || '';
-            // 필요시 vendorInfo에 전화/이메일 등 추가 가능
           }
         }
+      } catch (error) {
+        console.warn('업체 정보 조회 중 오류:', error);
       }
-    } catch (error) {
-      console.warn('업체 정보 조회 중 오류:', error);
-      // 오류가 발생해도 기본 데이터로 계속 진행
-    }
 
-    const excelData = {
-      purchase_order_number: firstItem.purchase_order_number || '',
-      request_date: firstItem.request_date,
-      delivery_request_date: firstItem.delivery_request_date,
-      requester_name: firstItem.requester_name,
-      vendor_name: vendorInfo.vendor_name,
-      vendor_contact_name: vendorInfo.vendor_contact_name,
-      vendor_phone: vendorInfo.vendor_phone,
-      vendor_fax: vendorInfo.vendor_fax,
-      project_vendor: firstItem.project_vendor,
-      sales_order_number: firstItem.sales_order_number,
-      project_item: firstItem.project_item,
-      vendor_payment_schedule: vendorInfo.vendor_payment_schedule,
-      items: orderItems.map(item => ({
-        line_number: item.line_number,
-        item_name: item.item_name,
-        specification: item.specification,
-        quantity: item.quantity,
-        unit_price_value: item.unit_price_value,
-        amount_value: item.amount_value,
-        remark: item.remark,
-        currency: item.currency
-      }))
-    };
+      const excelData = {
+        purchase_order_number: purchaseRequest.purchase_order_number || '',
+        request_date: purchaseRequest.request_date,
+        delivery_request_date: purchaseRequest.delivery_request_date,
+        requester_name: purchaseRequest.requester_name,
+        vendor_name: vendorInfo.vendor_name,
+        vendor_contact_name: vendorInfo.vendor_contact_name,
+        vendor_phone: vendorInfo.vendor_phone,
+        vendor_fax: vendorInfo.vendor_fax,
+        project_vendor: purchaseRequest.project_vendor,
+        sales_order_number: purchaseRequest.sales_order_number,
+        project_item: purchaseRequest.project_item,
+        vendor_payment_schedule: vendorInfo.vendor_payment_schedule,
+        items: orderItems.map(item => ({
+          line_number: item.line_number,
+          item_name: item.item_name,
+          specification: item.specification,
+          quantity: item.quantity,
+          unit_price_value: item.unit_price_value,
+          amount_value: item.amount_value,
+          remark: item.remark,
+          currency: purchaseRequest.currency || 'KRW'
+        }))
+      };
 
-    try {
       // 코드 기반 ExcelJS 생성 (템플릿 없이 서식 직접 정의)
       const blob = await generatePurchaseOrderExcelJS(excelData as PurchaseOrderData);
       
@@ -438,9 +447,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       } else {
         console.log('다운로드 활성화 조건 미충족 - Storage 업로드 및 Slack 알림 건너뜀');
         console.log('조건:', { 
-          progress_type: firstItem.progress_type,
-          final_manager_status: firstItem.final_manager_status,
-          isAdvancePayment: isAdvancePayment(firstItem.progress_type),
+          progress_type: purchaseRequest.progress_type,
+          final_manager_status: purchaseRequest.final_manager_status,
+          isAdvancePayment: isAdvancePayment(purchaseRequest.progress_type),
           shouldUpload: shouldUploadToStorage
         });
       }
@@ -551,9 +560,52 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // New handleDeleteOrder function
   const handleDeleteOrder = async (orderNumber: string) => {
+    // 삭제 권한 체크
+    const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+    
+    if (!canDelete) {
+      alert('삭제 권한이 없습니다.');
+      return;
+    }
+    
     if (!window.confirm(`발주번호 ${orderNumber} 의 모든 항목을 삭제하시겠습니까?\n\n관련된 모든 데이터(품목 등)가 함께 삭제됩니다.`)) return;
     try {
-      // purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
+      // 1. 먼저 purchase_request의 ID를 가져옴
+      const { data: purchaseData, error: fetchErr } = await supabase
+        .from('purchase_requests')
+        .select('id')
+        .eq('purchase_order_number', orderNumber);
+      
+      if (fetchErr) throw fetchErr;
+      if (!purchaseData || purchaseData.length === 0) {
+        alert('해당 발주번호를 찾을 수 없습니다.');
+        return;
+      }
+
+      const purchaseRequestIds = purchaseData.map(item => item.id);
+
+      // 2. lead_buyer_notifications에서 관련 알림 삭제
+      for (const id of purchaseRequestIds) {
+        const { error: notificationErr } = await supabase
+          .from('lead_buyer_notifications')
+          .delete()
+          .eq('purchase_request_id', id);
+        if (notificationErr) {
+          console.warn('알림 삭제 중 오류:', notificationErr);
+          // 알림 삭제 오류는 경고만 하고 계속 진행
+        }
+      }
+
+      // 3. notifications 테이블에서 관련 알림도 삭제 (있다면)
+      const { error: generalNotificationErr } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('metadata->>purchase_order_number', orderNumber);
+      if (generalNotificationErr) {
+        console.warn('일반 알림 삭제 중 오류:', generalNotificationErr);
+      }
+
+      // 4. purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
       const { error: reqErr } = await supabase
         .from('purchase_requests')
         .delete()

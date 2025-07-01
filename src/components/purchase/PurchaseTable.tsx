@@ -126,7 +126,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   };
 
   const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo') || currentUserRoles.includes('purchase_manager');
-  const canDelete = currentUserRoles.includes('final_approved') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+  const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
 
   // 아래가 실제로 표(테이블)를 그리는 부분입니다.
   // 1. thead: 표의 맨 위(제목줄)
@@ -173,7 +173,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
           {activeTab !== 'purchase' && (
             <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
           )}
-          {activeTab === 'done' && (
+          {(activeTab === 'done' || activeTab === 'pending') && (
             <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">삭제</th>
           )}
         </tr>
@@ -468,8 +468,8 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                 <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
               )}
 
-              {/* 삭제 – done 탭에서만 표시 */}
-              {activeTab === 'done' && (
+              {/* 삭제 – done, pending 탭에서 표시 */}
+              {(activeTab === 'done' || activeTab === 'pending') && (
                 isGroupHeader ? (
                   <td className="px-1 py-2 text-xs text-foreground text-center w-14">
                     {canDelete ? (

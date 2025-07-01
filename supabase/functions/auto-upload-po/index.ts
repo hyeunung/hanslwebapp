@@ -32,6 +32,9 @@ interface PurchaseOrderData {
     remark?: string;
     currency: string;
   }>;
+  progress_type: string;
+  final_manager_status: string;
+  request_type: string;
 }
 
 async function generatePurchaseOrderExcel(data: PurchaseOrderData): Promise<ArrayBuffer> {
@@ -150,7 +153,10 @@ async function fetchPurchaseOrderData(orderNumber: string): Promise<PurchaseOrde
         amount_value: item.amount_value,
         remark: item.remark,
         currency: item.amount_currency || 'KRW'
-      }))
+      })),
+      progress_type: purchaseRequest.progress_type,
+      final_manager_status: purchaseRequest.final_manager_status,
+      request_type: purchaseRequest.request_type
     };
   } catch (error) {
     console.error('Error fetching purchase order data:', error);

@@ -338,9 +338,51 @@ export default function PurchaseNewMain() {
         if (itemErr) throw itemErr;
       }
       
-      // 발주 요청 성공 후 발주 목록으로 이동 (SPA 방식)
-      console.log('발주 요청 완료, 발주 목록으로 이동', { purchaseOrderNumber });
+      // 발주 요청 성공 처리
+      console.log('발주 요청 완료:', { purchaseOrderNumber });
       
+      // 1. 폼 초기화
+      reset({
+        progress_type: "",
+        payment_category: "",
+        currency: "KRW",
+        po_template_type: "일반",
+        request_type: "",
+        contacts: [],
+        sales_order_number: '',
+        project_vendor: '',
+        project_item: '',
+        delivery_request_date: '',
+        vendor_id: 0,
+        requester_name: employeeName, // 요청자 이름은 유지
+        items: [
+          {
+            line_number: 1,
+            item_name: "",
+            specification: "",
+            quantity: 1,
+            unit_price_value: 0,
+            unit_price_currency: "KRW",
+            amount_value: 0,
+            amount_currency: "KRW",
+            remark: "",
+            link: "",
+          },
+        ],
+        request_date: new Date().toISOString().slice(0, 10),
+      });
+      
+      // 2. 상태 초기화
+      setVendor("");
+      setSelectedContacts([]);
+      setCurrency("KRW");
+      setError("");
+      setLoading(false);
+      
+      // 3. 성공 메시지 표시 (선택적)
+      console.log('폼 초기화 완료');
+      
+      // 4. 발주 목록으로 이동
       try {
         await router.push('/purchase/list');
         console.log('라우팅 성공: /purchase/list로 이동 완료');

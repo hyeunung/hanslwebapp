@@ -399,12 +399,12 @@ const ApproveMain: React.FC = () => {
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 min-w-[7rem]">업체명</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5.5rem]">담당자</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-48 min-w-[12rem]">품명</th>
-                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-20 min-w-[5rem] text-center">규격</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-80 min-w-[20rem] text-center">규격</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
-                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-72 text-center">비고</th>
-                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">입고요청일</th>
-                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border">신청일</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-40 min-w-[10rem] text-center">비고</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-24 min-w-[6rem]">입고요청일</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-24 min-w-[6rem]">신청일</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">삭제</th>
                 </tr>
               </thead>
@@ -427,12 +427,12 @@ const ApproveMain: React.FC = () => {
                       <td className="text-center px-2 py-2 w-28 min-w-[7rem]">{row.vendorName}</td>
                       <td className="text-center px-2 py-2 w-20 min-w-[5.5rem]">{row.contactName}</td>
                       <td className="text-center px-2 py-2 w-48 min-w-[12rem]">{row.items[0]?.itemName}</td>
-                      <td className="text-left px-2 py-2 w-20 min-w-[5rem]">{row.items[0]?.specification}</td>
+                      <td className="text-left px-2 py-2 w-80 min-w-[20rem]">{row.items[0]?.specification}</td>
                       <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
                       <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
-                      <td className="text-center px-2 py-2 w-72">{row.items[0]?.remark || '-'}</td>
-                      <td className="text-center px-2 py-2">{row.deliveryRequestDate}</td>
-                      <td className="text-center px-2 py-2">{row.requestDate}</td>
+                      <td className="text-center px-2 py-2 w-40 min-w-[10rem]">{row.items[0]?.remark || '-'}</td>
+                      <td className="text-center px-2 py-2 w-24 min-w-[6rem]">{row.deliveryRequestDate}</td>
+                      <td className="text-center px-2 py-2 w-24 min-w-[6rem]">{row.requestDate}</td>
                       <td className="text-center px-2 py-2 w-16">
                         {canDelete ? (
                           <button

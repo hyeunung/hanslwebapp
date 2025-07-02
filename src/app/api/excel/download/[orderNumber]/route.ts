@@ -13,6 +13,49 @@ const supabaseServiceRole = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// HEAD 요청 처리 (Slack 버튼 검증용)
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: Promise<{ orderNumber: string }> }
+) {
+  try {
+    const { orderNumber } = await params;
+    
+    // 발주번호로 구매 요청 데이터 존재 여부만 확인
+    const { data: purchaseRequest, error: requestError } = await supabase
+      .from('purchase_requests')
+      .select('id')
+      .eq('purchase_order_number', orderNumber)
+      .single();
+
+    if (requestError || !purchaseRequest) {
+      return new NextResponse(null, { status: 404 });
+    }
+
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Cache-Control': 'no-cache',
+      },
+    });
+  } catch (error) {
+    return new NextResponse(null, { status: 500 });
+  }
+}
+
+// OPTIONS 요청 처리 (CORS 프리플라이트)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ orderNumber: string }> }
@@ -160,6 +203,22 @@ export async function GET(
       } catch (storageErr) {
         console.error('Storage 처리 오류:', storageErr);
       }
+    }
+
+    // is_po_download 필드를 true로 업데이트 (Service Role 사용)
+    try {
+      const { error: updateError } = await supabaseServiceRole
+        .from('purchase_requests')
+        .update({ is_po_download: true })
+        .eq('purchase_order_number', orderNumber);
+      
+      if (updateError) {
+        console.error('is_po_download 업데이트 오류:', updateError);
+      } else {
+        console.log('is_po_download updated to true for:', orderNumber);
+      }
+    } catch (updateErr) {
+      console.error('is_po_download 업데이트 처리 오류:', updateErr);
     }
 
     // HTTP 응답으로 엑셀 파일 반환

@@ -54,6 +54,7 @@ interface Purchase {
   is_received: boolean;
   received_at: string;
   final_manager_approved_at?: string | null;
+  is_po_download?: boolean;
   link?: string;
 }
 
@@ -397,6 +398,22 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
+      // -----------------
+      // DB에 다운로드 완료 플래그(is_po_download) 업데이트
+      try {
+        const { error: downloadFlagErr } = await supabase
+          .from('purchase_requests')
+          .update({ is_po_download: true })
+          .eq('purchase_order_number', orderNumber);
+        if (downloadFlagErr) {
+          console.warn('is_po_download 플래그 업데이트 실패:', downloadFlagErr.message);
+        } else {
+          console.log('is_po_download 플래그 업데이트 성공');
+        }
+      } catch (flagErr) {
+        console.error('is_po_download 업데이트 중 예외:', flagErr);
+      }
+
       // Storage 업로드 조건 체크: 선진행이거나 최종승인된 경우만
       if (shouldUploadToStorage) {
         console.log('다운로드 활성화 조건 만족 - Storage 업로드 및 Slack 알림 전송');
@@ -453,6 +470,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           shouldUpload: shouldUploadToStorage
         });
       }
+       
+      // 로컬 상태 최신화 (다운로드 표시)
+      await loadMyRequests();
        
     } catch (err) {
       console.error('엑셀 생성 오류:', err);

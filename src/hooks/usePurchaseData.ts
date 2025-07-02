@@ -50,6 +50,7 @@ export interface Purchase {
   is_received: boolean; // 입고 완료 여부
   received_at: string; // 입고 완료일
   final_manager_approved_at?: string | null; // 최종 승인일
+  is_po_download?: boolean; // 발주서 다운로드 여부 표시
   link?: string; // 구매 요청 링크 (첫 번째 품목)
   items?: PurchaseItem[]; // 전체 품목 리스트
 }
@@ -157,6 +158,7 @@ export function usePurchaseData() {
           is_received: !!request.is_received,
           received_at: request.received_at as string,
           is_payment_completed: !!request.is_payment_completed,
+          is_po_download: !!request.is_po_download,
           link: firstItem.link as string | undefined,
           // 전체 품목 리스트 추가
           items: request.purchase_request_items || []

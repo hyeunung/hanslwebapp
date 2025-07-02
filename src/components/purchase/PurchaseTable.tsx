@@ -38,6 +38,7 @@ export interface PurchaseTableItem {
   is_received: boolean;
   received_at?: string;
   final_manager_approved_at?: string | null;
+  is_po_download?: boolean;
   // 그룹/하위 항목 표시용
   isGroupHeader?: boolean;
   groupSize?: number;
@@ -402,8 +403,11 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                         alt="엑셀 다운로드"
                         width={16}
                         height={16}
-                        className={`inline-block align-middle transition-transform
-                          ${isAdvancePayment(item.progress_type) || item.final_manager_status === 'approved' ? 'cursor-pointer hover:scale-110' : 'opacity-40 grayscale cursor-not-allowed'}`}
+                        className={`inline-block align-middle transition-transform p-0.5 rounded
+                          ${item.is_po_download ? 'border border-gray-400' : ''}
+                          ${isAdvancePayment(item.progress_type) || item.final_manager_status === 'approved'
+                            ? (item.is_po_download ? 'cursor-pointer' : 'cursor-pointer hover:scale-110')
+                            : 'opacity-40 grayscale cursor-not-allowed'}`}
                         role="button"
                         tabIndex={isAdvancePayment(item.progress_type) || item.final_manager_status === 'approved' ? 0 : -1}
                         onClick={async (e) => {
@@ -420,7 +424,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                           }
                         }}
                         style={{
-                          filter: !isAdvancePayment(item.progress_type) && item.final_manager_status !== 'approved' ? 'grayscale(1) opacity(0.4)' : undefined,
+                          filter: item.is_po_download ? 'grayscale(1)' : (!isAdvancePayment(item.progress_type) && item.final_manager_status !== 'approved' ? 'grayscale(1) opacity(0.4)' : undefined),
                           pointerEvents: !isAdvancePayment(item.progress_type) && item.final_manager_status !== 'approved' ? 'none' : 'auto'
                         }}
                         title="엑셀 발주서 다운로드"

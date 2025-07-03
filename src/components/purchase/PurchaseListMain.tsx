@@ -616,14 +616,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         }
       }
 
-      // 3. notifications 테이블에서 관련 알림도 삭제 (있다면)
-      const { error: generalNotificationErr } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('metadata->>purchase_order_number', orderNumber);
-      if (generalNotificationErr) {
-        console.warn('일반 알림 삭제 중 오류:', generalNotificationErr);
-      }
+      // 3. (삭제) notifications 테이블은 현재 사용하지 않으므로 건너뜀
 
       // 4. purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
       const { error: reqErr } = await supabase
@@ -749,7 +742,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
                   {employees.map(emp => (
-                    <SelectItem key={emp.name} value={emp.name}>{emp.name}</SelectItem>
+                    <SelectItem key={emp.email || emp.name} value={emp.name}>{emp.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

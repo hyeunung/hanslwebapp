@@ -86,7 +86,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     const { error, data } = await supabase
       .from('purchase_requests')
       .update({ final_manager_status: 'approved' })
-      .eq('id', id);
+      .eq('id', Number(id));
     console.log("Supabase update result (approve):", { error, data });
     if (error) {
       alert("에러 발생: " + error.message);
@@ -107,7 +107,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     const { error, data } = await supabase
       .from('purchase_requests')
       .update({ middle_manager_status: 'rejected', final_manager_status: 'rejected' })
-      .eq('id', id);
+      .eq('id', Number(id));
     console.log("Supabase update result (reject):", { error, data });
     if (error) {
       alert("에러 발생: " + error.message);
@@ -132,7 +132,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     const { error, data } = await supabase
       .from('purchase_requests')
       .update({ middle_manager_status: 'approved' })
-      .eq('id', id);
+      .eq('id', Number(id));
     console.log("Supabase update result (verify):", { error, data });
     if (error) {
       alert("에러 발생: " + error.message);
@@ -148,7 +148,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     const { error } = await supabase
       .from('purchase_requests')
       .update({ is_payment_completed: true })
-      .eq('id', id);
+      .eq('id', Number(id));
     if (!error) {
       setLocalIsPaymentCompleted(true);
       if (typeof onPaymentCompletedChange === 'function') onPaymentCompletedChange(true);
@@ -161,7 +161,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     const { error } = await supabase
       .from('purchase_requests')
       .update({ is_payment_completed: false })
-      .eq('id', id);
+      .eq('id', Number(id));
     if (!error) {
       setLocalIsPaymentCompleted(false);
       if (typeof onPaymentCompletedChange === 'function') onPaymentCompletedChange(false);
@@ -251,7 +251,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
                   payment_completed_at: null,
                   received_at: null
                 })
-                .eq('id', id);
+                .eq('id', Number(id));
               console.log("Supabase update result (reset):", { error, data });
               if (error) {
                 alert("에러 발생: " + error.message);

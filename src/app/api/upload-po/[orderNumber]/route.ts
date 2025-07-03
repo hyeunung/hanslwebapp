@@ -29,11 +29,11 @@ export async function POST(
       );
     }
 
-    // 품목 데이터 조회
+    // 품목 데이터 조회 - purchase_request_id로 조회하도록 수정
     const { data: orderItems, error: itemsError } = await supabase
       .from('purchase_request_items')
       .select('*')
-      .eq('purchase_order_number', orderNumber)
+      .eq('purchase_request_id', purchaseRequest.id)
       .order('line_number');
 
     if (itemsError || !orderItems || orderItems.length === 0) {

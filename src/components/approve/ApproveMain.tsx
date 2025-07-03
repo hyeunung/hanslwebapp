@@ -131,7 +131,7 @@ const ApproveMain: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("pending");
-  const { currentUserRoles } = usePurchaseData();
+  const { currentUserRoles, loadMyRequests } = usePurchaseData();
 
   // 삭제 권한 확인 (발주 목록과 동일)
   const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
@@ -162,6 +162,12 @@ const ApproveMain: React.FC = () => {
 
       // 로컬 상태에서도 제거
       setApproveList(prev => prev.filter(item => item.purchaseOrderNumber !== orderNumber));
+
+      // 전역 목록 재로딩 (발주 목록 화면 포함)
+      if (loadMyRequests) {
+        await loadMyRequests();
+      }
+
       alert('삭제가 완료되었습니다.');
     } catch (error) {
       console.error('삭제 오류:', error);

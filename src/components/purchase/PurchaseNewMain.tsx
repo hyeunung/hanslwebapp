@@ -289,7 +289,7 @@ export default function PurchaseNewMain() {
       
       // 발주번호 중복 에러 시 재시도 로직
       let purchaseOrderNumber: string = "";
-      let prId: number;
+      let prId: number = 0;
       let retryCount = 0;
       const maxRetries = 3;
       

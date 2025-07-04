@@ -29,24 +29,36 @@ Deno.serve(async (req: Request) => {
             const purchaseRequestId = parseInt(action.value);
             const actionId = action.action_id;
             
-            // 매핑 없이 바로 DB 업데이트
+            // 액션에 따라 업데이트할 필드와 값 결정
+            let updateField: string;
             let newStatus: string;
             
             if (actionId === 'approve_middle_manager') {
+              updateField = 'middle_manager_status';
               newStatus = 'approved';
             } else if (actionId === 'reject_middle_manager') {
+              updateField = 'middle_manager_status';
+              newStatus = 'rejected';
+            } else if (actionId === 'approve_final_manager') {
+              updateField = 'final_manager_status';
+              newStatus = 'approved';
+            } else if (actionId === 'reject_final_manager') {
+              updateField = 'final_manager_status';
               newStatus = 'rejected';
             } else {
               console.log('알 수 없는 액션:', actionId);
               return new Response(null, { status: 200 });
             }
             
-            console.log(`DB 업데이트: ID=${purchaseRequestId}, Status=${newStatus}`);
+            console.log(`DB 업데이트: ID=${purchaseRequestId}, Field=${updateField}, Status=${newStatus}`);
             
-            // 웹앱과 동일한 DB 업데이트 + 발주번호 조회
+            // DB 업데이트 + 발주번호 조회
+            const updateData: any = {};
+            updateData[updateField] = newStatus;
+            
             const { data, error } = await supabase
               .from('purchase_requests')
-              .update({ middle_manager_status: newStatus })
+              .update(updateData)
               .eq('id', purchaseRequestId)
               .select('purchase_order_number')
               .single();
@@ -63,7 +75,7 @@ Deno.serve(async (req: Request) => {
               
               let successMessage: string;
               if (newStatus === 'approved') {
-                successMessage = `✅ 발주번호 : ${orderNumber} 에 대한 검증이 완료 되었습니다`;
+                successMessage = `✅ 발주번호 : ${orderNumber} 에 대한 최종결제 처리가 완료 되었습니다`;
               } else {
                 successMessage = `발주번호 : ${orderNumber} 에 대한 반료가 완료 되었습니다`;
               }
@@ -160,4 +172,3 @@ async function deleteOriginalMessage(channel: string, messageTs: string) {
     console.error('메시지 삭제 중 에러:', e);
   }
 }
-

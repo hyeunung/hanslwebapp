@@ -564,6 +564,7 @@ const ApproveMain: React.FC = () => {
                               projectVendor={row.projectVendor}
                               salesOrderNumber={row.salesOrderNumber}
                               projectItem={row.projectItem}
+                              purchaseOrderNumber={row.purchaseOrderNumber}
                               items={row.items}
                               middleManagerStatus={row.middleManagerStatus}
                               finalManagerStatus={row.finalManagerStatus}

@@ -22,6 +22,7 @@ interface ApproveDetailAccordionProps {
   projectVendor: string;
   salesOrderNumber: string;
   projectItem: string;
+  purchaseOrderNumber?: string;
   items: ItemDetail[];
 }
 
@@ -55,6 +56,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   projectVendor,
   salesOrderNumber,
   projectItem,
+  purchaseOrderNumber,
   items,
   middleManagerStatus: initialMiddleManagerStatus = 'pending',
   finalManagerStatus: initialFinalManagerStatus = 'pending',
@@ -85,6 +87,8 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       alert("에러: id 값이 없습니다.");
       return;
     }
+    
+    // 1. DB 업데이트
     const { error, data } = await supabase
       .from('purchase_requests')
       .update({ final_manager_status: 'approved' })
@@ -94,6 +98,34 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       alert("에러 발생: " + error.message);
       return;
     }
+    
+    // 2. Slack 메시지 동기화 (발주번호가 있는 경우에만)
+    if (purchaseOrderNumber) {
+      try {
+        console.log("최종승인 Slack 메시지 동기화 시작:", purchaseOrderNumber);
+        const response = await fetch('/api/purchase/final-approval-sync-slack-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            purchase_order_number: purchaseOrderNumber
+          })
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          console.log("최종승인 Slack 메시지 동기화 성공:", result);
+        } else {
+          console.error("최종승인 Slack 메시지 동기화 실패:", result);
+        }
+      } catch (syncError) {
+        console.error("최종승인 Slack 동기화 API 호출 실패:", syncError);
+        // Slack 동기화 실패는 승인 성공에 영향을 주지 않음
+      }
+    }
+    
+    // 3. UI 상태 업데이트
     setFinalManagerStatus('approved');
     if (typeof onFinalManagerStatusChange === 'function') {
       onFinalManagerStatusChange('approved');
@@ -137,6 +169,8 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       alert("에러: id 값이 없습니다.");
       return;
     }
+    
+    // 1. DB 업데이트
     const { error, data } = await supabase
       .from('purchase_requests')
       .update({ middle_manager_status: 'approved' })
@@ -146,6 +180,34 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       alert("에러 발생: " + error.message);
       return;
     }
+    
+    // 2. Slack 메시지 동기화 (발주번호가 있는 경우에만)
+    if (purchaseOrderNumber) {
+      try {
+        console.log("Slack 메시지 동기화 시작:", purchaseOrderNumber);
+        const response = await fetch('/api/purchase/sync-slack-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            purchase_order_number: purchaseOrderNumber
+          })
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          console.log("Slack 메시지 동기화 성공:", result);
+        } else {
+          console.error("Slack 메시지 동기화 실패:", result);
+        }
+      } catch (syncError) {
+        console.error("Slack 동기화 API 호출 실패:", syncError);
+        // Slack 동기화 실패는 검증 성공에 영향을 주지 않음
+      }
+    }
+    
+    // 3. UI 상태 업데이트
     setMiddleManagerStatus('approved');
     if (typeof onMiddleManagerStatusChange === 'function') {
       onMiddleManagerStatusChange('approved');

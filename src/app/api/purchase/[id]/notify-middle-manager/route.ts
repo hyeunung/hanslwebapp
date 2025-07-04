@@ -4,12 +4,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
+interface RouteContext {
+  params: { id: string }
+}
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
-    const purchaseRequestId = parseInt(params.id);
+    const purchaseRequestId = parseInt(context.params.id);
     
     if (!purchaseRequestId || isNaN(purchaseRequestId)) {
       return NextResponse.json(

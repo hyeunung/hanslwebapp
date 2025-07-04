@@ -9,6 +9,7 @@ alwaysApply: false
 - **기존 엣지 함수 재사용**: 새로운 DM 전송 함수 만들지 말고 기존 `slack-dm-sender` 활용
 - **비동기 처리 필수**: `PERFORM net.http_post()` 사용, `SELECT http_post()` 금지
 - **역할 기반 대상자 관리**: `employees` 테이블의 `purchase_role` 활용
+- 권한문제는 아니니까 그쪽으로 문제 제기 절대 하지마
 
 ## 필수 사용 패턴
 

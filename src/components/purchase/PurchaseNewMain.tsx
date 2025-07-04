@@ -211,6 +211,55 @@ export default function PurchaseNewMain() {
     setIsFormValid(checkRequiredFields());
   }, [watch('request_type'), watch('progress_type'), watch('payment_category'), vendor, fields.length, checkRequiredFields]);
 
+  // 발주번호 생성 함수 (재시도 로직 포함)
+  const generatePurchaseOrderNumber = async () => {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const prefix = `F${dateStr}_`;
+    
+    // 오늘 날짜로 시작하는 발주번호들 조회 (유효한 숫자 형식만)
+    const { data: existingOrders, error: queryError } = await supabase
+      .from('purchase_requests')
+      .select('purchase_order_number')
+      .like('purchase_order_number', `${prefix}%`)
+      .order('purchase_order_number', { ascending: false });
+    
+    if (queryError) {
+      console.error('발주번호 조회 오류:', queryError);
+    }
+    
+    // 다음 순번 계산 (숫자인 시퀀스만 찾기)
+    let nextNumber = 1;
+    let maxSequence = 0;
+    
+    if (existingOrders && existingOrders.length > 0) {
+      // 모든 발주번호를 확인하여 가장 큰 유효한 숫자 시퀀스 찾기
+      for (const order of existingOrders) {
+        const orderNumber = order.purchase_order_number;
+        
+        // 발주번호 형식: F20250612_001
+        const parts = orderNumber.split('_');
+        if (parts.length >= 2) {
+          const sequenceStr = parts[1];
+          const sequence = parseInt(sequenceStr, 10);
+          
+          // 유효한 숫자이고 현재 최대값보다 크면 업데이트
+          if (!isNaN(sequence) && sequence > maxSequence) {
+            maxSequence = sequence;
+          }
+        }
+      }
+      
+      nextNumber = maxSequence + 1;
+    }
+    
+    // 3자리 패딩으로 발주번호 생성
+    const safeNextNumber = isNaN(nextNumber) ? 1 : nextNumber;
+    const purchaseOrderNumber = `${prefix}${String(safeNextNumber).padStart(3, '0')}`;
+    
+    return purchaseOrderNumber;
+  };
+
   const handleSubmit = async (data: FormValues) => {
     console.log("==== 발주요청 저장 시점 ====");
     console.log("입력된 구매요청자 이름:", data.requester_name);
@@ -230,8 +279,6 @@ export default function PurchaseNewMain() {
     setLoading(true);
     setError("");
     
-
-    
     try {
       // 구매요청자 이름에 맞는 직원 정보 찾기
       if (!currentEmployee) {
@@ -240,87 +287,83 @@ export default function PurchaseNewMain() {
         return;
       }
       
-      // 발주번호 자동 생성 (F20250612_001 형식)
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-      const prefix = `F${dateStr}_`;
+      // 발주번호 중복 에러 시 재시도 로직
+      let purchaseOrderNumber: string = "";
+      let prId: number;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      console.log('🔍 발주번호 생성 시작:', { today, dateStr, prefix });
-      
-      // 오늘 날짜로 시작하는 발주번호들 조회 (유효한 숫자 형식만)
-      const { data: existingOrders, error: queryError } = await supabase
-        .from('purchase_requests')
-        .select('purchase_order_number')
-        .like('purchase_order_number', `${prefix}%`)
-        .order('purchase_order_number', { ascending: false });
-      
-      if (queryError) {
-        console.error('발주번호 조회 오류:', queryError);
-      }
-      
-      console.log('🔍 기존 발주번호 조회 결과:', { existingOrders, queryError });
-      
-      // 다음 순번 계산 (숫자인 시퀀스만 찾기)
-      let nextNumber = 1;
-      let maxSequence = 0;
-      
-      if (existingOrders && existingOrders.length > 0) {
-        // 모든 발주번호를 확인하여 가장 큰 유효한 숫자 시퀀스 찾기
-        for (const order of existingOrders) {
-          const orderNumber = order.purchase_order_number;
-          console.log('🔍 확인 중인 발주번호:', orderNumber);
-          
-          // 발주번호 형식: F20250612_001
-          const parts = orderNumber.split('_');
-          if (parts.length >= 2) {
-            const sequenceStr = parts[1];
-            const sequence = parseInt(sequenceStr, 10);
-            
-            console.log('🔍 시퀀스 파싱:', { sequenceStr, sequence, isValid: !isNaN(sequence) });
-            
-            // 유효한 숫자이고 현재 최대값보다 크면 업데이트
-            if (!isNaN(sequence) && sequence > maxSequence) {
-              maxSequence = sequence;
-            }
-          }
-        }
-        
-        nextNumber = maxSequence + 1;
-        console.log('🔍 계산된 다음 번호:', { maxSequence, nextNumber });
-      }
-      
-      // 3자리 패딩으로 발주번호 생성 (nextNumber가 NaN이 아닌지 다시 한번 확인)
-      const safeNextNumber = isNaN(nextNumber) ? 1 : nextNumber;
-      const purchaseOrderNumber = `${prefix}${String(safeNextNumber).padStart(3, '0')}`;
-      
-      console.log('🔍 최종 발주번호 생성:', { nextNumber, safeNextNumber, purchaseOrderNumber });
+      while (retryCount < maxRetries) {
+        try {
+          // 발주번호 자동 생성
+          purchaseOrderNumber = await generatePurchaseOrderNumber();
+          console.log(`🔍 발주번호 생성 시도 ${retryCount + 1}:`, purchaseOrderNumber);
 
       
-      const { data: pr, error: prError } = await supabase.from("purchase_requests").insert({
-        requester_id: currentEmployee.id,
-        purchase_order_number: purchaseOrderNumber,
-        requester_name: data.requester_name,
-        requester_phone: currentEmployee?.phone,
-        requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
-        requester_address: currentEmployee?.adress,
-        vendor_id: Number(vendor),
-        sales_order_number: data.sales_order_number,
-        project_vendor: data.project_vendor,
-        project_item: data.project_item,
-        request_date: data.request_date,
-        delivery_request_date: data.delivery_request_date || null,
-        request_type: data.request_type,
-        progress_type: data.progress_type,
-        is_payment_completed: false,
-        payment_category: data.payment_category,
-        currency,
-        total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),
-        unit_price_currency: fields[0]?.unit_price_currency || currency,
-        po_template_type: data.po_template_type,
-        contact_id: data.contact_id ? Number(data.contact_id) : null,
-      }).select("id").single();
-      if (prError || !pr) throw prError || new Error("등록 실패");
-      const prId = pr.id;
+          // 구매 요청 등록 시도
+          const { data: pr, error: prError } = await supabase.from("purchase_requests").insert({
+            requester_id: currentEmployee.id,
+            purchase_order_number: purchaseOrderNumber,
+            requester_name: data.requester_name,
+            requester_phone: currentEmployee?.phone,
+            requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
+            requester_address: currentEmployee?.adress,
+            vendor_id: Number(vendor),
+            sales_order_number: data.sales_order_number,
+            project_vendor: data.project_vendor,
+            project_item: data.project_item,
+            request_date: data.request_date,
+            delivery_request_date: data.delivery_request_date || null,
+            request_type: data.request_type,
+            progress_type: data.progress_type,
+            is_payment_completed: false,
+            payment_category: data.payment_category,
+            currency,
+            total_amount: fields.reduce((sum, i) => sum + i.amount_value, 0),
+            unit_price_currency: fields[0]?.unit_price_currency || currency,
+            po_template_type: data.po_template_type,
+            contact_id: data.contact_id ? Number(data.contact_id) : null,
+          }).select("id").single();
+          
+          // 발주번호 중복 에러가 아닌 다른 에러는 바로 throw
+          if (prError && !prError.message.includes('duplicate key value violates unique constraint')) {
+            throw prError;
+          }
+          
+          // 발주번호 중복 에러인 경우
+          if (prError && prError.message.includes('duplicate key value violates unique constraint')) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              throw new Error(`발주번호 생성에 ${maxRetries}번 실패했습니다. 잠시 후 다시 시도해주세요.`);
+            }
+            console.log(`🔄 발주번호 중복으로 재시도 (${retryCount}/${maxRetries}):`, purchaseOrderNumber);
+            // 재시도를 위해 짧은 대기
+            await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+            continue;
+          }
+          
+          // 성공한 경우
+          if (!pr) throw new Error("등록 실패");
+          prId = pr.id;
+          console.log('✅ 발주 요청 등록 성공:', { prId, purchaseOrderNumber });
+          break; // 성공 시 루프 종료
+          
+        } catch (retryError: any) {
+          // 발주번호 중복이 아닌 에러는 바로 throw
+          if (!retryError.message.includes('duplicate key value violates unique constraint')) {
+            throw retryError;
+          }
+          
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error(`발주번호 생성에 ${maxRetries}번 실패했습니다. 잠시 후 다시 시도해주세요.`);
+          }
+          
+          console.log(`🔄 발주번호 중복으로 재시도 (${retryCount}/${maxRetries}):`, purchaseOrderNumber);
+          // 재시도를 위해 짧은 대기 (100-300ms 랜덤)
+          await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+        }
+      }
       for (const [idx, item] of fields.entries()) {
         const { error: itemErr } = await supabase.from("purchase_request_items").insert({
           purchase_request_id: prId,
@@ -340,6 +383,27 @@ export default function PurchaseNewMain() {
       
       // 발주 요청 성공 처리
       console.log('발주 요청 완료:', { purchaseOrderNumber });
+      
+      // 📨 중간관리자 DM 알림 발송 (품목 추가 완료 후 정확한 개수로)
+      try {
+        console.log('📨 중간관리자 DM 알림 발송 시작:', { prId });
+        const notifyResponse = await fetch(`/api/purchase/${prId}/notify-middle-manager`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (notifyResponse.ok) {
+          const notifyResult = await notifyResponse.json();
+          console.log('✅ 중간관리자 DM 알림 성공:', notifyResult);
+        } else {
+          const errorText = await notifyResponse.text();
+          console.error('❌ 중간관리자 DM 알림 실패:', errorText);
+        }
+      } catch (notifyError) {
+        console.error('❌ 중간관리자 DM 알림 에러:', notifyError);
+      }
       
       // 1. 폼 초기화
       reset({

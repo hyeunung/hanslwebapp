@@ -11,6 +11,7 @@ alwaysApply: true
 - 모든 변경사항은 되돌릴 수 있도록 진행(agent채팅에 Restre checkpoint)
 - 커밋 푸시는 절대 하지마 내가 요청하기 전까진
 - 질문하면 질문에 대한 답변만해 코딩 및 구현 진행하지말고
+- slack관련 절대 Bot token은 사용하지 않음. user token만 사용
 
 ## 🚨 문제 해결 프로세스 규칙
 ### ❌ 절대 금지

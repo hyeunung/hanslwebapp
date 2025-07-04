@@ -1,0 +1,2 @@
+-- slack-interaction-handler action_id 불일치 문제 해결
+-- approve_purchase/reject_purchase → approve_middle_manager/reject_middle_manager

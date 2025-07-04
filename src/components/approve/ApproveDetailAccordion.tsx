@@ -40,6 +40,7 @@ interface ApproveDetailAccordionExtraProps {
   isPaymentCompleted?: boolean;
   onPaymentCompletedChange?: (completed: boolean) => void;
   roles?: string[];
+  onApproveListRefresh?: () => Promise<void>;
 }
 
 const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDetailAccordionExtraProps> = ({
@@ -63,6 +64,7 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
   isPaymentCompleted = false,
   onPaymentCompletedChange,
   roles = [],
+  onApproveListRefresh,
 }) => {
   // 실제 상태 관리
   const [middleManagerStatus, setMiddleManagerStatus] = useState(initialMiddleManagerStatus);
@@ -96,6 +98,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     if (typeof onFinalManagerStatusChange === 'function') {
       onFinalManagerStatusChange('approved');
     }
+    if (typeof onApproveListRefresh === 'function') {
+      await onApproveListRefresh();
+    }
   };
   const handleReject = async () => {
     console.log("handleReject called, id:", id);
@@ -121,6 +126,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     if (typeof onFinalManagerStatusChange === 'function') {
       onFinalManagerStatusChange('rejected');
     }
+    if (typeof onApproveListRefresh === 'function') {
+      await onApproveListRefresh();
+    }
   };
   const handleVerify = async () => {
     console.log("handleVerify called, id:", id);
@@ -142,6 +150,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     if (typeof onMiddleManagerStatusChange === 'function') {
       onMiddleManagerStatusChange('approved');
     }
+    if (typeof onApproveListRefresh === 'function') {
+      await onApproveListRefresh();
+    }
   };
   const handlePurchaseApprove = async () => {
     if (!id) return;
@@ -155,6 +166,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
     } else {
       alert('구매완료 처리 중 오류 발생: ' + error.message);
     }
+    if (typeof onApproveListRefresh === 'function') {
+      await onApproveListRefresh();
+    }
   };
   const handlePurchaseReject = async () => {
     if (!id) return;
@@ -167,6 +181,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
       if (typeof onPaymentCompletedChange === 'function') onPaymentCompletedChange(false);
     } else {
       alert('반려 처리 중 오류 발생: ' + error.message);
+    }
+    if (typeof onApproveListRefresh === 'function') {
+      await onApproveListRefresh();
     }
   };
 
@@ -264,6 +281,9 @@ const ApproveDetailAccordion: React.FC<ApproveDetailAccordionProps & ApproveDeta
               }
               if (typeof onFinalManagerStatusChange === 'function') {
                 onFinalManagerStatusChange('pending');
+              }
+              if (typeof onApproveListRefresh === 'function') {
+                await onApproveListRefresh();
               }
             }}
           >

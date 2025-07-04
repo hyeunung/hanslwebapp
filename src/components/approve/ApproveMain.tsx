@@ -148,17 +148,38 @@ const ApproveMain: React.FC = () => {
     }
 
     try {
-      // purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
-      const { error } = await supabase
+      // 1. 먼저 purchase_request의 ID를 가져옴
+      const { data: purchaseData, error: fetchErr } = await supabase
+        .from('purchase_requests')
+        .select('id')
+        .eq('purchase_order_number', orderNumber);
+      
+      if (fetchErr) throw fetchErr;
+      if (!purchaseData || purchaseData.length === 0) {
+        alert('해당 발주번호를 찾을 수 없습니다.');
+        return;
+      }
+
+      const purchaseRequestIds = purchaseData.map(item => item.id);
+
+      // 2. lead_buyer_notifications에서 관련 알림 삭제
+      for (const id of purchaseRequestIds) {
+        const { error: notificationErr } = await supabase
+          .from('lead_buyer_notifications')
+          .delete()
+          .eq('purchase_request_id', id);
+        if (notificationErr) {
+          console.warn('알림 삭제 중 오류:', notificationErr);
+          // 알림 삭제 오류는 경고만 하고 계속 진행
+        }
+      }
+
+      // 3. purchase_requests 삭제 (purchase_request_items는 CASCADE로 자동 삭제)
+      const { error: reqErr } = await supabase
         .from('purchase_requests')
         .delete()
         .eq('purchase_order_number', orderNumber);
-
-      if (error) {
-        console.error('삭제 오류:', error);
-        alert('삭제 중 오류가 발생했습니다.');
-        return;
-      }
+      if (reqErr) throw reqErr;
 
       // 로컬 상태에서도 제거
       setApproveList(prev => prev.filter(item => item.purchaseOrderNumber !== orderNumber));
@@ -171,7 +192,7 @@ const ApproveMain: React.FC = () => {
       alert('삭제가 완료되었습니다.');
     } catch (error) {
       console.error('삭제 오류:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      alert('삭제 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -283,6 +304,76 @@ const ApproveMain: React.FC = () => {
     }
     fetchApproveList();
   }, []);
+
+  // 승인 처리 후 목록 새로고침을 위한 함수
+  const refreshApproveList = async () => {
+    setLoading(true);
+    try {
+      // 한 번의 조인 쿼리로 모든 데이터 조회 (발주목록과 동일한 방식)
+      const { data: requests, error } = await supabase
+        .from("purchase_requests")
+        .select(`
+          *,
+          vendors (
+            vendor_name
+          ),
+          vendor_contacts (
+            contact_name
+          ),
+          purchase_request_items (
+            line_number,
+            item_name,
+            specification,
+            quantity,
+            unit_price_value,
+            amount_value,
+            remark
+          )
+        `)
+        .order("request_date", { ascending: false });
+        
+      if (error) {
+        console.error("승인관리 데이터 조회 오류", error);
+        setLoading(false);
+        return;
+      }
+      
+      // 데이터 변환 (조인 결과를 ApproveRow 형태로 변환)
+      const rows: ApproveRow[] = (requests || []).map((row: any) => ({
+        id: row.id.toString(),
+        requestType: row.request_type,
+        paymentCategory: row.payment_category,
+        vendorName: row.vendors?.vendor_name || "",
+        contactName: row.vendor_contacts?.contact_name || "",
+        requesterName: row.requester_name,
+        requestDate: row.request_date,
+        deliveryRequestDate: row.delivery_request_date,
+        projectVendor: row.project_vendor,
+        salesOrderNumber: row.sales_order_number,
+        projectItem: row.project_item,
+        purchaseOrderNumber: row.purchase_order_number,
+        progressType: row.progress_type,
+        items: (row.purchase_request_items || []).map((item: any) => ({
+          lineNumber: item.line_number,
+          itemName: item.item_name,
+          specification: item.specification,
+          quantity: item.quantity,
+          unitPriceValue: item.unit_price_value,
+          amountValue: item.amount_value,
+          remark: item.remark,
+        })).sort((a, b) => a.lineNumber - b.lineNumber),
+        middleManagerStatus: row.middle_manager_status || "pending",
+        finalManagerStatus: row.final_manager_status || "pending",
+        isPaymentCompleted: !!row.is_payment_completed,
+      }));
+      
+      setApproveList(rows);
+    } catch (error) {
+      console.error("승인관리 데이터 로딩 오류:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ------------------------------------------------------------------
   // 탭별 필터링 (역할 필터 통과한 리스트에 적용)
@@ -488,6 +579,7 @@ const ApproveMain: React.FC = () => {
                                 setApproveList(prev => prev.map(r => r.id === row.id ? { ...r, isPaymentCompleted: completed } : r));
                               }}
                               roles={currentUserRoles}
+                              onApproveListRefresh={refreshApproveList}
                             />
                           </div>
                         </td>

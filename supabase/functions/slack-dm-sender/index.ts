@@ -1,10 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+// 환경 설정 (하드코딩으로 임시 해결)
+const SUPABASE_URL = 'https://qvhbigvdfyvhoegkhvef.supabase.co';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2aGJpZ3ZkZnl2aG9lZ2todmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzgxNDM2MCwiZXhwIjoyMDYzMzkwMzYwfQ.dVuv-NnGPYhKuG4Y7ixNOIgp2WvIKyaQ8YBP8_cXCqs';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 interface SlackDMRequest {
   user_id: string;

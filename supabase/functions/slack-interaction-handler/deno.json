@@ -1,5 +1,7 @@
 {
   "imports": {
-    "supabase": "jsr:@supabase/supabase-js@2"
-  }
+    "https://deno.land/x/xhr@0.1.0/mod.ts": "https://deno.land/x/xhr@0.1.0/mod.ts",
+    "https://esm.sh/*": "https://esm.sh/*"
+  },
+  "verify_jwt": false
 }

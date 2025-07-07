@@ -23,10 +23,10 @@ Deno.serve(async (req: Request) => {
 
     console.log('발주번호:', purchase_order_number);
 
-    // 1. 발주번호로 purchase_request 조회 (요청유형 포함)
+    // 1. 발주번호로 purchase_request 조회 (요청유형 포함 + 업체명, 구매요청자명 추가)
     const { data: purchaseRequest, error: purchaseError } = await supabase
       .from('purchase_requests')
-      .select('id, requester_name, request_type, final_manager_status')
+      .select('id, requester_name, request_type, final_manager_status, vendor_name')
       .eq('purchase_order_number', purchase_order_number)
       .single();
 
@@ -62,9 +62,9 @@ Deno.serve(async (req: Request) => {
 
     console.log('최종관리자 조회 성공:', finalManagers);
 
-    // 4. 각 최종관리자에게 메시지 동기화 실행
+    // 4. 각 최종관리자에게 메시지 동기화 실행 (purchaseRequest 데이터 전달)
     for (const manager of finalManagers) {
-      await syncSlackMessage(manager.slack_id, purchase_order_number);
+      await syncSlackMessage(manager.slack_id, purchase_order_number, purchaseRequest);
     }
 
     return new Response(JSON.stringify({ 
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function syncSlackMessage(slackUserId: string, purchaseOrderNumber: string) {
+async function syncSlackMessage(slackUserId: string, purchaseOrderNumber: string, purchaseRequest: any) {
   try {
     if (!SLACK_USER_TOKEN) {
       console.log('SLACK_USER_TOKEN이 설정되지 않음');
@@ -163,8 +163,17 @@ async function syncSlackMessage(slackUserId: string, purchaseOrderNumber: string
       console.log('삭제할 메시지를 찾을 수 없음');
     }
 
-    // 5. 완료 메시지 전송
-    const completionMessage = `✅ 발주번호 : ${purchaseOrderNumber} 에 대한 최종결제 처리가 완료 되었습니다`;
+    // 5. 완료 메시지 전송 (새로운 형식: Slack 버튼과 동일)
+    const vendorName = purchaseRequest.vendor_name || '미지정';
+    const requesterName = purchaseRequest.requester_name || '미지정';
+    
+    const completionMessage = `─────────────────────
+✅ 최종 결제 완료
+─────────────────────
+발주번호: ${purchaseOrderNumber}
+업체: ${vendorName}
+구매요청자: ${requesterName}
+─────────────────────`;
     
     const postResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',

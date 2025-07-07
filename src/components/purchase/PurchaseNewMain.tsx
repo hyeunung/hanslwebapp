@@ -214,7 +214,9 @@ export default function PurchaseNewMain() {
   // 발주번호 생성 함수 (재시도 로직 포함)
   const generatePurchaseOrderNumber = async () => {
     const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    // 한국 시간대(UTC+9) 기준으로 날짜 생성
+    const koreaTime = new Date(today.getTime() + (9 * 60 * 60 * 1000));
+    const dateStr = koreaTime.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
     const prefix = `F${dateStr}_`;
     
     // 오늘 날짜로 시작하는 발주번호들 조회 (유효한 숫자 형식만)

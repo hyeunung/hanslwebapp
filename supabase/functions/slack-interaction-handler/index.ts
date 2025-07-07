@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
               .from('purchase_requests')
               .update(updateData)
               .eq('id', purchaseRequestId)
-              .select('purchase_order_number')
+              .select('purchase_order_number, vendor_name, requester_name')
               .single();
             
             if (error) {
@@ -91,12 +91,48 @@ Deno.serve(async (req: Request) => {
             } else {
               console.log('DB 업데이트 성공');
               const orderNumber = data?.purchase_order_number || purchaseRequestId;
+              const vendorName = data?.vendor_name || '미지정';
+              const requesterName = data?.requester_name || '미지정';
               
               let successMessage: string;
               if (newStatus === 'approved') {
-                successMessage = `✅ 발주번호 : ${orderNumber} 에 대한 최종결제 처리가 완료 되었습니다`;
+                // 중간관리자 vs 최종관리자 구분
+                if (updateField === 'middle_manager_status') {
+                  successMessage = `─────────────────────
+✅ 검증 완료
+─────────────────────
+발주번호: ${orderNumber}
+업체: ${vendorName}
+구매요청자: ${requesterName}
+─────────────────────`;
+                } else {
+                  successMessage = `─────────────────────
+✅ 최종 결제 완료
+─────────────────────
+발주번호: ${orderNumber}
+업체: ${vendorName}
+구매요청자: ${requesterName}
+─────────────────────`;
+                }
               } else {
-                successMessage = `발주번호 : ${orderNumber} 에 대한 반료가 완료 되었습니다`;
+                // 반려 메시지
+                if (updateField === 'middle_manager_status') {
+                  successMessage = `─────────────────────
+❌ 검증 반려
+─────────────────────
+발주번호: ${orderNumber}
+업체: ${vendorName}
+구매요청자: ${requesterName}
+─────────────────────`;
+                } else {
+                  successMessage = `─────────────────────
+❌ 최종 결제 반려
+─────────────────────
+발주번호: ${orderNumber}
+업체: ${vendorName}
+구매요청자: ${requesterName}
+─────────────────────`;
+                }
               }
               
               // 🚀 3초 제한 해결: DB 업데이트 성공 후 즉시 응답 반환

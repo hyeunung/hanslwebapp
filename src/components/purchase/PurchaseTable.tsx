@@ -134,48 +134,48 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   // 2. tbody: 실제 데이터 행들
   // 각 행/열, 색상, 클릭 동작 등도 쉽게 설명하는 주석이 달려 있습니다.
   return (
-    <table className="w-full min-w-max table-fixed">
+    <table className="w-full min-w-max table-auto">
       <thead className="bg-muted/10 sticky top-0 border-t border-border">
         <tr className="h-12">
           {/* 탭(진행상태)에 따라 표의 맨 앞 열이 달라집니다. */}
           {activeTab === 'done' ? (
             <>
-              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">승인상태</th>
-              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">입고현황</th>
-              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">구매현황</th>
-              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">결제 종류</th>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">승인상태</th>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">입고현황</th>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">구매현황</th>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">결제 종류</th>
             </>
           ) : activeTab === 'purchase' ? (
-            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">구매 현황</th>
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-24">구매 현황</th>
           ) : activeTab === 'receipt' ? (
-            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">입고 상태</th>
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-24">입고 상태</th>
           ) : (
-            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">승인상태</th>
+            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-24">승인상태</th>
           )}
           {/* 아래는 표의 각 열(항목) 이름입니다. */}
-          <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border w-36">발주번호 / 품명 수</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매업체</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">담당자</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">청구일</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">입고요청일</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-20">구매요청자</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">품명</th>
-          <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'w-80' : 'w-32'}`}>규격</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수량</th>
-          <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">단가(₩)</th>
-          <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-24">합계(₩)</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">비고</th>
+          <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-36">발주번호 / 품명 수</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-20">구매업체</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-20">담당자</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">청구일</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-20">입고요청일</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-20">구매요청자</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-32">품명</th>
+          <th className={`text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border ${activeTab === 'purchase' ? 'min-w-80' : 'min-w-32'}`}>규격</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">수량</th>
+          <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-24">단가(₩)</th>
+          <th className="text-right px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-24">합계(₩)</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-32">비고</th>
           {showLinkColumn && (
-            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-32">링크</th>
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-32">링크</th>
           )}
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">PJ업체</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">수주번호</th>
-          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">item</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">PJ업체</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">수주번호</th>
+          <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">item</th>
           {activeTab !== 'purchase' && (
-            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border w-16">지출예정일</th>
+            <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">지출예정일</th>
           )}
           {(activeTab === 'done' || activeTab === 'pending') && (
-            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border w-14">삭제</th>
+            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">삭제</th>
           )}
         </tr>
       </thead>
@@ -251,7 +251,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                 <>
                   {/* 승인상태(최종) */}
                   {isGroupHeader ? (
-                    <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
                       <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
                         style={{
                           minWidth: 40,
@@ -263,10 +263,10 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                         {item.final_manager_status === 'pending' ? '대기' : item.final_manager_status === 'approved' ? '승인' : item.final_manager_status}
                       </span>
                     </td>
-                  ) : <td className="w-14" />}
+                  ) : <td className="min-w-14" />}
                   {/* 입고현황 */}
                   {isGroupHeader ? (
-                    <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
                       <span className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
                         style={{
                           minWidth: 40,
@@ -278,10 +278,10 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                         {item.is_received ? '입고' : '대기'}
                       </span>
                     </td>
-                  ) : <td className="w-14" />}
+                  ) : <td className="min-w-14" />}
                   {/* 구매현황: 결제종류가 '구매 요청'이 아닌 경우 공백 */}
                   {item.payment_category === '구매 요청' ? (
-                    <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
                       <span
                         className={`inline-block px-2 py-1 rounded-lg font-semibold select-none`}
                         style={{
@@ -296,18 +296,18 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       </span>
                     </td>
                   ) : (
-                    <td className="w-14" />
+                    <td className="min-w-14" />
                   )}
                   {/* 결제 종류 */}
                   {isGroupHeader ? (
-                    <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
                       {item.payment_category}
                     </td>
-                  ) : <td className="w-14" />}
+                  ) : <td className="min-w-14" />}
                 </>
               ) : activeTab === 'purchase' ? (
                 isGroupHeader ? (
-                  <td className="px-2 py-2 text-xs text-foreground text-center w-24" style={{ overflow: 'visible' }}>
+                  <td className="px-2 py-2 text-xs text-foreground text-center min-w-24" style={{ overflow: 'visible' }}>
                     {item.is_payment_completed ? (
                       <span
                         className="inline-block px-2 py-1 rounded-lg font-semibold bg-green-500 text-white select-none"
@@ -345,10 +345,10 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       </span>
                     )}
                   </td>
-                ) : <td className="w-24" />
+                ) : <td className="min-w-24" />
               ) : activeTab === 'receipt' ? (
                 isGroupHeader ? (
-                  <td className="px-2 py-2 text-xs text-foreground text-center w-24" style={{ overflow: 'visible' }}>
+                  <td className="px-2 py-2 text-xs text-foreground text-center min-w-24" style={{ overflow: 'visible' }}>
                     {item.is_received ? (
                       <span
                         className={
@@ -386,14 +386,14 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       )
                     )}
                   </td>
-                ) : <td className="w-24" />
+                ) : <td className="min-w-24" />
               ) : (
-                <td className="px-3 py-2 text-xs text-foreground font-medium text-center w-36">
+                <td className="px-3 py-2 text-xs text-foreground font-medium text-center min-w-36">
                   {isGroupHeader && <StatusPair mid={item.middle_manager_status} final={item.final_manager_status} />}
                 </td>
               )}
               {/* 이하 공통 컬럼들 */}
-              <td className="px-3 py-2 text-xs text-foreground font-medium text-left w-36">
+              <td className="px-3 py-2 text-xs text-foreground font-medium text-left min-w-36">
                 <div className="flex flex-col items-start gap-1">
                   <span className="truncate flex items-center gap-1">
                     {/* 엑셀 다운로드 아이콘: 그룹 헤더(첫 행)에만 표시 */}
@@ -435,19 +435,19 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   </span>
                 </div>
               </td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.vendor_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.contact_name || '-'}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{formatDate(item.request_date)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center w-20 truncate">{formatDate(item.delivery_request_date)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-20">{item.requester_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-left truncate w-32">{item.item_name}</td>
-              <td className={`px-2 py-2 text-xs text-foreground truncate relative ${activeTab === 'purchase' ? 'w-80' : 'w-32'}`}>{item.specification}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center w-16 truncate">{item.quantity}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-right w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-left truncate w-32" title={item.remark}>{item.remark}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20">{item.vendor_name}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">{item.contact_name || '-'}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">{formatDate(item.request_date)}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20 truncate">{formatDate(item.delivery_request_date)}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">{item.requester_name}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">{item.item_name}</td>
+              <td className={`px-2 py-2 text-xs text-foreground relative ${activeTab === 'purchase' ? 'min-w-80' : 'min-w-32'}`}>{item.specification}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">{item.quantity}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-right min-w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-right min-w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32" title={item.remark}>{item.remark}</td>
               {showLinkColumn && (
-                <td className="px-2 py-2 text-xs text-foreground text-left w-32">
+                <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">
                   {isGroupHeader ? (
                     item.link ? (
                       <a
@@ -465,17 +465,17 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   ) : null}
                 </td>
               )}
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_vendor}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.sales_order_number}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.project_item}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.project_vendor}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.sales_order_number}</td>
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.project_item}</td>
               {activeTab !== 'purchase' && (
-                <td className="px-2 py-2 text-xs text-foreground text-center truncate w-16">{item.vendor_payment_schedule}</td>
+                <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.vendor_payment_schedule}</td>
               )}
 
               {/* 삭제 – done, pending 탭에서 표시 */}
               {(activeTab === 'done' || activeTab === 'pending') && (
                 isGroupHeader ? (
-                  <td className="px-1 py-2 text-xs text-foreground text-center w-14">
+                  <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
                     {canDelete ? (
                       <button
                         className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-red-500/90 to-red-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
@@ -492,7 +492,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                       </span>
                     )}
                   </td>
-                ) : <td className="w-14" />
+                ) : <td className="min-w-14" />
               )}
             </tr>
           );

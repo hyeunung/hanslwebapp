@@ -52,9 +52,28 @@ Deno.serve(async (req: Request) => {
             
             console.log(`DB 업데이트: ID=${purchaseRequestId}, Field=${updateField}, Status=${newStatus}`);
             
-            // DB 업데이트 + 발주번호 조회
+            // 🔍 DEBUG: 현재 상태 먼저 조회해서 로그 출력
+            const { data: currentData } = await supabase
+              .from('purchase_requests')
+              .select('middle_manager_status, final_manager_status, purchase_order_number')
+              .eq('id', purchaseRequestId)
+              .single();
+            
+            if (currentData) {
+              console.log(`🔍 현재 상태 - ID: ${purchaseRequestId}, 발주번호: ${currentData.purchase_order_number}`);
+              console.log(`🔍 현재 중간관리자: ${currentData.middle_manager_status}, 최종관리자: ${currentData.final_manager_status}`);
+              console.log(`🔍 변경할 필드: ${updateField} = ${newStatus}`);
+              
+              if (updateField === 'middle_manager_status' && currentData.middle_manager_status === newStatus) {
+                console.log(`⚠️  경고: 이미 ${newStatus} 상태인데 다시 같은 값으로 변경 시도!`);
+                console.log(`⚠️  이 경우 트리거가 실행되지 않을 수 있음 (OLD = NEW)`);
+              }
+            }
+            
+            // DB 업데이트 + 발주번호 조회 (updated_at 명시적 업데이트)
             const updateData: any = {};
             updateData[updateField] = newStatus;
+            updateData['updated_at'] = new Date().toISOString();  // 🔧 트리거 확실히 실행하기 위해 추가
             
             const { data, error } = await supabase
               .from('purchase_requests')
@@ -80,13 +99,19 @@ Deno.serve(async (req: Request) => {
                 successMessage = `발주번호 : ${orderNumber} 에 대한 반료가 완료 되었습니다`;
               }
               
-              // 1. 원본 메시지 삭제
-              console.log('원본 메시지 삭제 시작');
-              await deleteOriginalMessage(parsed.channel.id, parsed.message.ts);
-              
-              // 2. slack-dm-sender를 통해 새로운 DM으로 성공 메시지 전송
-              console.log('새 DM으로 성공 메시지 전송 시작');
-              await sendNewDM(parsed.channel.id, successMessage);
+              // 🚀 3초 제한 해결: DB 업데이트 성공 후 즉시 응답 반환
+              // 메시지 삭제와 새 DM 전송은 비동기로 처리
+              Promise.resolve().then(async () => {
+                try {
+                  console.log('원본 메시지 삭제 시작 (비동기)');
+                  await deleteOriginalMessage(parsed.channel.id, parsed.message.ts);
+                  
+                  console.log('새 DM으로 성공 메시지 전송 시작 (비동기)');
+                  await sendNewDM(parsed.channel.id, successMessage);
+                } catch (asyncError) {
+                  console.error('비동기 처리 중 에러:', asyncError);
+                }
+              });
             }
           }
           

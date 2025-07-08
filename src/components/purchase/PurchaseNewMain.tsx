@@ -664,7 +664,7 @@ export default function PurchaseNewMain() {
                </div>
                <div>
                  <div className="flex items-center justify-between mb-1">
-                   <Label className="text-xs">담당자</Label>
+                   <Label className="text-xs">업체 담당자</Label>
                    <span
                      className="text-primary text-[10px] cursor-pointer hover:underline select-none flex items-center"
                      onClick={openContactsManager}

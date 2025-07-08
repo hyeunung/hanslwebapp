@@ -500,6 +500,9 @@ const ApproveMain: React.FC = () => {
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">품목수</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-28 text-right">총 합계(₩)</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-40 min-w-[10rem] text-center">비고</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8rem] text-center">PJ업체</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8rem] text-center">수주번호</th>
+                  <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-32 min-w-[8rem] text-center">item</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-24 min-w-[6rem]">입고요청일</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-24 min-w-[6rem]">신청일</th>
                   <th className="px-2 py-2 text-sm font-medium text-muted-foreground border-b border-border w-16 text-center">삭제</th>
@@ -507,9 +510,9 @@ const ApproveMain: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={15} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
+                  <tr><td colSpan={18} className="text-center py-8 text-gray-400">로딩 중...</td></tr>
                 ) : filteredList.length === 0 ? (
-                  <tr><td colSpan={15} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={18} className="text-center py-8 text-gray-400">데이터가 없습니다.</td></tr>
                 ) : filteredList.map((row) => (
                   <React.Fragment key={row.id}>
                     <tr
@@ -527,7 +530,10 @@ const ApproveMain: React.FC = () => {
                       <td className="text-left px-2 py-2 w-80 min-w-[20rem]">{row.items[0]?.specification}</td>
                       <td className="text-center px-2 py-2 w-16">{row.items.length > 1 ? `외 ${row.items.length - 1}개` : '-'}</td>
                       <td className="text-right px-2 py-2 w-28"><span className="text-xs text-foreground">{row.items.reduce((sum, item) => sum + (item.amountValue || 0), 0).toLocaleString()}&nbsp;₩</span></td>
-                      <td className="text-center px-2 py-2 w-40 min-w-[10rem]">{row.items[0]?.remark || '-'}</td>
+                      <td className="text-left px-2 py-2 w-40 min-w-[10rem]">{row.items[0]?.remark || '-'}</td>
+                      <td className="text-center px-2 py-2 w-32 min-w-[8rem]">{row.projectVendor || '-'}</td>
+                      <td className="text-center px-2 py-2 w-32 min-w-[8rem]">{row.salesOrderNumber || '-'}</td>
+                      <td className="text-center px-2 py-2 w-32 min-w-[8rem]">{row.projectItem || '-'}</td>
                       <td className="text-center px-2 py-2 w-24 min-w-[6rem]">{row.deliveryRequestDate}</td>
                       <td className="text-center px-2 py-2 w-24 min-w-[6rem]">{row.requestDate}</td>
                       <td className="text-center px-2 py-2 w-16">
@@ -550,7 +556,7 @@ const ApproveMain: React.FC = () => {
                     </tr>
                     {expandedRowId === row.id && (
                       <tr>
-                        <td colSpan={15} className="p-0 bg-transparent">
+                        <td colSpan={18} className="p-0 bg-transparent">
                           <div className="flex justify-center w-full mt-0 mb-8">
                             <ApproveDetailAccordion
                               id={row.id}

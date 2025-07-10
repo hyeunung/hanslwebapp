@@ -23,7 +23,9 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
       if (selectedEmployee && selectedEmployee !== 'all' && item.requester_name !== selectedEmployee) return false;
       if (searchTerm && searchTerm.trim() !== '') {
         const term = searchTerm.trim().toLowerCase();
-        const searchable = [
+        
+        // 기본 발주 정보 검색
+        const baseSearchable = [
           item.purchase_order_number,
           item.vendor_name,
           item.item_name,
@@ -38,7 +40,22 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
           item.amount_value?.toString(),
           item.amount_value ? Number(item.amount_value).toLocaleString() : '',
         ].map(v => (v || '').toLowerCase()).join(' ');
-        if (!searchable.includes(term)) return false;
+        
+        // 모든 품목 상세정보 검색 (items 배열)
+        const allItemsSearchable = (item.items || []).map(subItem => [
+          subItem.item_name,
+          subItem.specification,
+          subItem.remark,
+          subItem.link,
+          subItem.unit_price_value?.toString(),
+          subItem.unit_price_value ? Number(subItem.unit_price_value).toLocaleString() : '',
+          subItem.amount_value?.toString(),
+          subItem.amount_value ? Number(subItem.amount_value).toLocaleString() : '',
+        ].map(v => (v || '').toLowerCase()).join(' ')).join(' ');
+        
+        // 기본 정보 또는 품목 상세정보 중 하나라도 일치하면 표시
+        const combinedSearchable = baseSearchable + ' ' + allItemsSearchable;
+        if (!combinedSearchable.includes(term)) return false;
       }
       return true;
     };

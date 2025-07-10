@@ -4,9 +4,11 @@
 // props로 받은 데이터(displayData 등)를 표 형태로 보여주며,
 // 행 클릭, 엑셀 다운로드 등 주요 상호작용도 이 컴포넌트에서 처리합니다.
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 // 각 발주(구매) 항목의 데이터 구조입니다. 실제로 코드를 수정할 일은 거의 없습니다.
 export interface PurchaseTableItem {
@@ -47,6 +49,17 @@ export interface PurchaseTableItem {
   link?: string;
 }
 
+// 편집 가능한 필드들의 타입 정의
+interface EditableFields {
+  item_name: string;
+  specification: string;
+  quantity: number;
+  unit_price_value: number;
+  remark: string;
+  delivery_request_date: string;
+  link?: string;
+}
+
 // 이 컴포넌트가 화면에 표를 그릴 때 필요한 입력값(데이터, 함수 등) 목록입니다.
 interface PurchaseTableProps {
   displayData: PurchaseTableItem[];
@@ -61,6 +74,9 @@ interface PurchaseTableProps {
   setPressedOrder: (orderNumber: string | null) => void;
   handleCompletePayment: (orderNumber: string) => Promise<void>;
   handleDeleteOrder: (orderNumber: string) => Promise<void>;
+  handleEditOrder: (orderNumber: string, lineNumber: number, editedFields: EditableFields) => Promise<void>;
+  handleDeleteItem: (orderNumber: string, lineNumber: number) => Promise<void>;
+  refreshData: () => Promise<void>; // 데이터 새로고침 함수 추가
 }
 
 // 공통 Pill 렌더러
@@ -96,7 +112,13 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   setPressedOrder,
   handleCompletePayment,
   handleDeleteOrder,
+  handleEditOrder,
+  handleDeleteItem,
+  refreshData,
 }) => {
+  // 편집 상태 관리 - 발주번호 단위로 다중 편집
+  const [editingOrderNumber, setEditingOrderNumber] = useState<string | null>(null); // 편집 중인 발주번호
+  const [editValues, setEditValues] = useState<Record<string, EditableFields>>({}); // "발주번호-라인번호" : EditableFields
   // '구매현황'과 '전체 항목' 탭일 때 링크 열 표시
   const showLinkColumn = activeTab === 'purchase' || activeTab === 'done';
 
@@ -128,6 +150,162 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
 
   const canCompletePayment = currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo') || currentUserRoles.includes('purchase_manager');
   const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+  const canEdit = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+
+  // 편집 모드 시작 - 발주번호 전체 편집 모드
+  const startEditing = (item: PurchaseTableItem) => {
+    if (!item.purchase_order_number) return;
+    
+    console.log('📝 [DEBUG] 편집 모드 시작:', item.purchase_order_number);
+    
+    // 1. 그룹 자동 펼치기 (이미 열려있지 않은 경우만)
+    const isAlreadyExpanded = expandedGroups.has(item.purchase_order_number);
+    console.log('📝 [DEBUG] 그룹 상태:', { isAlreadyExpanded, expandedGroups: Array.from(expandedGroups) });
+    
+    // 2. 편집 중인 발주번호 설정
+    setEditingOrderNumber(item.purchase_order_number);
+    
+    // 3. 그룹 펼치기와 편집 데이터 설정
+    const setupEditData = () => {
+      const orderItems = displayData.filter(d => d.purchase_order_number === item.purchase_order_number);
+      console.log('📝 [DEBUG] 해당 발주번호 품목 수:', orderItems.length);
+      
+      const newEditValues: Record<string, EditableFields> = {};
+      
+      orderItems.forEach(orderItem => {
+        if (orderItem.line_number !== undefined) {
+          const editKey = `${orderItem.purchase_order_number}-${orderItem.line_number}`;
+          newEditValues[editKey] = {
+            item_name: orderItem.item_name,
+            specification: orderItem.specification,
+            quantity: orderItem.quantity,
+            unit_price_value: orderItem.unit_price_value,
+            remark: orderItem.remark,
+            delivery_request_date: orderItem.delivery_request_date,
+            link: orderItem.link || '',
+          };
+        }
+      });
+      
+      console.log('📝 [DEBUG] 생성된 editValues:', newEditValues);
+      setEditValues(newEditValues);
+      console.log('📝 [DEBUG] 편집 모드 시작 완료');
+    };
+    
+    if (!isAlreadyExpanded) {
+      console.log('📝 [DEBUG] 그룹 펼치기 실행');
+      toggleGroup(item.purchase_order_number);
+      // 그룹이 펼쳐진 후 편집 데이터 설정
+      setTimeout(setupEditData, 100);
+    } else {
+      // 이미 펼쳐져 있으면 즉시 설정
+      setupEditData();
+    }
+  };
+
+  // 편집 취소
+  const cancelEditing = () => {
+    console.log('❌ [DEBUG] 편집 취소 실행');
+    setEditingOrderNumber(null);
+    setEditValues({});
+    console.log('❌ [DEBUG] 편집 취소 완료');
+  };
+
+  // 편집 저장 - 발주번호의 모든 품목 일괄 저장
+  const saveEditing = async () => {
+    if (!editingOrderNumber) {
+      console.log('⚠️ [DEBUG] 편집 중인 발주번호가 없음');
+      return;
+    }
+    
+    // 저장 전 상태 스냅샷 - 무엇이 저장되는지 상세 확인
+    console.log('💾 [DEBUG] ===========================================');
+    console.log('💾 [DEBUG] 저장 시작 - 상세 정보:');
+    console.log('💾 [DEBUG] - editingOrderNumber:', editingOrderNumber);
+    console.log('💾 [DEBUG] - editValues 키 개수:', Object.keys(editValues).length);
+    console.log('💾 [DEBUG] - editValues 상세:', editValues);
+    
+    // editValues가 비어있는지 확인
+    if (Object.keys(editValues).length === 0) {
+      console.log('⚠️ [DEBUG] editValues가 비어있음 - 저장할 데이터가 없음');
+      alert('저장할 수정 내용이 없습니다.');
+      return;
+    }
+    
+    try {
+      // 해당 발주번호의 모든 품목을 순차적으로 저장
+      const savePromises = Object.entries(editValues).map(async ([editKey, values]) => {
+        const [orderNumber, lineNumber] = editKey.split('-');
+        if (orderNumber === editingOrderNumber) {
+          console.log('🔄 [DEBUG] 품목 저장 시작:', { editKey, values });
+          await handleEditOrder(orderNumber, parseInt(lineNumber), values);
+          console.log('✅ [DEBUG] 품목 저장 완료:', editKey);
+        }
+      });
+      
+      console.log('🔄 [DEBUG] 모든 품목 병렬 저장 시작... (총', savePromises.length, '개)');
+      await Promise.all(savePromises);
+      console.log('✅ [DEBUG] 모든 품목 저장 완료');
+      
+      // 편집 모드 먼저 종료 - 리렌더링 충돌 방지
+      console.log('🔄 [DEBUG] 편집 모드 종료 시작...');
+      const currentOrderNumber = editingOrderNumber; // 대기 상태 보관
+      setEditingOrderNumber(null);
+      setEditValues({});
+      console.log('✅ [DEBUG] 편집 모드 종료 완료 - 원래 상태로 돌아감');
+      
+      // 모든 저장 완료 후 한 번만 알림
+      alert('수정이 성공적으로 저장되었습니다!');
+      
+      // 데이터 새로고침 - 편집 모드 종료 후
+      console.log('🔄 [DEBUG] 데이터 새로고침 시작...');
+      await refreshData();
+      console.log('✅ [DEBUG] 데이터 새로고침 완료');
+      
+      console.log('🎉 [DEBUG] 전체 저장 프로세스 완료!');
+    } catch (error) {
+      console.error('❌ [DEBUG] 전체 저장 실패:', error);
+      alert(`수정 저장에 실패했습니다: ${error}`);
+    }
+  };
+
+  // 편집 가능 조건 체크 - 발주 요청된 모든 항목 수정 가능
+  const canEditItem = (item: PurchaseTableItem) => {
+    // 권한 체크만 - app_admin, final_approver, ceo만 수정 가능
+    return canEdit;
+  };
+
+  // 현재 편집 중인지 확인
+  const isCurrentlyEditing = (item: PurchaseTableItem) => {
+    return editingOrderNumber === item.purchase_order_number;
+  };
+  
+  // 특정 품목의 편집값 가져오기 (null 방지)
+  const getEditValue = (item: PurchaseTableItem) => {
+    const editKey = `${item.purchase_order_number}-${item.line_number}`;
+    const values = editValues[editKey] || {};
+    return {
+      item_name: values.item_name ?? item.item_name ?? '',
+      specification: values.specification ?? item.specification ?? '',
+      quantity: values.quantity ?? item.quantity ?? 0,
+      unit_price_value: values.unit_price_value ?? item.unit_price_value ?? 0,
+      remark: values.remark ?? item.remark ?? '',
+      delivery_request_date: values.delivery_request_date ?? item.delivery_request_date ?? '',
+      link: values.link ?? item.link ?? ''
+    };
+  };
+  
+  // 특정 품목의 편집값 업데이트
+  const updateEditValue = (item: PurchaseTableItem, field: keyof EditableFields, value: any) => {
+    const editKey = `${item.purchase_order_number}-${item.line_number}`;
+    setEditValues(prev => ({
+      ...prev,
+      [editKey]: {
+        ...prev[editKey],
+        [field]: value
+      }
+    }));
+  };
 
   // 아래가 실제로 표(테이블)를 그리는 부분입니다.
   // 1. thead: 표의 맨 위(제목줄)
@@ -175,7 +353,10 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
             <th className="text-center px-2 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-16">지출예정일</th>
           )}
           {(activeTab === 'done' || activeTab === 'pending') && (
-            <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">삭제</th>
+            <>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">수정</th>
+              <th className="text-center px-1 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-14">삭제</th>
+            </>
           )}
         </tr>
       </thead>
@@ -438,29 +619,115 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-center min-w-20">{item.vendor_name}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">{item.contact_name || '-'}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">{formatDate(item.request_date)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20 truncate">{formatDate(item.delivery_request_date)}</td>
+              {/* 입고요청일 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20 truncate">
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    type="date"
+                    value={getEditValue(item).delivery_request_date}
+                    onChange={(e) => updateEditValue(item, 'delivery_request_date', e.target.value)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  formatDate(item.delivery_request_date)
+                )}
+              </td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">{item.requester_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">{item.item_name}</td>
-              <td className={`px-2 py-2 text-xs text-foreground relative ${activeTab === 'purchase' ? 'min-w-80' : 'min-w-32'}`}>{item.specification}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">{item.quantity}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-right min-w-24 truncate">{formatCurrency(item.unit_price_value, item.currency)}</td>
+              {/* 품명 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    value={getEditValue(item).item_name}
+                    onChange={(e) => updateEditValue(item, 'item_name', e.target.value)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  item.item_name
+                )}
+              </td>
+              {/* 규격 - 편집 가능 */}
+              <td className={`px-2 py-2 text-xs text-foreground relative ${activeTab === 'purchase' ? 'min-w-80' : 'min-w-32'}`}>
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    value={getEditValue(item).specification}
+                    onChange={(e) => updateEditValue(item, 'specification', e.target.value)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  item.specification
+                )}
+              </td>
+              {/* 수량 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    type="number"
+                    value={getEditValue(item).quantity}
+                    onChange={(e) => updateEditValue(item, 'quantity', parseInt(e.target.value) || 0)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  item.quantity
+                )}
+              </td>
+              {/* 단가 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-right min-w-24 truncate">
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    type="number"
+                    value={getEditValue(item).unit_price_value}
+                    onChange={(e) => updateEditValue(item, 'unit_price_value', parseFloat(e.target.value) || 0)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  formatCurrency(item.unit_price_value, item.currency)
+                )}
+              </td>
               <td className="px-2 py-2 text-xs text-foreground text-right min-w-24 truncate">{formatCurrency(item.amount_value, item.currency)}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32" title={item.remark}>{item.remark}</td>
+              {/* 비고 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-left min-w-32" title={item.remark}>
+                {isCurrentlyEditing(item) ? (
+                  <Input
+                    value={getEditValue(item).remark}
+                    onChange={(e) => updateEditValue(item, 'remark', e.target.value)}
+                    className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  item.remark
+                )}
+              </td>
+              {/* 링크 - 편집 가능 (구매현황/전체항목 탭에서만) */}
               {showLinkColumn && (
                 <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">
                   {isGroupHeader ? (
-                    item.link ? (
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline hover:text-blue-800 break-all"
-                        title={item.link}
-                      >
-                        {item.link.length > 30 ? `${item.link.substring(0, 30)}...` : item.link}
-                      </a>
+                    isCurrentlyEditing(item) ? (
+                      <Input
+                        value={getEditValue(item).link}
+                        onChange={(e) => updateEditValue(item, 'link', e.target.value)}
+                        className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 w-full"
+                        placeholder="URL 입력"
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      item.link ? (
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline hover:text-blue-800 break-all"
+                          title={item.link}
+                        >
+                          {item.link.length > 30 ? `${item.link.substring(0, 30)}...` : item.link}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )
                     )
                   ) : null}
                 </td>
@@ -468,31 +735,135 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.project_vendor}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.sales_order_number}</td>
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.project_item}</td>
+              {/* 지출예정일 - 수정 불가 (vendors 테이블 정보) */}
               {activeTab !== 'purchase' && (
-                <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.vendor_payment_schedule}</td>
+                <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">
+                  {item.vendor_payment_schedule}
+                </td>
               )}
 
-              {/* 삭제 – done, pending 탭에서 표시 */}
+              {/* 수정/삭제 – done, pending 탭에서 표시 */}
               {(activeTab === 'done' || activeTab === 'pending') && (
-                isGroupHeader ? (
-                  <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
-                    {canDelete ? (
-                      <button
-                        className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-red-500/90 to-red-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteOrder(item.purchase_order_number!);
-                        }}
-                      >
-                        삭제
-                      </button>
-                    ) : (
-                      <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
-                        삭제
-                      </span>
-                    )}
-                  </td>
-                ) : <td className="min-w-14" />
+                <>
+                  {/* 수정 버튼 */}
+                  {isGroupHeader ? (
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
+                      {isCurrentlyEditing(item) ? (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              saveEditing();
+                            }}
+                          >
+                            저장
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              cancelEditing();
+                            }}
+                          >
+                            취소
+                          </Button>
+                        </div>
+                      ) : (
+                        canEditItem(item) ? (
+                          <button
+                            className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-blue-500/90 to-blue-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(item);
+                            }}
+                          >
+                            수정
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                            수정
+                          </span>
+                        )
+                      )}
+                    </td>
+                  ) : (
+                    <td className="min-w-14" />
+                  )}
+                  {/* 삭제 버튼 */}
+                  {isGroupHeader ? (
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
+                      {isCurrentlyEditing(item) ? (
+                        // 수정 모드일 때는 헤더도 품목삭제
+                        canDelete ? (
+                          <button
+                            className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-orange-500/90 to-orange-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteItem(item.purchase_order_number!, item.line_number!);
+                            }}
+                            title="이 품목만 삭제"
+                          >
+                            품목삭제
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                            품목삭제
+                          </span>
+                        )
+                      ) : (
+                        // 평상시에는 전체삭제
+                        canDelete ? (
+                          <button
+                            className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-red-500/90 to-red-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteOrder(item.purchase_order_number!);
+                            }}
+                            title="전체 발주 삭제"
+                          >
+                            전체삭제
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                            전체삭제
+                          </span>
+                        )
+                      )}
+                    </td>
+                  ) : isSubItem ? (
+                    <td className="px-1 py-2 text-xs text-foreground text-center min-w-14">
+                      {/* 수정 모드일 때만 품목삭제 버튼 표시 */}
+                      {isCurrentlyEditing(item) ? (
+                        canDelete ? (
+                          <button
+                            className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-orange-500/90 to-orange-600/90 shadow-sm hover:shadow-md focus:outline-none transition-colors duration-150"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteItem(item.purchase_order_number!, item.line_number!);
+                            }}
+                            title="이 품목만 삭제"
+                          >
+                            품목삭제
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs font-medium text-white rounded-md bg-gradient-to-b from-gray-400/80 to-gray-500/80 opacity-60 cursor-not-allowed select-none">
+                            품목삭제
+                          </span>
+                        )
+                      ) : (
+                        // 평상시에는 빈 공간
+                        <span></span>
+                      )}
+                    </td>
+                  ) : (
+                    <td className="min-w-14" />
+                  )}
+                </>
               )}
             </tr>
           );

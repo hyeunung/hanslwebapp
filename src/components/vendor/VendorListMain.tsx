@@ -152,6 +152,10 @@ export default function VendorListMain() {
       setAddError('이름을 입력해 주세요.');
       return;
     }
+    if (addForm.contact_email && addForm.contact_email.includes('@hansl.com')) {
+      setAddError('한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다.');
+      return;
+    }
     setAddLoading(true);
     setAddError(null);
     // supabase에 새 담당자 추가
@@ -199,6 +203,10 @@ export default function VendorListMain() {
     if (!editContactId) return;
     if (!editForm.contact_name.trim()) {
       setEditError('이름을 입력해 주세요.');
+      return;
+    }
+    if (editForm.contact_email && editForm.contact_email.includes('@hansl.com')) {
+      setEditError('한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다.');
       return;
     }
     setEditLoading(true);
@@ -318,6 +326,10 @@ export default function VendorListMain() {
     }
     if (addContacts.some(c => !c.contact_name.trim())) {
       setAddVendorError('모든 담당자 이름을 입력해 주세요.');
+      return;
+    }
+    if (addContacts.some(c => c.contact_email && c.contact_email.includes('@hansl.com'))) {
+      setAddVendorError('한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다.');
       return;
     }
     setAddVendorLoading(true);
@@ -635,6 +647,9 @@ export default function VendorListMain() {
                                 onChange={handleEditFormChange}
                                 className="w-full border px-2 py-1 rounded text-xs bg-white"
                               />
+                              {editForm.contact_email?.includes('@hansl.com') && (
+                                <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -754,7 +769,11 @@ export default function VendorListMain() {
                     value={addForm.contact_email}
                     onChange={handleAddFormChange}
                     className="w-full border px-2 py-1 rounded text-xs bg-white"
+                    placeholder="예: contact@supplier.co.kr"
                   />
+                  {addForm.contact_email?.includes('@hansl.com') && (
+                    <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+                  )}
                 </div>
               </div>
               {addError && <div className="text-xs text-red-500 mb-2">{addError}</div>}
@@ -843,7 +862,10 @@ export default function VendorListMain() {
                         {/* 이메일 */}
                         <div>
                           <label className="block mb-1">이메일</label>
-                          <input type="email" name="contact_email" value={contact.contact_email} onChange={e => handleAddContactChange(idx, e)} className="w-full border rounded px-3 py-2 bg-white" placeholder="예: hong@hansl.com" />
+                          <input type="email" name="contact_email" value={contact.contact_email} onChange={e => handleAddContactChange(idx, e)} className="w-full border rounded px-3 py-2 bg-white" placeholder="예: contact@supplier.co.kr" />
+                          {contact.contact_email?.includes('@hansl.com') && (
+                            <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+                          )}
                         </div>
                       </div>
                     </div>

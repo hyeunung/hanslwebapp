@@ -498,6 +498,15 @@ export default function PurchaseNewMain() {
   const handleSaveAllContacts = async () => {
     if (!selectedVendor) return;
 
+    // @hansl.com 도메인 이메일 검증
+    const hasHanslEmail = contactsForEdit.some(contact => 
+      contact.contact_email && contact.contact_email.includes('@hansl.com')
+    );
+    if (hasHanslEmail) {
+      alert('한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다.');
+      return;
+    }
+
     try {
       // 기존 담당자 업데이트
       for (const contact of contactsForEdit.filter(c => !c.isNew && c.id)) {
@@ -750,7 +759,11 @@ export default function PurchaseNewMain() {
                                        value={contact.contact_email} 
                                        onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
                                        className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-[11px] bg-white"
+                                       placeholder="예: contact@supplier.co.kr"
                                      />
+                                     {contact.contact_email?.includes('@hansl.com') && (
+                                       <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+                                     )}
                                    </div>
                                  </div>
                                  <div className="grid grid-cols-2 gap-2">
@@ -811,14 +824,17 @@ export default function PurchaseNewMain() {
                                    />
                                  </div>
                                  <div>
-                                   <Label className="text-xs mb-1 block">이메일*</Label>
-                                   <Input 
-                                     value={contact.contact_email} 
-                                     onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
-                                     className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
-                                     placeholder="이메일 주소"
-                                   />
-                                 </div>
+                                 <Label className="text-xs mb-1 block">이메일*</Label>
+                                 <Input 
+                                 value={contact.contact_email} 
+                                 onChange={e => handleContactChange(contactsForEdit.indexOf(contact), 'contact_email', e.target.value)}
+                                 className="w-full h-8 px-2 border-0 shadow-none bg-transparent rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-0 outline-none text-[11px] bg-white"
+                                 placeholder="예: contact@supplier.co.kr"
+                                 />
+                                   {contact.contact_email?.includes('@hansl.com') && (
+                                       <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+                                     )}
+                                   </div>
                                </div>
                                <div className="grid grid-cols-2 gap-2">
                                  <div>

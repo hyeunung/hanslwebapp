@@ -23,6 +23,17 @@ import { format } from "date-fns";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { generatePurchaseOrderExcelJS, PurchaseOrderData } from "@/utils/exceljs/generatePurchaseOrderExcel";
 
+// 편집 가능한 필드들의 타입 정의
+interface EditableFields {
+  item_name: string;
+  specification: string;
+  quantity: number;
+  unit_price_value: number;
+  remark: string;
+  delivery_request_date: string;
+  link?: string;
+}
+
 // 발주(구매) 데이터의 타입(구성요소) 정의입니다. 실제로 코드를 수정할 일이 없다면, 그냥 참고만 하셔도 됩니다.
 interface Purchase {
   id: number;
@@ -578,6 +589,108 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     setFilters(prev => ({ ...prev, [activeTab]: employee }));
   };
 
+  // 개별 품목 삭제 함수
+  const handleDeleteItem = async (orderNumber: string, lineNumber: number) => {
+    // 삭제 권한 체크
+    const canDelete = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+    
+    if (!canDelete) {
+      alert('삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (!confirm(`발주번호 ${orderNumber}의 품목(라인 ${lineNumber})을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      // purchase_request_items에서 특정 라인 삭제
+      const { error } = await supabase
+        .from('purchase_request_items')
+        .delete()
+        .eq('purchase_order_number', orderNumber)
+        .eq('line_number', lineNumber);
+
+      if (error) throw error;
+
+      alert('품목이 삭제되었습니다.');
+      
+      // 데이터 새로고침
+      await loadMyRequests();
+    } catch (error) {
+      console.error('품목 삭제 실패:', error);
+      alert('품목 삭제에 실패했습니다.');
+    }
+  };
+
+  // 발주 항목 수정 함수
+  const handleEditOrder = async (orderNumber: string, lineNumber: number, editedFields: EditableFields) => {
+    console.log('🔄 [DEBUG] 수정 시작:', { orderNumber, lineNumber, editedFields });
+    
+    // 수정 권한 체크
+    const canEdit = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
+    
+    if (!canEdit) {
+      alert('수정 권한이 없습니다.');
+      return;
+    }
+
+    try {
+      // 1. purchase_request_items 테이블 업데이트 (품목별 필드들)
+      const itemUpdateData: any = {
+        item_name: editedFields.item_name,
+        specification: editedFields.specification,
+        quantity: editedFields.quantity,
+        unit_price_value: editedFields.unit_price_value,
+        amount_value: editedFields.quantity * editedFields.unit_price_value, // 자동 계산
+        remark: editedFields.remark,
+        link: editedFields.link || null, // 링크
+      };
+
+      console.log('💾 [DEBUG] purchase_request_items 업데이트 데이터:', itemUpdateData);
+
+      const { error: itemsError } = await supabase
+        .from('purchase_request_items')
+        .update(itemUpdateData)
+        .eq('purchase_order_number', orderNumber)
+        .eq('line_number', lineNumber);
+
+      if (itemsError) {
+        console.error('❌ [DEBUG] purchase_request_items 업데이트 실패:', itemsError);
+        throw itemsError;
+      }
+      console.log('✅ [DEBUG] purchase_request_items 업데이트 성공');
+
+      // 2. purchase_requests 테이블 업데이트 (공통 필드들)
+      const updateData: any = {
+        delivery_request_date: editedFields.delivery_request_date, // 입고요청일
+      };
+
+      console.log('💾 [DEBUG] purchase_requests 업데이트 데이터:', updateData);
+
+      const { error: requestError } = await supabase
+        .from('purchase_requests')
+        .update(updateData)
+        .eq('purchase_order_number', orderNumber);
+
+      if (requestError) {
+        console.error('❌ [DEBUG] purchase_requests 업데이트 실패:', requestError);
+        throw requestError;
+      }
+      console.log('✅ [DEBUG] purchase_requests 업데이트 성공');
+
+      // 3. 개별 데이터 새로고침 제거 - saveEditing에서 일괄 처리
+      console.log('✅ [DEBUG] 데이터베이스 업데이트 완료');
+      
+      console.log('🎉 [DEBUG] 수정 완료:', { orderNumber, lineNumber, editedFields });
+      // 개별 알림 제거 - saveEditing에서 한 번만 알림
+    } catch (err: any) {
+      console.error('❌ [DEBUG] 수정 전체 오류:', err);
+      // 개별 에러 알림 제거 - saveEditing에서 처리
+      throw new Error(`수정 중 오류가 발생했습니다: ${err.message || err}`);
+    }
+  };
+
   // New handleDeleteOrder function
   const handleDeleteOrder = async (orderNumber: string) => {
     // 삭제 권한 체크
@@ -781,6 +894,9 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
               setPressedOrder={setPressedOrder}
               handleCompletePayment={handleCompletePayment}
               handleDeleteOrder={handleDeleteOrder}
+              handleEditOrder={handleEditOrder}
+              handleDeleteItem={handleDeleteItem}
+              refreshData={loadMyRequests}
             />
             {/* 기존 테이블 렌더링 부분은 PurchaseTable로 이동 */}
             {displayData.length === 0 && (

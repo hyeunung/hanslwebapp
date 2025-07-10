@@ -46,6 +46,10 @@ export default function VendorAddPage() {
       setError('담당자 이름을 입력해 주세요.');
       return;
     }
+    if (contact.contact_email && contact.contact_email.includes('@hansl.com')) {
+      setError('한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다.');
+      return;
+    }
     setLoading(true);
     // 1. 업체(vendors) 테이블에 insert
     const { data: vendorData, error: vendorError } = await supabase.from('vendors').insert([
@@ -166,8 +170,11 @@ export default function VendorAddPage() {
             value={contact.contact_email}
             onChange={handleContactChange}
             className="w-full border rounded px-3 py-2"
-            placeholder="예: hong@hansl.com"
+            placeholder="예: hong@supplier.co.kr"
           />
+          {contact.contact_email?.includes('@hansl.com') && (
+            <div className="text-red-500 text-xs mt-1">⚠️ 한슬 직원 이메일은 업체 담당자로 등록할 수 없습니다</div>
+          )}
         </div>
         {/* 저장/취소 버튼 */}
         <div className="flex justify-between pt-4">

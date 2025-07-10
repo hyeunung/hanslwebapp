@@ -104,33 +104,20 @@ BEGIN
         FROM purchase_request_items pri 
         WHERE pri.purchase_request_id = NEW.id;
         
-        -- 요청유형에 따른 Lead Buyer 결정
-        IF NEW.request_type = '원자재' THEN
-            -- 원자재: 양승진에게
-            SELECT array_agg(e.slack_id) INTO lead_buyer_slack_ids
-            FROM employees e
-            WHERE e.name = '양승진' AND e.slack_id IS NOT NULL;
-        ELSIF NEW.request_type = '소모품' THEN
-            -- 소모품: 황연순에게
-            SELECT array_agg(e.slack_id) INTO lead_buyer_slack_ids
-            FROM employees e
-            WHERE e.name = '황연순' AND e.slack_id IS NOT NULL;
-        ELSE
-            -- 기타: 모든 Lead Buyer에게
-            SELECT array_agg(e.slack_id) INTO lead_buyer_slack_ids
-            FROM employees e
-            WHERE e.purchase_role @> ARRAY['lead_buyer'] AND e.slack_id IS NOT NULL;
-        END IF;
+        -- 모든 Lead Buyer에게 통합 알림 전송
+        SELECT array_agg(e.slack_id) INTO lead_buyer_slack_ids
+        FROM employees e
+        WHERE e.purchase_role @> ARRAY['lead_buyer'] AND e.slack_id IS NOT NULL;
         
         -- 알림 메시지 생성
         message_text := format(
-            '💰 결제가 완료되었습니다\n\n' ||
-            '📋 발주번호: %s\n' ||
-            '🏢 업체명: %s\n' ||
-            '👤 구매요청자: %s\n' ||
-            '💵 결제 금액: %s원\n' ||
-            '📅 결제일: %s\n' ||
-            '📦 구매 처리를 진행해주세요',
+            E'💰 결제가 완료되었습니다\n\n' ||
+            E'📋 발주번호: %s\n' ||
+            E'🏢 업체명: %s\n' ||
+            E'👤 구매요청자: %s\n' ||
+            E'💵 결제 금액: %s원\n' ||
+            E'📅 결제일: %s\n' ||
+            E'📦 구매 처리를 진행해주세요',
             NEW.purchase_order_number,
             COALESCE(vendor_name_text, '미지정'),
             requester_name_text,

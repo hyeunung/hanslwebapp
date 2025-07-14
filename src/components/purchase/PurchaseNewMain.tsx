@@ -116,6 +116,7 @@ export default function PurchaseNewMain() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [addCount, setAddCount] = useState(1);
+  const [inputValues, setInputValues] = useState<{[key: string]: string}>({});
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [contactsForEdit, setContactsForEdit] = useState<{ id?: number; contact_name: string; contact_email: string; contact_phone: string; position: string; isNew?: boolean }[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -1221,12 +1222,30 @@ export default function PurchaseNewMain() {
                       <div className="flex items-center justify-end w-full">
                         <Input
                           type="text"
-                          inputMode="numeric"
-                          value={item.unit_price_value ? Number(item.unit_price_value).toLocaleString() : ""}
+                          inputMode="decimal"
+                          value={inputValues[`${idx}_unit_price_value`] ?? (item.unit_price_value === 0 ? "" : item.unit_price_value?.toString() || "")}
                           onChange={e => {
                             const raw = e.target.value.replace(/,/g, "");
-                            const numVal = raw ? Number(raw) : 0;
-                            update(idx, { ...item, unit_price_value: isNaN(numVal) ? 0 : numVal });
+                            // 숫자와 소수점만 허용
+                            const cleanValue = raw.replace(/[^0-9.]/g, '');
+                            // 소수점 중복 방지
+                            const parts = cleanValue.split('.');
+                            const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleanValue;
+                            
+                            // 입력 중인 값 저장 (소수점 유지)
+                            setInputValues(prev => ({...prev, [`${idx}_unit_price_value`]: finalValue}));
+                            
+                            // 계산용 숫자 값 저장
+                            const numVal = finalValue === '' ? 0 : parseFloat(finalValue) || 0;
+                            update(idx, { ...item, unit_price_value: numVal });
+                          }}
+                          onBlur={() => {
+                            // 포커스 벗어날 때 입력값 정리
+                            setInputValues(prev => {
+                              const newState = {...prev};
+                              delete newState[`${idx}_unit_price_value`];
+                              return newState;
+                            });
                           }}
                           className="w-full h-8 px-2 border-0 shadow-none bg-transparent text-right rounded-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible-border-0 outline-none text-xs bg-white overflow-x-hidden purchase-item-input-unit_price_value"
                           placeholder="단가"

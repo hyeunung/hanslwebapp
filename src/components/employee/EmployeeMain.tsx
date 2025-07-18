@@ -17,7 +17,7 @@ interface Employee {
   bank?: string;
   bank_account?: string;
   adress?: string;
-  hire_date?: string;
+  annual_leave_granted_current_year?: number;
 }
 
 // 간단한 모달 컴포넌트 (업체관리와 동일)
@@ -50,8 +50,11 @@ export default function EmployeeMain() {
     setLoading(true);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, hire_date");
-    if (!error && data) setEmployees(data);
+      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, annual_leave_granted_current_year");
+    
+    if (!error && data) {
+      setEmployees(data);
+    }
     setLoading(false);
   };
 
@@ -66,14 +69,14 @@ export default function EmployeeMain() {
 
   // 검색 필터
   const filteredEmployees = employees.filter(emp => {
-    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.hire_date].join(" ").toLowerCase();
+    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.annual_leave_granted_current_year?.toString()].join(" ").toLowerCase();
     return text.includes(searchTerm.toLowerCase());
   });
 
   // role이 hr, admin이 아니면 제한된 컬럼만 보여줌
   const isHRorAdmin = currentUserRole === 'hr' || currentUserRole === 'admin';
-  // 박스 최대 가로폭 조건부 스타일
-  const boxMaxWidth = isHRorAdmin ? '1400px' : '900px';
+  // 박스 최대 가로폭 조건부 스타일 (생성연차 컬럼 추가로 기본 너비 증가)
+  const boxMaxWidth = isHRorAdmin ? '1400px' : '980px';
 
   return (
     <div
@@ -129,6 +132,7 @@ export default function EmployeeMain() {
                 <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[90px] max-w-[100px] truncate">부서</th>
                 <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[150px] max-w-[140px] truncate">연락처</th>
                 <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[220px] max-w-[320px] break-all">이메일</th>
+                <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[80px] max-w-[100px] truncate">생성연차</th>
                 {isHRorAdmin && <>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[120px] max-w-[160px] truncate">입사일</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground min-w-0 w-[120px] max-w-[160px] truncate">생년월일</th>
@@ -142,7 +146,7 @@ export default function EmployeeMain() {
             <tbody>
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 13 : 6}>
+                  <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 14 : 7}>
                     직원 데이터가 없습니다.
                   </td>
                 </tr>
@@ -155,6 +159,7 @@ export default function EmployeeMain() {
                     <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground min-w-0 w-[90px] max-w-[100px] truncate">{emp.department}</td>
                     <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground min-w-0 w-[150px] max-w-[140px] truncate">{emp.phone}</td>
                     <td className="border-b border-border border-l border-border px-3 py-2 text-left text-foreground min-w-0 w-[220px] max-w-[320px] break-all">{emp.email}</td>
+                    <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground min-w-0 w-[80px] max-w-[100px] truncate">{emp.annual_leave_granted_current_year || 0}일</td>
                     {isHRorAdmin && <>
                       <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground min-w-0 w-[120px] max-w-[160px] truncate">{emp.join_date}</td>
                       <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground min-w-0 w-[120px] max-w-[160px] truncate">{emp.birthday}</td>

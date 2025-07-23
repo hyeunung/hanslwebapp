@@ -139,7 +139,7 @@ export async function generatePurchaseOrderExcelJS(data: PurchaseOrderData): Pro
   sheet.getCell('A5').font = { bold: true };
   sheet.getCell('A6').value = 'FAX.';
   sheet.getCell('A6').font = { bold: true };
-  sheet.getCell('A7').value = '지출 예정일';
+  sheet.getCell('A7').value = '입고요청일';
   sheet.getCell('A7').font = { bold: true };
 
   sheet.getCell('E2').value = '구매요청자';

@@ -410,16 +410,27 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       window.URL.revokeObjectURL(url);
 
       // -----------------
-      // DB에 다운로드 완료 플래그(is_po_download) 업데이트
+      // DB에 다운로드 완료 플래그(is_po_download) 업데이트 - lead buyer만 해당
       try {
-        const { error: downloadFlagErr } = await supabase
-          .from('purchase_requests')
-          .update({ is_po_download: true })
-          .eq('purchase_order_number', orderNumber);
-        if (downloadFlagErr) {
-          console.warn('is_po_download 플래그 업데이트 실패:', downloadFlagErr.message);
+        // lead buyer 권한 체크
+        const isLeadBuyer = currentUserRoles && (
+          currentUserRoles.includes('lead_buyer') || 
+          currentUserRoles.includes('lead buyer') ||
+          currentUserRoles.includes('purchase_manager')
+        );
+
+        if (isLeadBuyer) {
+          const { error: downloadFlagErr } = await supabase
+            .from('purchase_requests')
+            .update({ is_po_download: true })
+            .eq('purchase_order_number', orderNumber);
+          if (downloadFlagErr) {
+            console.warn('is_po_download 플래그 업데이트 실패:', downloadFlagErr.message);
+          } else {
+            console.log('is_po_download 플래그 업데이트 성공 (lead buyer)');
+          }
         } else {
-          console.log('is_po_download 플래그 업데이트 성공');
+          console.log('lead buyer가 아니므로 is_po_download 플래그 업데이트 건너뜀');
         }
       } catch (flagErr) {
         console.error('is_po_download 업데이트 중 예외:', flagErr);

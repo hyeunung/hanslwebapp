@@ -152,7 +152,7 @@ export default function EmployeeMain() {
       if (value === '' || value === undefined) {
         acc[key as keyof EditableEmployeeFields] = null as any;
       } else {
-        acc[key as keyof EditableEmployeeFields] = value;
+        acc[key as keyof EditableEmployeeFields] = value as any;
       }
       return acc;
     }, {} as Partial<EditableEmployeeFields>);
@@ -316,7 +316,7 @@ export default function EmployeeMain() {
       const newStr = String(newValue || '').trim();
       
       if (currentStr !== newStr) {
-        changedFields[key as keyof EditableEmployeeFields] = newValue;
+        changedFields[key as keyof EditableEmployeeFields] = newValue as any;
         hasChanges = true;
         console.log(`🔄 [DEBUG] 변경된 필드 [${key}]:`, { 이전: currentStr, 새값: newStr });
       }

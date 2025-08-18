@@ -18,6 +18,7 @@ interface Employee {
   bank_account?: string;
   adress?: string;
   annual_leave_granted_current_year?: number;
+  remaining_annual_leave?: number;
 }
 
 // 편집 가능한 필드들 타입 정의
@@ -33,6 +34,7 @@ interface EditableEmployeeFields {
   bank_account: string;
   adress: string;
   annual_leave_granted_current_year: number;
+  remaining_annual_leave: number;
 }
 
 export default function EmployeeMain() {
@@ -61,7 +63,7 @@ export default function EmployeeMain() {
     setLoading(true);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, annual_leave_granted_current_year");
+      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, annual_leave_granted_current_year, remaining_annual_leave");
     
     if (!error && data) {
       setEmployees(data);
@@ -104,7 +106,8 @@ export default function EmployeeMain() {
       bank: '',
       bank_account: '',
       adress: '',
-      annual_leave_granted_current_year: 0
+      annual_leave_granted_current_year: 0,
+      remaining_annual_leave: 0
     });
     setAddEmployeeError(null);
     
@@ -248,7 +251,8 @@ export default function EmployeeMain() {
       bank: employee.bank || '',
       bank_account: employee.bank_account || '',
       adress: employee.adress || '',
-      annual_leave_granted_current_year: employee.annual_leave_granted_current_year || 0
+      annual_leave_granted_current_year: employee.annual_leave_granted_current_year || 0,
+      remaining_annual_leave: employee.remaining_annual_leave || 0
     };
     
     console.log('📊 [DEBUG] 초기 편집값 설정:', initialValues);
@@ -454,7 +458,7 @@ export default function EmployeeMain() {
 
   // 검색 필터
   const filteredEmployees = employees.filter(emp => {
-    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.annual_leave_granted_current_year?.toString()].join(" ").toLowerCase();
+    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.annual_leave_granted_current_year?.toString(), emp.remaining_annual_leave?.toString()].join(" ").toLowerCase();
     return text.includes(searchTerm.toLowerCase());
   });
 
@@ -534,6 +538,7 @@ export default function EmployeeMain() {
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[120px] whitespace-nowrap">연락처</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[200px] whitespace-nowrap">이메일</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">생성연차</th>
+                  <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">남은연차</th>
                   {/* 반응형: lg 이상에서만 표시되는 컬럼들 */}
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[100px] whitespace-nowrap hidden lg:table-cell">입사일</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[100px] whitespace-nowrap hidden lg:table-cell">생년월일</th>
@@ -549,7 +554,7 @@ export default function EmployeeMain() {
                 {/* 기존 직원 목록 */}
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 13 : 7}>
+                    <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 14 : 8}>
                       직원 데이터가 없습니다.
                     </td>
                   </tr>
@@ -639,6 +644,20 @@ export default function EmployeeMain() {
                           />
                         ) : (
                           `${emp.annual_leave_granted_current_year || 0}일`
+                        )}
+                      </td>
+                      
+                      {/* 남은연차 - 편집 가능 */}
+                      <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground w-[80px] truncate">
+                        {isEditing(emp) ? (
+                          <input
+                            type="number"
+                            value={getEditValue(emp, 'remaining_annual_leave')}
+                            onChange={(e) => updateEditValue('remaining_annual_leave', parseInt(e.target.value) || 0)}
+                            className="w-full text-[13px] border border-border rounded px-1 py-0.5 text-center"
+                          />
+                        ) : (
+                          `${emp.remaining_annual_leave || 0}일`
                         )}
                       </td>
                       
@@ -841,6 +860,20 @@ export default function EmployeeMain() {
                     type="number"
                     name="annual_leave_granted_current_year"
                     value={addEmployeeForm.annual_leave_granted_current_year || 0}
+                    onChange={handleAddEmployeeFormChange}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+                
+                {/* 남은연차 */}
+                <div>
+                  <label className="block font-semibold mb-1">남은연차</label>
+                  <input
+                    type="number"
+                    name="remaining_annual_leave"
+                    value={addEmployeeForm.remaining_annual_leave || 0}
                     onChange={handleAddEmployeeFormChange}
                     className="w-full border rounded px-3 py-2"
                     placeholder="0"

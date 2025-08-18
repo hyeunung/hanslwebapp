@@ -18,6 +18,7 @@ interface Employee {
   bank_account?: string;
   adress?: string;
   annual_leave_granted_current_year?: number;
+  used_annual_leave?: number;
   remaining_annual_leave?: number;
 }
 
@@ -34,6 +35,7 @@ interface EditableEmployeeFields {
   bank_account: string;
   adress: string;
   annual_leave_granted_current_year: number;
+  used_annual_leave: number;
   remaining_annual_leave: number;
 }
 
@@ -63,7 +65,7 @@ export default function EmployeeMain() {
     setLoading(true);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, annual_leave_granted_current_year, remaining_annual_leave");
+      .select("id, employeeID, name, email, phone, position, department, join_date, birthday, bank, bank_account, adress, annual_leave_granted_current_year, used_annual_leave, remaining_annual_leave");
     
     if (!error && data) {
       setEmployees(data);
@@ -458,7 +460,7 @@ export default function EmployeeMain() {
 
   // 검색 필터
   const filteredEmployees = employees.filter(emp => {
-    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.annual_leave_granted_current_year?.toString(), emp.remaining_annual_leave?.toString()].join(" ").toLowerCase();
+    const text = [emp.employeeID, emp.name, emp.email, emp.phone, emp.position, emp.department, emp.join_date, emp.birthday, emp.bank, emp.bank_account, emp.adress, emp.annual_leave_granted_current_year?.toString(), emp.used_annual_leave?.toString(), emp.remaining_annual_leave?.toString()].join(" ").toLowerCase();
     return text.includes(searchTerm.toLowerCase());
   });
 
@@ -538,7 +540,8 @@ export default function EmployeeMain() {
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[120px] whitespace-nowrap">연락처</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[200px] whitespace-nowrap">이메일</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">생성연차</th>
-                  <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">남은연차</th>
+                <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">사용연차</th>
+                <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[80px] whitespace-nowrap">남은연차</th>
                   {/* 반응형: lg 이상에서만 표시되는 컬럼들 */}
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[100px] whitespace-nowrap hidden lg:table-cell">입사일</th>
                   <th className="border-b border-border border-l border-border px-3 py-2 text-center text-[13px] font-medium text-muted-foreground w-[100px] whitespace-nowrap hidden lg:table-cell">생년월일</th>
@@ -554,7 +557,7 @@ export default function EmployeeMain() {
                 {/* 기존 직원 목록 */}
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 14 : 8}>
+                    <td className="border-b border-border px-3 py-8 text-center text-muted-foreground" colSpan={isHRorAdmin ? 15 : 9}>
                       직원 데이터가 없습니다.
                     </td>
                   </tr>
@@ -638,8 +641,9 @@ export default function EmployeeMain() {
                         {isEditing(emp) ? (
                           <input
                             type="number"
+                            step="0.5"
                             value={getEditValue(emp, 'annual_leave_granted_current_year')}
-                            onChange={(e) => updateEditValue('annual_leave_granted_current_year', parseInt(e.target.value) || 0)}
+                            onChange={(e) => updateEditValue('annual_leave_granted_current_year', parseFloat(e.target.value) || 0)}
                             className="w-full text-[13px] border border-border rounded px-1 py-0.5 text-center"
                           />
                         ) : (
@@ -647,18 +651,22 @@ export default function EmployeeMain() {
                         )}
                       </td>
                       
-                      {/* 남은연차 - 편집 가능 */}
+                      {/* 사용연차 - 읽기 전용 */}
                       <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground w-[80px] truncate">
-                        {isEditing(emp) ? (
-                          <input
-                            type="number"
-                            value={getEditValue(emp, 'remaining_annual_leave')}
-                            onChange={(e) => updateEditValue('remaining_annual_leave', parseInt(e.target.value) || 0)}
-                            className="w-full text-[13px] border border-border rounded px-1 py-0.5 text-center"
-                          />
-                        ) : (
-                          `${emp.remaining_annual_leave || 0}일`
-                        )}
+                        <span className="text-blue-600 font-medium">
+                          {emp.used_annual_leave ? `${emp.used_annual_leave}일` : '0일'}
+                        </span>
+                      </td>
+                      
+                      {/* 남은연차 - 읽기 전용 (자동 계산) */}
+                      <td className="border-b border-border border-l border-border px-3 py-2 text-center text-foreground w-[80px] truncate">
+                        <span className={`font-medium ${
+                          (emp.remaining_annual_leave || 0) <= 2 ? 'text-red-600' : 
+                          (emp.remaining_annual_leave || 0) <= 5 ? 'text-orange-600' : 
+                          'text-green-600'
+                        }`}>
+                          {emp.remaining_annual_leave ? `${emp.remaining_annual_leave}일` : '0일'}
+                        </span>
                       </td>
                       
                       {/* 반응형: lg 이상에서만 표시되는 컬럼들 */}
@@ -855,30 +863,18 @@ export default function EmployeeMain() {
                 
                 {/* 생성연차 */}
                 <div>
-                  <label className="block font-semibold mb-1">생성연차</label>
+                  <label className="block font-semibold mb-1">생성연차 (0.5일 단위 가능)</label>
                   <input
                     type="number"
+                    step="0.5"
                     name="annual_leave_granted_current_year"
                     value={addEmployeeForm.annual_leave_granted_current_year || 0}
                     onChange={handleAddEmployeeFormChange}
                     className="w-full border rounded px-3 py-2"
-                    placeholder="0"
+                    placeholder="예: 15 또는 15.5"
                     min="0"
                   />
-                </div>
-                
-                {/* 남은연차 */}
-                <div>
-                  <label className="block font-semibold mb-1">남은연차</label>
-                  <input
-                    type="number"
-                    name="remaining_annual_leave"
-                    value={addEmployeeForm.remaining_annual_leave || 0}
-                    onChange={handleAddEmployeeFormChange}
-                    className="w-full border rounded px-3 py-2"
-                    placeholder="0"
-                    min="0"
-                  />
+                  <p className="text-xs text-gray-500 mt-1">💡 사용연차와 남은연차는 자동으로 계산됩니다</p>
                 </div>
                 
                 {/* 입사일 */}

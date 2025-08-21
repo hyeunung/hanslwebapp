@@ -254,6 +254,7 @@ export default function EmployeeMain() {
       bank_account: employee.bank_account || '',
       adress: employee.adress || '',
       annual_leave_granted_current_year: employee.annual_leave_granted_current_year || 0,
+      used_annual_leave: employee.used_annual_leave || 0,
       remaining_annual_leave: employee.remaining_annual_leave || 0
     };
     

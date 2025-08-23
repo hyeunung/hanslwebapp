@@ -3,8 +3,8 @@
 ## 📅 2025년 1월 23일 - 중요 복구 버전
 
 ### 🏷️ 버전 정보
-- **Git Tag**: `stable-before-optimization`
-- **백업 브랜치**: `backup/stable-2025-01-23`
+- **Git Tag**: `backup_v1.0`
+- **백업 브랜치**: `backup_v1.0_branch`
 - **커밋 해시**: `b264502`
 
 ### ✅ 이 버전의 상태
@@ -27,12 +27,12 @@
 
 #### 1. Git Tag로 복구
 ```bash
-git checkout stable-before-optimization
+git checkout backup_v1.0
 ```
 
 #### 2. 백업 브랜치로 복구
 ```bash
-git checkout backup/stable-2025-01-23
+git checkout -b restore-from-backup origin/backup_v1.0_branch
 ```
 
 #### 3. 커밋 해시로 직접 복구

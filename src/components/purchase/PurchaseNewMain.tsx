@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X, Save, Calculator, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MultiSelect } from "../ui/multiselect";
 import { DatePicker } from "@/components/ui/datepicker";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";

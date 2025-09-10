@@ -30,8 +30,10 @@ export interface Purchase {
   payment_category: string; // 결제 종류(구매 요청 등)
   currency: string; // 통화 단위
   request_type: string; // 요청 유형
+  vendor_id?: number; // 업체 ID
   vendor_name: string; // 업체명
   vendor_payment_schedule: string; // 업체 결제 조건
+  vendor_contacts?: string[]; // 업체 담당자 ID 목록
   requester_name: string; // 구매 요청자 이름
   item_name: string; // 품명 (첫 번째 품목)
   specification: string; // 규격 (첫 번째 품목)
@@ -138,8 +140,10 @@ export function usePurchaseData() {
           payment_category: request.payment_category as string,
           currency: request.currency as string,
           request_type: request.request_type as string,
+          vendor_id: request.vendor_id as number | undefined,
           vendor_name: request.vendors?.vendor_name || '',
           vendor_payment_schedule: request.vendors?.vendor_payment_schedule || '',
+          vendor_contacts: request.vendor_contacts as string[] | undefined,
           requester_name: request.requester_name as string,
           item_name: firstItem.item_name as string || '',
           specification: firstItem.specification as string || '',

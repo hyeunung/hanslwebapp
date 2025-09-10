@@ -23,8 +23,10 @@ export interface PurchaseTableItem {
   payment_category: string;
   currency: string;
   request_type: string;
+  vendor_id?: number;
   vendor_name: string;
   vendor_payment_schedule: string;
+  vendor_contacts?: string[];
   requester_name: string;
   item_name: string;
   specification: string;
@@ -639,29 +641,33 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               {/* 구매업체 - 편집 가능 */}
               <td className="px-2 py-2 text-xs text-foreground text-center min-w-20">
                 {isCurrentlyEditing(item) ? (
-                  <ReactSelect
-                    value={vendors.find(v => v.id === getEditValue(item).vendor_id) ? 
-                      { value: getEditValue(item).vendor_id, label: vendors.find(v => v.id === getEditValue(item).vendor_id)?.vendor_name } : 
-                      null
-                    }
-                    onChange={(option: any) => {
-                      const vendorId = option?.value;
-                      updateEditValue(item, 'vendor_id', vendorId);
-                      // vendor 변경시 contacts 초기화
-                      updateEditValue(item, 'vendor_contacts', []);
-                    }}
-                    options={vendors.map(v => ({ value: v.id, label: v.vendor_name }))}
-                    placeholder="업체 선택"
-                    isClearable
-                    isSearchable
-                    styles={{
-                      control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
-                      valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
-                      input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                      indicatorsContainer: (base) => ({ ...base, height: '24px' }),
-                      menu: (base) => ({ ...base, fontSize: '11px' })
-                    }}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ReactSelect
+                      value={vendors.find(v => v.id === getEditValue(item).vendor_id) ? 
+                        { value: getEditValue(item).vendor_id, label: vendors.find(v => v.id === getEditValue(item).vendor_id)?.vendor_name } : 
+                        null
+                      }
+                      onChange={(option: any) => {
+                        const vendorId = option?.value;
+                        updateEditValue(item, 'vendor_id', vendorId);
+                        // vendor 변경시 contacts 초기화
+                        updateEditValue(item, 'vendor_contacts', []);
+                      }}
+                      options={vendors.map(v => ({ value: v.id, label: v.vendor_name }))}
+                      placeholder="업체 선택"
+                      isClearable
+                      isSearchable
+                      menuPortalTarget={document.body}
+                      styles={{
+                        control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
+                        valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
+                        input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                        indicatorsContainer: (base) => ({ ...base, height: '24px' }),
+                        menu: (base) => ({ ...base, fontSize: '11px', zIndex: 9999 }),
+                        menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                      }}
+                    />
+                  </div>
                 ) : (
                   item.vendor_name
                 )}
@@ -669,33 +675,37 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               {/* 담당자 - 편집 가능 */}
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">
                 {isCurrentlyEditing(item) ? (
-                  <ReactSelect
-                    value={getEditValue(item).vendor_contacts?.length > 0 && getEditValue(item).vendor_id ?
-                      vendorContacts
-                        .filter(c => c.vendor_id === getEditValue(item).vendor_id && getEditValue(item).vendor_contacts?.includes(c.id.toString()))
-                        .map(c => ({ value: c.id.toString(), label: c.contact_name }))[0] :
-                      null
-                    }
-                    onChange={(option: any) => {
-                      const contactId = option?.value;
-                      updateEditValue(item, 'vendor_contacts', contactId ? [contactId] : []);
-                    }}
-                    options={vendorContacts
-                      .filter(c => c.vendor_id === getEditValue(item).vendor_id)
-                      .map(c => ({ value: c.id.toString(), label: c.contact_name }))
-                    }
-                    placeholder="담당자 선택"
-                    isClearable
-                    isSearchable
-                    isDisabled={!getEditValue(item).vendor_id}
-                    styles={{
-                      control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
-                      valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
-                      input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                      indicatorsContainer: (base) => ({ ...base, height: '24px' }),
-                      menu: (base) => ({ ...base, fontSize: '11px' })
-                    }}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ReactSelect
+                      value={getEditValue(item).vendor_contacts?.length > 0 && getEditValue(item).vendor_id ?
+                        vendorContacts
+                          .filter(c => c.vendor_id === getEditValue(item).vendor_id && getEditValue(item).vendor_contacts?.includes(c.id.toString()))
+                          .map(c => ({ value: c.id.toString(), label: c.contact_name }))[0] :
+                        null
+                      }
+                      onChange={(option: any) => {
+                        const contactId = option?.value;
+                        updateEditValue(item, 'vendor_contacts', contactId ? [contactId] : []);
+                      }}
+                      options={vendorContacts
+                        .filter(c => c.vendor_id === getEditValue(item).vendor_id)
+                        .map(c => ({ value: c.id.toString(), label: c.contact_name }))
+                      }
+                      placeholder="담당자 선택"
+                      isClearable
+                      isSearchable
+                      isDisabled={!getEditValue(item).vendor_id}
+                      menuPortalTarget={document.body}
+                      styles={{
+                        control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
+                        valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
+                        input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                        indicatorsContainer: (base) => ({ ...base, height: '24px' }),
+                        menu: (base) => ({ ...base, fontSize: '11px', zIndex: 9999 }),
+                        menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                      }}
+                    />
+                  </div>
                 ) : (
                   item.contact_name || '-'
                 )}

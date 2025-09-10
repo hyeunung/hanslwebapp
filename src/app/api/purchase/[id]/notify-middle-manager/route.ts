@@ -28,7 +28,6 @@ export async function POST(
       });
 
     if (error) {
-      console.error('Error calling notify_middle_manager_explicit:', error);
       return NextResponse.json(
         { error: 'Failed to send notification', details: error.message },
         { status: 500 }
@@ -49,7 +48,6 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Error in notify-middle-manager API:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -227,7 +227,6 @@ export default function PurchaseNewMain() {
       .order('purchase_order_number', { ascending: false });
     
     if (queryError) {
-      console.error('발주번호 조회 오류:', queryError);
     }
     
     // 다음 순번 계산 (숫자인 시퀀스만 찾기)
@@ -263,11 +262,7 @@ export default function PurchaseNewMain() {
   };
 
   const handleSubmit = async (data: FormValues) => {
-    console.log("==== 발주요청 저장 시점 ====");
-    console.log("입력된 구매요청자 이름:", data.requester_name);
-    console.log("employees 배열:", employees);
     const currentEmployee = employees.find(emp => emp.name === data.requester_name);
-    console.log("매칭된 직원:", currentEmployee);
     
     if (!user) {
       setError("로그인이 필요합니다.");
@@ -299,7 +294,6 @@ export default function PurchaseNewMain() {
         try {
           // 발주번호 자동 생성
           purchaseOrderNumber = await generatePurchaseOrderNumber();
-          console.log(`🔍 발주번호 생성 시도 ${retryCount + 1}:`, purchaseOrderNumber);
 
       
           // 구매 요청 등록 시도
@@ -307,6 +301,7 @@ export default function PurchaseNewMain() {
             requester_id: currentEmployee.id,
             purchase_order_number: purchaseOrderNumber,
             requester_name: data.requester_name,
+            requester_email: currentEmployee?.email || user.email,
             requester_phone: currentEmployee?.phone,
             requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
             requester_address: currentEmployee?.adress,
@@ -338,7 +333,6 @@ export default function PurchaseNewMain() {
             if (retryCount >= maxRetries) {
               throw new Error(`발주번호 생성에 ${maxRetries}번 실패했습니다. 잠시 후 다시 시도해주세요.`);
             }
-            console.log(`🔄 발주번호 중복으로 재시도 (${retryCount}/${maxRetries}):`, purchaseOrderNumber);
             // 재시도를 위해 짧은 대기
             await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
             continue;
@@ -347,7 +341,6 @@ export default function PurchaseNewMain() {
           // 성공한 경우
           if (!pr) throw new Error("등록 실패");
           prId = pr.id;
-          console.log('✅ 발주 요청 등록 성공:', { prId, purchaseOrderNumber });
           break; // 성공 시 루프 종료
           
         } catch (retryError: any) {
@@ -361,7 +354,6 @@ export default function PurchaseNewMain() {
             throw new Error(`발주번호 생성에 ${maxRetries}번 실패했습니다. 잠시 후 다시 시도해주세요.`);
           }
           
-          console.log(`🔄 발주번호 중복으로 재시도 (${retryCount}/${maxRetries}):`, purchaseOrderNumber);
           // 재시도를 위해 짧은 대기 (100-300ms 랜덤)
           await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
         }
@@ -384,11 +376,9 @@ export default function PurchaseNewMain() {
       }
       
       // 발주 요청 성공 처리
-      console.log('발주 요청 완료:', { purchaseOrderNumber });
       
       // 📨 중간관리자 DM 알림 발송 (품목 추가 완료 후 정확한 개수로)
       try {
-        console.log('📨 중간관리자 DM 알림 발송 시작:', { prId });
         const notifyResponse = await fetch(`/api/purchase/${prId}/notify-middle-manager`, {
           method: 'POST',
           headers: {
@@ -398,13 +388,10 @@ export default function PurchaseNewMain() {
         
         if (notifyResponse.ok) {
           const notifyResult = await notifyResponse.json();
-          console.log('✅ 중간관리자 DM 알림 성공:', notifyResult);
         } else {
           const errorText = await notifyResponse.text();
-          console.error('❌ 중간관리자 DM 알림 실패:', errorText);
         }
       } catch (notifyError) {
-        console.error('❌ 중간관리자 DM 알림 에러:', notifyError);
       }
       
       // 1. 폼 초기화
@@ -446,14 +433,11 @@ export default function PurchaseNewMain() {
       setLoading(false);
       
       // 3. 성공 메시지 표시 (선택적)
-      console.log('폼 초기화 완료');
       
       // 4. 발주 목록으로 이동
       try {
         await router.push('/purchase/list');
-        console.log('라우팅 성공: /purchase/list로 이동 완료');
       } catch (routerError) {
-        console.error('라우팅 에러:', routerError);
         // 대체 라우팅 방법
         window.location.href = '/purchase/list';
       }
@@ -541,7 +525,6 @@ export default function PurchaseNewMain() {
       setIsContactDialogOpen(false);
       setHasChanges(false);
     } catch (error) {
-      console.error('담당자 저장 중 오류:', error);
     }
   };
 
@@ -555,7 +538,6 @@ export default function PurchaseNewMain() {
       setContactsForEdit(prev => prev.filter(c => c.id !== contactId));
       setHasChanges(true);
     } catch (error) {
-      console.error('담당자 삭제 중 오류:', error);
     }
   };
 
@@ -659,8 +641,14 @@ export default function PurchaseNewMain() {
                    placeholder="업체 선택"
                    isClearable
                    isSearchable
-                   closeMenuOnSelect={true}
+                   closeMenuOnSelect={false}
                    classNamePrefix="vendor-select"
+                  blurInputOnSelect={false}
+                  openMenuOnFocus={false}
+                  openMenuOnClick={true}
+                  tabSelectsValue={false}
+                  captureMenuScroll={false}
+                  pageSize={20}
                    styles={{
                      container: base => ({ ...base, width: '100%', fontSize: '12px' }),
                      control: base => ({ ...base, height: 32, minHeight: 32, background: '#fff', border: '1px solid #d2d2d7', borderRadius: 6, fontSize: '12px', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', '&:hover': { boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' } }),

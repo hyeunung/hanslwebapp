@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('슬랙 메시지 동기화 API 호출됨');
     
     const body = await request.json();
     const { purchase_order_number } = body;
@@ -14,7 +13,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('발주번호:', purchase_order_number);
 
     // Supabase Edge Function 호출
     const supabaseUrl = 'https://qvhbigvdfyvhoegkhvef.supabase.co';
@@ -32,14 +30,12 @@ export async function POST(request: NextRequest) {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('Edge Function 호출 실패:', result);
       return NextResponse.json(
         { error: 'Edge Function 호출 실패', details: result },
         { status: response.status }
       );
     }
 
-    console.log('Edge Function 호출 성공:', result);
     
     return NextResponse.json({
       success: true,
@@ -49,7 +45,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('API 에러:', error);
     return NextResponse.json(
       { error: 'Internal Server Error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

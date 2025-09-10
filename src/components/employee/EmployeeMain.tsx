@@ -75,11 +75,9 @@ export default function EmployeeMain() {
 
   // 새 직원 추가 모달 시작
   const startAddingEmployee = () => {
-    console.log('✨ [DEBUG] 직원 추가 모달 시작');
     
     // 추가 권한 체크
     if (!canEdit) {
-      console.error('❌ [DEBUG] 추가 권한이 없습니다. 현재 역할:', currentUserRole);
       alert('직원 추가 권한이 없습니다. 관리자에게 문의하세요.');
       return;
     }
@@ -113,24 +111,20 @@ export default function EmployeeMain() {
     });
     setAddEmployeeError(null);
     
-    console.log('✅ [DEBUG] 직원 추가 모달 시작 완료');
   };
 
   // 새 직원 추가 취소
   const cancelAddingEmployee = () => {
-    console.log('❌ [DEBUG] 직원 추가 취소');
     
     setShowAddEmployeeModal(false);
     setAddEmployeeForm({});
     setAddEmployeeError(null);
     
-    console.log('✅ [DEBUG] 직원 추가 모달 종료 완료');
   };
 
   // 새 직원 저장
   const saveNewEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔄 [DEBUG] 새 직원 저장 시작:', addEmployeeForm);
     
     setAddEmployeeError(null);
     
@@ -153,56 +147,46 @@ export default function EmployeeMain() {
     }
     
     // 3. 데이터 정리 (빈 문자열을 null로 변환)
-    const cleanData = Object.entries(addEmployeeForm).reduce((acc, [key, value]) => {
+    const cleanData: any = Object.entries(addEmployeeForm).reduce((acc: any, [key, value]) => {
       if (value === '' || value === undefined) {
-        acc[key as keyof EditableEmployeeFields] = null as any;
+        acc[key] = null;
       } else {
-        acc[key as keyof EditableEmployeeFields] = value as any;
+        acc[key] = value;
       }
       return acc;
-    }, {} as Partial<EditableEmployeeFields>);
+    }, {});
     
-    console.log('💾 [DEBUG] 저장할 새 직원 데이터:', cleanData);
     
     try {
       setAddEmployeeLoading(true);
-      console.log('🚀 [DEBUG] Supabase INSERT 시작...');
       
       const { data, error } = await supabase
         .from('employees')
         .insert([cleanData])
         .select(); // 삽입된 데이터 반환
         
-      console.log('📥 [DEBUG] Supabase 응답:', { data, error });
         
       if (error) {
-        console.error('❌ [DEBUG] Supabase 에러:', error);
         throw new Error(`데이터베이스 오류: ${error.message}`);
       }
       
       if (!data || data.length === 0) {
-        console.error('❌ [DEBUG] 삽입된 데이터가 없습니다');
         throw new Error('직원 추가가 처리되지 않았습니다. 권한을 확인해주세요.');
       }
       
-      console.log('✅ [DEBUG] 새 직원 추가 성공:', data[0]);
       
       // 4. 모달 닫기
       setShowAddEmployeeModal(false);
       setAddEmployeeForm({});
       
       // 5. 데이터 새로고침
-      console.log('🔄 [DEBUG] 데이터 새로고침 시작...');
       await fetchAll();
-      console.log('✅ [DEBUG] 데이터 새로고침 완료');
       
       // 6. 성공 알림
       alert(`새 직원 "${cleanData.name}"이 성공적으로 추가되었습니다!`);
       
-      console.log('🎉 [DEBUG] 전체 새 직원 추가 프로세스 완료!');
       
     } catch (error: any) {
-      console.error('❌ [DEBUG] 새 직원 추가 실패:', error);
       
       // 구체적인 에러 메시지 제공
       if (error.message) {
@@ -231,11 +215,9 @@ export default function EmployeeMain() {
 
   // 편집 모드 시작 - 개선된 버전
   const startEditing = (employee: Employee) => {
-    console.log('📝 [DEBUG] 편집 모드 시작:', employee);
     
     // 편집 권한 체크
     if (!canEdit) {
-      console.error('❌ [DEBUG] 편집 권한이 없습니다. 현재 역할:', currentUserRole);
       alert('편집 권한이 없습니다. 관리자에게 문의하세요.');
       return;
     }
@@ -258,13 +240,11 @@ export default function EmployeeMain() {
       remaining_annual_leave: employee.remaining_annual_leave || 0
     };
     
-    console.log('📊 [DEBUG] 초기 편집값 설정:', initialValues);
     setEditValues(initialValues);
   };
 
   // 편집 취소 - 개선된 버전
   const cancelEditing = () => {
-    console.log('❌ [DEBUG] 편집 취소');
     
     // 변경된 내용이 있는지 확인
     const hasUnsavedChanges = Object.keys(editValues).length > 0;
@@ -272,30 +252,25 @@ export default function EmployeeMain() {
     if (hasUnsavedChanges) {
       const confirmCancel = window.confirm('저장하지 않은 변경사항이 있습니다. 정말 취소하시겠습니까?');
       if (!confirmCancel) {
-        console.log('ℹ️ [DEBUG] 사용자가 취소를 취소했습니다');
         return;
       }
     }
     
     setEditingEmployeeId(null);
     setEditValues({});
-    console.log('✅ [DEBUG] 편집 모드 종료 완료');
   };
 
   // 편집 저장 - 완전 개선된 버전
   const saveEditing = async () => {
-    console.log('🔄 [DEBUG] 저장 시작:', { editingEmployeeId, editValues });
     
     // 1. 기본 조건 체크
     if (!editingEmployeeId) {
-      console.error('❌ [DEBUG] editingEmployeeId가 없습니다');
       alert('편집 중인 직원이 없습니다.');
       return;
     }
     
     // 2. 편집값 존재 여부 체크
     if (!editValues || Object.keys(editValues).length === 0) {
-      console.error('❌ [DEBUG] editValues가 비어있습니다:', editValues);
       alert('수정할 내용이 없습니다.');
       return;
     }
@@ -303,15 +278,13 @@ export default function EmployeeMain() {
     // 3. 현재 편집 중인 직원 찾기
     const currentEmployee = employees.find(emp => emp.id === editingEmployeeId);
     if (!currentEmployee) {
-      console.error('❌ [DEBUG] 편집 중인 직원을 찾을 수 없습니다:', editingEmployeeId);
       alert('편집 중인 직원 정보를 찾을 수 없습니다.');
       return;
     }
     
-    console.log('📊 [DEBUG] 현재 직원 정보:', currentEmployee);
     
     // 4. 실제 변경된 필드만 필터링
-    const changedFields: Partial<EditableEmployeeFields> = {};
+    const changedFields: any = {};
     let hasChanges = false;
     
     Object.entries(editValues).forEach(([key, value]) => {
@@ -323,20 +296,17 @@ export default function EmployeeMain() {
       const newStr = String(newValue || '').trim();
       
       if (currentStr !== newStr) {
-        changedFields[key as keyof EditableEmployeeFields] = newValue as any;
+        changedFields[key] = newValue;
         hasChanges = true;
-        console.log(`🔄 [DEBUG] 변경된 필드 [${key}]:`, { 이전: currentStr, 새값: newStr });
       }
     });
     
     // 5. 변경사항이 없으면 저장하지 않음
     if (!hasChanges) {
-      console.log('ℹ️ [DEBUG] 변경된 내용이 없습니다');
       alert('변경된 내용이 없습니다.');
       return;
     }
     
-    console.log('💾 [DEBUG] 저장할 변경된 필드들:', changedFields);
     
     // 6. 필수 필드 검증
     const requiredFields = ['name', 'email'];
@@ -345,7 +315,6 @@ export default function EmployeeMain() {
     for (const field of requiredFields) {
       const value = finalData[field as keyof Employee];
       if (!value || String(value).trim() === '') {
-        console.error(`❌ [DEBUG] 필수 필드 [${field}]가 비어있습니다:`, value);
         alert(`${field === 'name' ? '이름' : '이메일'}은 필수 입력 항목입니다.`);
         return;
       }
@@ -355,7 +324,6 @@ export default function EmployeeMain() {
     if (changedFields.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(changedFields.email)) {
-        console.error('❌ [DEBUG] 잘못된 이메일 형식:', changedFields.email);
         alert('올바른 이메일 형식을 입력해주세요.');
         return;
       }
@@ -363,7 +331,6 @@ export default function EmployeeMain() {
     
     try {
       setLoading(true);
-      console.log('🚀 [DEBUG] Supabase 업데이트 시작...');
       
       const { data, error } = await supabase
         .from('employees')
@@ -371,37 +338,29 @@ export default function EmployeeMain() {
         .eq('id', editingEmployeeId)
         .select(); // 업데이트된 데이터 반환
         
-      console.log('📥 [DEBUG] Supabase 응답:', { data, error });
         
       if (error) {
-        console.error('❌ [DEBUG] Supabase 에러:', error);
         throw new Error(`데이터베이스 오류: ${error.message}`);
       }
       
       if (!data || data.length === 0) {
-        console.error('❌ [DEBUG] 업데이트된 데이터가 없습니다');
         throw new Error('업데이트가 처리되지 않았습니다. 권한을 확인해주세요.');
       }
       
-      console.log('✅ [DEBUG] 업데이트 성공:', data[0]);
       
       // 8. 편집 모드 종료
       setEditingEmployeeId(null);
       setEditValues({});
       
       // 9. 데이터 새로고침
-      console.log('🔄 [DEBUG] 데이터 새로고침 시작...');
       await fetchAll();
-      console.log('✅ [DEBUG] 데이터 새로고침 완료');
       
       // 10. 성공 알림
       const updatedFieldsStr = Object.keys(changedFields).join(', ');
       alert(`직원 정보가 성공적으로 수정되었습니다!\n수정된 필드: ${updatedFieldsStr}`);
       
-      console.log('🎉 [DEBUG] 전체 저장 프로세스 완료!');
       
     } catch (error: any) {
-      console.error('❌ [DEBUG] 저장 실패:', error);
       
       // 구체적인 에러 메시지 제공
       let errorMessage = '수정에 실패했습니다.';
@@ -426,14 +385,12 @@ export default function EmployeeMain() {
 
   // 편집값 업데이트 - 개선된 버전
   const updateEditValue = (field: keyof EditableEmployeeFields, value: any) => {
-    console.log(`📝 [DEBUG] 필드 [${field}] 값 변경:`, value);
     
     setEditValues(prev => {
       const updated = {
         ...prev,
         [field]: value
       };
-      console.log('📊 [DEBUG] 전체 편집값 상태:', updated);
       return updated;
     });
   };

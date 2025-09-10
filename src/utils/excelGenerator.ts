@@ -54,42 +54,24 @@ export function formatCurrency(value: number, currency: string): string {
 
 // 템플릿 기반 Excel 생성 함수 (개선된 버전)
 export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
-  console.group('🔥 Excel 생성 프로세스 시작');
-  console.log('📊 입력 데이터:', {
-    발주번호: data.purchase_order_number,
-    업체명: data.vendor_name,
-    요청자: data.requester_name,
-    품목수: data.items.length
-  });
-  
   try {
-    console.log('📂 템플릿 파일 로드 시도...');
     
     // 방법 1: 원본 템플릿 파일 로드 시도
     try {
       const templateUrl = '/templates/발주서(Default)-3.xlsx';
-      console.log('🌐 템플릿 URL:', templateUrl);
       
       const response = await fetch(templateUrl);
-      console.log('📡 Fetch 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
       
       if (!response.ok) {
         throw new Error(`템플릿 로드 실패: ${response.status} ${response.statusText}`);
       }
       
       const templateBuffer = await response.arrayBuffer();
-      console.log('📦 템플릿 버퍼 크기:', templateBuffer.byteLength, 'bytes');
       
       if (templateBuffer.byteLength === 0) {
         throw new Error('템플릿 파일이 비어있습니다');
       }
       
-      console.log('🔍 템플릿 파일 분석 시작...');
       const wb = XLSX.read(templateBuffer, { 
         type: 'array',
         cellStyles: true,    // 셀 스타일 보존
@@ -97,11 +79,6 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
         cellFormula: true,   // 수식 보존
         sheetStubs: true,    // 빈 셀도 포함
         cellDates: true      // 날짜 형식 보존
-      });
-      
-      console.log('📋 워크북 정보:', {
-        시트목록: wb.SheetNames,
-        시트수: wb.SheetNames.length
       });
       
       if (wb.SheetNames.length === 0) {
@@ -112,14 +89,7 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
       
-      console.log('📊 시트 정보:', {
-        시트명: sheetName,
-        시트타입: typeof ws,
-        셀수: Object.keys(ws).filter(key => !key.startsWith('!')).length
-      });
-      
       // 템플릿의 원본 서식과 구조 보존하면서 데이터만 교체
-      console.log('✏️ 템플릿 데이터 교체 시작...');
       
       // 기본 정보 교체 (실제 템플릿의 셀 위치에 맞게 수정)
       setCellValueSafely(ws, 'C2', data.vendor_name || ''); // 업체명 (company_name 위치)
@@ -132,7 +102,6 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
       setCellValueSafely(ws, 'C7', formatDate(data.delivery_request_date) || ''); // 입고요청일 (request_date 위치)
       
       // 품목 데이터 교체 (A9부터 시작)
-      console.log('📦 품목 데이터 입력 시작...');
       data.items.forEach((item, index) => {
         const rowNum = 9 + index;
         setCellValueSafely(ws, `A${rowNum}`, item.line_number || (index + 1));
@@ -153,34 +122,21 @@ export async function generatePurchaseOrderExcel(data: PurchaseOrderData) {
       setCellValueSafely(ws, 'G49', data.sales_order_number || ''); // 수주번호 (pj_name 위치)
       setCellValueSafely(ws, 'G50', data.project_item || ''); // 아이템 (pj_item 위치)
       
-      console.log('✅ 템플릿 기반 Excel 생성 완료!');
-      console.log('📈 입력된 데이터:', {
-        업체: data.vendor_name,
-        발주번호: data.purchase_order_number,
-        품목수: data.items.length,
-        총금액: formatCurrency(totalAmount, data.items[0]?.currency || 'KRW')
-      });
-      
       // 원본 템플릿 기반 파일 저장
       await saveWorkbook(wb, data);
       return;
       
     } catch (templateError) {
-      console.warn('⚠️ 템플릿 로드 실패, 폴백 모드로 전환:', templateError);
       // 폴백 모드는 아래에서 실행됨
     }
     
     // 방법 2: 폴백 - 기본 Excel 생성 (디자인 없음)
-    console.log('🔄 폴백 모드: 기본 Excel 생성');
     await generateFallbackExcel(data);
     
   } catch (error) {
-    console.error('💥 Excel 생성 중 치명적 오류:', error);
-    console.groupEnd();
     throw error;
   }
   
-  console.groupEnd();
 }
 
 // 안전한 셀 값 설정 함수
@@ -194,23 +150,19 @@ function setCellValueSafely(ws: XLSX.WorkSheet, cellAddress: string, value: any)
         v: value,        // 값만 변경
         t: typeof value === 'number' ? 'n' : 's'
       };
-      console.log(`  ✏️ 셀 ${cellAddress} 업데이트: ${originalCell.v} → ${value}`);
     } else {
       // 새 셀 생성
       ws[cellAddress] = { 
         v: value, 
         t: typeof value === 'number' ? 'n' : 's'
       };
-      console.log(`  ➕ 셀 ${cellAddress} 신규 생성: ${value}`);
     }
   } catch (error) {
-    console.warn(`⚠️ 셀 ${cellAddress} 설정 실패:`, error);
   }
 }
 
 // 폴백 Excel 생성 함수
 async function generateFallbackExcel(data: PurchaseOrderData) {
-  console.log('🆕 폴백 Excel 생성 시작');
   
   try {
     const wb = XLSX.utils.book_new();
@@ -257,7 +209,6 @@ async function generateFallbackExcel(data: PurchaseOrderData) {
     // 모든 데이터 합치기
     const allData = [...headerData, ...itemsData, ...emptyRows, ...footerData];
     
-    console.log('📊 폴백 Excel 데이터 준비 완료, 총 행 수:', allData.length);
     
     // 워크시트 생성
     const ws = XLSX.utils.aoa_to_sheet(allData);
@@ -271,56 +222,46 @@ async function generateFallbackExcel(data: PurchaseOrderData) {
         };
       }
     } catch (styleError) {
-      console.warn('⚠️ 스타일 적용 실패:', styleError);
     }
     
     // 워크시트를 워크북에 추가
     XLSX.utils.book_append_sheet(wb, ws, '발주서');
     
-    console.log('✅ 폴백 워크시트 생성 완료');
     
     // 파일 생성 및 다운로드
     await saveWorkbook(wb, data);
     
   } catch (error) {
-    console.error('💥 폴백 Excel 생성 중 오류:', error);
     throw error;
   }
 }
 
 // 워크북 저장 함수
 async function saveWorkbook(wb: XLSX.WorkBook, data: PurchaseOrderData) {
-  console.log('💾 워크북 저장 시작');
   
   try {
-    console.log('🔄 Excel 버퍼 생성 중...');
     const excelBuffer = XLSX.write(wb, { 
       bookType: 'xlsx', 
       type: 'array',
       bookSST: false
     });
     
-    console.log('📦 Excel 버퍼 생성 완료, 크기:', excelBuffer.byteLength, 'bytes');
     
     // Blob 생성
     const blob = new Blob([excelBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
     
-    console.log('🗂️ Blob 생성 완료, 크기:', blob.size, 'bytes');
     
     // 파일명 생성
     const filename = `발주서_${data.purchase_order_number}_${data.vendor_name}_${formatDateForFileName(data.request_date)}.xlsx`;
     
-    console.log('📁 파일 다운로드 시작:', filename);
     
     // 다운로드
     saveAs(blob, filename);
     
-    console.log('🎉 발주서 Excel 파일 생성 및 다운로드 완료!');
     
   } catch (error) {
-    console.error('💥 워크북 저장 중 오류:', error);
     throw error;
   }
 }

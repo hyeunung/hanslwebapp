@@ -1,6 +1,10 @@
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Supabase 설정
 const supabaseUrl = 'https://qvhbigvdfyvhoegkhvef.supabase.co';
@@ -10,8 +14,16 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function executeMigration() {
   try {
+    // 명령행 인수에서 마이그레이션 파일명 가져오기
+    const migrationFileName = process.argv[2];
+    if (!migrationFileName) {
+      console.error('❌ 마이그레이션 파일명을 제공해주세요.');
+      console.log('사용법: node scripts/execute-migration.js [파일명]');
+      process.exit(1);
+    }
+    
     // SQL 파일 읽기
-    const sqlPath = path.join(__dirname, 'migrations', '20250819_recalculate_remaining_annual_leave.sql');
+    const sqlPath = path.join(__dirname, 'migrations', `${migrationFileName}.sql`);
     const sql = fs.readFileSync(sqlPath, 'utf8');
     
     console.log('🔄 연차 재계산 SQL 실행 중...');

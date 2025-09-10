@@ -122,7 +122,6 @@ export function usePurchaseData() {
 
       if (requestsError) throw requestsError;
       
-      console.log('🔍 [DEBUG] 조인 쿼리로 가져온 총 레코드 수:', requests?.length || 0);
       
       // 데이터 변환 및 Purchase 객체 생성
       const purchases: Purchase[] = (requests || []).map((request: any) => {
@@ -165,12 +164,9 @@ export function usePurchaseData() {
         };
       });
       
-      console.log('🔍 [DEBUG] 조인 쿼리로 생성된 Purchase 객체 수:', purchases.length);
-      console.log('🔍 [DEBUG] 고유 발주번호 수:', new Set(purchases.map(item => item.purchase_order_number)).size);
       setPurchases(purchases);
     } catch (error) {
       // 에러 발생 시 콘솔에 출력
-      console.error('발주 데이터 로딩 오류:', error);
     } finally {
       setIsLoadingPurchases(false); // 로딩 상태 해제
     }
@@ -217,7 +213,6 @@ export function usePurchaseData() {
         }
         setCurrentUserRoles([]);
         setCurrentUserRole("");
-        if (userError) console.error('현재 사용자 정보 로딩 오류:', userError.message);
       }
       // 4. 전체 직원 목록 불러오기
       const { data: employeeList, error: listError } = await supabase
@@ -232,7 +227,6 @@ export function usePurchaseData() {
       }
     } catch (error) {
       // 에러 발생 시 콘솔에 출력 및 기본값 설정
-      console.error('직원 정보를 불러오는데 실패했습니다:', error);
       setCurrentUserName(user.email?.split('@')[0] || '기본사용자');
       setCurrentUserRoles([]);
       setCurrentUserRole("");

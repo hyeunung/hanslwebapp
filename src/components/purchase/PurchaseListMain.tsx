@@ -32,6 +32,8 @@ interface EditableFields {
   remark: string;
   delivery_request_date: string;
   link?: string;
+  vendor_id?: number;
+  vendor_contacts?: string[];
 }
 
 // 발주(구매) 데이터의 타입(구성요소) 정의입니다. 실제로 코드를 수정할 일이 없다면, 그냥 참고만 하셔도 됩니다.
@@ -170,19 +172,14 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // purchase_manager나 app_admin 권한이 있는 사용자는 모든 요청을 볼 수 있습니다.
   const visiblePurchases = useMemo(() => {
-    console.log('🔍 [DEBUG] usePurchaseData에서 가져온 총 purchases:', purchases.length);
-    console.log('🔍 [DEBUG] 현재 사용자 권한:', currentUserRoles);
     
     let result;
     if (currentUserRoles && (currentUserRoles.includes('purchase_manager') || currentUserRoles.includes('app_admin'))) {
       result = purchases;
-      console.log('🔍 [DEBUG] purchase_manager/app_admin 권한으로 모든 데이터 표시');
     } else {
       result = purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
-      console.log('🔍 [DEBUG] 정현웅, 정희웅 제외 후 데이터 수:', result.length);
     }
     
-    console.log('🔍 [DEBUG] visiblePurchases 고유 발주번호 수:', new Set(result.map(p => p.purchase_order_number)).size);
     return result;
   }, [purchases, currentUserRoles]);
 
@@ -251,10 +248,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     return period[0] && period[1] && d >= period[0] && d <= period[1];
   });
   
-  console.log('🔍 [DEBUG] 기간 필터 전 rawDisplayData 수:', rawDisplayData.length);
-  console.log('🔍 [DEBUG] 기간 필터 후 displayData 수:', displayData.length);
-  console.log('🔍 [DEBUG] 기간 필터 후 고유 발주번호 수:', new Set(displayData.map(item => item.purchase_order_number)).size);
-  console.log('🔍 [DEBUG] 현재 설정된 기간:', period[0], '~', period[1]);
 
   // 페이지네이션 계산 (그룹 헤더 기준)
   const uniqueOrderNumbers = Array.from(new Set(displayData.map(item => item.purchase_order_number)));
@@ -365,7 +358,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           }
         }
       } catch (error) {
-        console.warn('업체 정보 조회 중 오류:', error);
       }
 
       const excelData = {
@@ -425,20 +417,15 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             .update({ is_po_download: true })
             .eq('purchase_order_number', orderNumber);
           if (downloadFlagErr) {
-            console.warn('is_po_download 플래그 업데이트 실패:', downloadFlagErr.message);
           } else {
-            console.log('is_po_download 플래그 업데이트 성공 (lead buyer)');
           }
         } else {
-          console.log('lead buyer가 아니므로 is_po_download 플래그 업데이트 건너뜀');
         }
       } catch (flagErr) {
-        console.error('is_po_download 업데이트 중 예외:', flagErr);
       }
 
       // Storage 업로드 조건 체크: 선진행이거나 최종승인된 경우만
       if (shouldUploadToStorage) {
-        console.log('다운로드 활성화 조건 만족 - Storage 업로드 및 Slack 알림 전송');
         
         try {
           // Storage용 파일명: 발주번호.xlsx
@@ -458,9 +445,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
             });
           
           if (uploadError) {
-            console.error('Storage 업로드 오류:', uploadError);
           } else {
-            console.log('Storage 업로드 성공:', storageFilename);
             
             // Storage URL 생성 (다운로드 옵션 포함)
             const { data: urlData } = supabase.storage
@@ -478,26 +463,16 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 storage_url: urlData.publicUrl
               }),
             });
-            console.log('Slack 알림 전송 완료');
           }
         } catch (storageErr) {
-          console.error('Storage 처리 오류:', storageErr);
         }
       } else {
-        console.log('다운로드 활성화 조건 미충족 - Storage 업로드 및 Slack 알림 건너뜀');
-        console.log('조건:', { 
-          progress_type: purchaseRequest.progress_type,
-          final_manager_status: purchaseRequest.final_manager_status,
-          isAdvancePayment: isAdvancePayment(purchaseRequest.progress_type),
-          shouldUpload: shouldUploadToStorage
-        });
       }
        
       // 로컬 상태 최신화 (다운로드 표시)
       await loadMyRequests();
        
     } catch (err) {
-      console.error('엑셀 생성 오류:', err);
       alert(`엑셀 생성 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
@@ -537,8 +512,22 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       if (employeeFilter !== 'all' && employeeFilter && item.requester_name !== employeeFilter) return false;
 
       switch (tabKey) {
-        case 'pending':
-          return ['pending', '대기', '', null].includes(item.final_manager_status as any);
+        case 'pending': {
+          // 기본 대기 상태 체크
+          const isPending = ['pending', '대기', '', null].includes(item.final_manager_status as any);
+          
+          // 최종승인된 경우, 당일 자정까지만 표시
+          const isApprovedToday = item.final_manager_status === 'approved' && item.final_manager_approved_at && (() => {
+            const approvedDate = new Date(item.final_manager_approved_at);
+            const today = new Date();
+            // 승인일과 오늘이 같은 날짜인지 체크
+            return approvedDate.getFullYear() === today.getFullYear() &&
+                   approvedDate.getMonth() === today.getMonth() &&
+                   approvedDate.getDate() === today.getDate();
+          })();
+          
+          return isPending || isApprovedToday;
+        }
         case 'purchase': {
           // (1) 선진행 & 구매 요청 & 결제 미완료  OR  (2) 일반 & 구매 요청 & 결제 미완료 & 최종승인
           const isRequest = item.payment_category === '구매 요청';
@@ -629,14 +618,12 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       // 데이터 새로고침
       await loadMyRequests();
     } catch (error) {
-      console.error('품목 삭제 실패:', error);
       alert('품목 삭제에 실패했습니다.');
     }
   };
 
   // 발주 항목 수정 함수
   const handleEditOrder = async (orderNumber: string, lineNumber: number, editedFields: EditableFields) => {
-    console.log('🔄 [DEBUG] 수정 시작:', { orderNumber, lineNumber, editedFields });
     
     // 수정 권한 체크
     const canEdit = currentUserRoles.includes('final_approver') || currentUserRoles.includes('app_admin') || currentUserRoles.includes('ceo');
@@ -658,7 +645,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         link: editedFields.link || null, // 링크
       };
 
-      console.log('💾 [DEBUG] purchase_request_items 업데이트 데이터:', itemUpdateData);
 
       const { error: itemsError } = await supabase
         .from('purchase_request_items')
@@ -667,17 +653,24 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         .eq('line_number', lineNumber);
 
       if (itemsError) {
-        console.error('❌ [DEBUG] purchase_request_items 업데이트 실패:', itemsError);
         throw itemsError;
       }
-      console.log('✅ [DEBUG] purchase_request_items 업데이트 성공');
 
       // 2. purchase_requests 테이블 업데이트 (공통 필드들)
       const updateData: any = {
         delivery_request_date: editedFields.delivery_request_date, // 입고요청일
       };
+      
+      // vendor_id가 변경된 경우 추가
+      if (editedFields.vendor_id !== undefined) {
+        updateData.vendor_id = editedFields.vendor_id;
+      }
+      
+      // vendor_contacts가 변경된 경우 추가
+      if (editedFields.vendor_contacts !== undefined) {
+        updateData.vendor_contacts = editedFields.vendor_contacts;
+      }
 
-      console.log('💾 [DEBUG] purchase_requests 업데이트 데이터:', updateData);
 
       const { error: requestError } = await supabase
         .from('purchase_requests')
@@ -685,18 +678,13 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         .eq('purchase_order_number', orderNumber);
 
       if (requestError) {
-        console.error('❌ [DEBUG] purchase_requests 업데이트 실패:', requestError);
         throw requestError;
       }
-      console.log('✅ [DEBUG] purchase_requests 업데이트 성공');
 
       // 3. 개별 데이터 새로고침 제거 - saveEditing에서 일괄 처리
-      console.log('✅ [DEBUG] 데이터베이스 업데이트 완료');
       
-      console.log('🎉 [DEBUG] 수정 완료:', { orderNumber, lineNumber, editedFields });
       // 개별 알림 제거 - saveEditing에서 한 번만 알림
     } catch (err: any) {
-      console.error('❌ [DEBUG] 수정 전체 오류:', err);
       // 개별 에러 알림 제거 - saveEditing에서 처리
       throw new Error(`수정 중 오류가 발생했습니다: ${err.message || err}`);
     }
@@ -735,7 +723,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
           .delete()
           .eq('purchase_request_id', id);
         if (notificationErr) {
-          console.warn('알림 삭제 중 오류:', notificationErr);
           // 알림 삭제 오류는 경고만 하고 계속 진행
         }
       }
@@ -753,7 +740,6 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       await loadMyRequests();
       alert('삭제가 완료되었습니다.');
     } catch (err: any) {
-      console.error('삭제 오류:', err);
       window.alert('주문 삭제 중 오류가 발생했습니다: ' + (err.message || err));
     }
   };

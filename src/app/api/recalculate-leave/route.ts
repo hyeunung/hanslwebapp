@@ -8,7 +8,6 @@ export async function POST() {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    console.log('🔄 연차 재계산 시작...');
     
     // 1. 현재 상태 확인
     const { data: beforeEmployees, error: beforeError } = await supabase
@@ -41,7 +40,6 @@ export async function POST() {
         .lte('date', `${currentYear}-12-31`);
       
       if (leaveError) {
-        console.error(`❌ ${employee.name}의 연차 조회 실패:`, leaveError);
         continue;
       }
       
@@ -58,10 +56,8 @@ export async function POST() {
         .eq('id', employee.id);
       
       if (updateError) {
-        console.error(`❌ ${employee.name} 업데이트 실패:`, updateError);
         results.push({ name: employee.name, status: 'failed', error: updateError });
       } else {
-        console.log(`✅ ${employee.name}: 사용연차=${usedAnnualLeave}, 남은연차=${Math.max(0, remainingAnnualLeave)}`);
         results.push({ 
           name: employee.name, 
           status: 'success', 
@@ -85,7 +81,6 @@ export async function POST() {
     });
     
   } catch (error) {
-    console.error('❌ 예상치 못한 오류:', error);
     return NextResponse.json({ error: '예상치 못한 오류', details: error }, { status: 500 });
   }
 }

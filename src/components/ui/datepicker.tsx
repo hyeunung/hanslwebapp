@@ -51,7 +51,9 @@ export function DatePicker(props: DatePickerProps) {
   return (
     <DatePickerLib
       selected={selected || null}
-      onChange={date => onChange(date as Date | null)}
+      onChange={(date: Date | Date[] | null) => {
+        onChange(Array.isArray(date) ? date[0] : date);
+      }}
       dateFormat="yyyy-MM-dd"
       className={`h-8 px-3 border rounded-md bg-white text-xs w-full ${className || ""}`}
       popperProps={{ strategy: 'fixed' }}

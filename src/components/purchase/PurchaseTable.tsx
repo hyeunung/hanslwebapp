@@ -4,11 +4,13 @@
 // props로 받은 데이터(displayData 등)를 표 형태로 보여주며,
 // 행 클릭, 엑셀 다운로드 등 주요 상호작용도 이 컴포넌트에서 처리합니다.
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabaseClient";
+import dynamic from "next/dynamic";
+const ReactSelect = dynamic(() => import('react-select'), { ssr: false });
 
 // 각 발주(구매) 항목의 데이터 구조입니다. 실제로 코드를 수정할 일은 거의 없습니다.
 export interface PurchaseTableItem {
@@ -58,6 +60,8 @@ interface EditableFields {
   remark: string;
   delivery_request_date: string;
   link?: string;
+  vendor_id?: number;
+  vendor_contacts?: string[];
 }
 
 // 이 컴포넌트가 화면에 표를 그릴 때 필요한 입력값(데이터, 함수 등) 목록입니다.
@@ -121,6 +125,37 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   const [editValues, setEditValues] = useState<Record<string, EditableFields>>({}); // "발주번호-라인번호" : EditableFields
   // '구매현황'과 '전체 항목' 탭일 때 링크 열 표시
   const showLinkColumn = activeTab === 'purchase' || activeTab === 'done';
+  
+  // 업체와 담당자 데이터
+  const [vendors, setVendors] = useState<{ id: number; vendor_name: string }[]>([]);
+  const [vendorContacts, setVendorContacts] = useState<{ id: number; vendor_id: number; contact_name: string; contact_email: string; contact_phone: string; position: string }[]>([]);
+  
+  // 업체와 담당자 데이터 로드
+  useEffect(() => {
+    const loadVendorsAndContacts = async () => {
+      // 업체 목록 가져오기
+      const { data: vendorData } = await supabase
+        .from('vendors')
+        .select('id, vendor_name')
+        .order('vendor_name');
+      
+      if (vendorData) {
+        setVendors(vendorData);
+      }
+      
+      // 담당자 목록 가져오기
+      const { data: contactData } = await supabase
+        .from('vendor_contacts')
+        .select('id, vendor_id, contact_name, contact_email, contact_phone, position')
+        .order('contact_name');
+      
+      if (contactData) {
+        setVendorContacts(contactData);
+      }
+    };
+    
+    loadVendorsAndContacts();
+  }, []);
 
   // 날짜를 '월-일' 형식으로 바꿔주는 함수입니다. (예: 2024-06-01 → 06-01)
   const formatDate = (dateStr: string) => {
@@ -156,11 +191,9 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   const startEditing = (item: PurchaseTableItem) => {
     if (!item.purchase_order_number) return;
     
-    console.log('📝 [DEBUG] 편집 모드 시작:', item.purchase_order_number);
     
     // 1. 그룹 자동 펼치기 (이미 열려있지 않은 경우만)
     const isAlreadyExpanded = expandedGroups.has(item.purchase_order_number);
-    console.log('📝 [DEBUG] 그룹 상태:', { isAlreadyExpanded, expandedGroups: Array.from(expandedGroups) });
     
     // 2. 편집 중인 발주번호 설정
     setEditingOrderNumber(item.purchase_order_number);
@@ -168,7 +201,6 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
     // 3. 그룹 펼치기와 편집 데이터 설정
     const setupEditData = () => {
       const orderItems = displayData.filter(d => d.purchase_order_number === item.purchase_order_number);
-      console.log('📝 [DEBUG] 해당 발주번호 품목 수:', orderItems.length);
       
       const newEditValues: Record<string, EditableFields> = {};
       
@@ -187,13 +219,10 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
         }
       });
       
-      console.log('📝 [DEBUG] 생성된 editValues:', newEditValues);
       setEditValues(newEditValues);
-      console.log('📝 [DEBUG] 편집 모드 시작 완료');
     };
     
     if (!isAlreadyExpanded) {
-      console.log('📝 [DEBUG] 그룹 펼치기 실행');
       toggleGroup(item.purchase_order_number);
       // 그룹이 펼쳐진 후 편집 데이터 설정
       setTimeout(setupEditData, 100);
@@ -205,29 +234,20 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
 
   // 편집 취소
   const cancelEditing = () => {
-    console.log('❌ [DEBUG] 편집 취소 실행');
     setEditingOrderNumber(null);
     setEditValues({});
-    console.log('❌ [DEBUG] 편집 취소 완료');
   };
 
   // 편집 저장 - 발주번호의 모든 품목 일괄 저장
   const saveEditing = async () => {
     if (!editingOrderNumber) {
-      console.log('⚠️ [DEBUG] 편집 중인 발주번호가 없음');
       return;
     }
     
     // 저장 전 상태 스냅샷 - 무엇이 저장되는지 상세 확인
-    console.log('💾 [DEBUG] ===========================================');
-    console.log('💾 [DEBUG] 저장 시작 - 상세 정보:');
-    console.log('💾 [DEBUG] - editingOrderNumber:', editingOrderNumber);
-    console.log('💾 [DEBUG] - editValues 키 개수:', Object.keys(editValues).length);
-    console.log('💾 [DEBUG] - editValues 상세:', editValues);
     
     // editValues가 비어있는지 확인
     if (Object.keys(editValues).length === 0) {
-      console.log('⚠️ [DEBUG] editValues가 비어있음 - 저장할 데이터가 없음');
       alert('저장할 수정 내용이 없습니다.');
       return;
     }
@@ -237,40 +257,29 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
       const savePromises = Object.entries(editValues).map(async ([editKey, values]) => {
         const [orderNumber, lineNumber] = editKey.split('-');
         if (orderNumber === editingOrderNumber) {
-          console.log('🔄 [DEBUG] 품목 저장 시작:', { editKey, values });
           await handleEditOrder(orderNumber, parseInt(lineNumber), values);
-          console.log('✅ [DEBUG] 품목 저장 완료:', editKey);
         }
       });
       
-      console.log('🔄 [DEBUG] 모든 품목 병렬 저장 시작... (총', savePromises.length, '개)');
       await Promise.all(savePromises);
-      console.log('✅ [DEBUG] 모든 품목 저장 완료');
       
       // 편집 모드 먼저 종료 - 리렌더링 충돌 방지
-      console.log('🔄 [DEBUG] 편집 모드 종료 시작...');
-      const currentOrderNumber = editingOrderNumber; // 대기 상태 보관
       setEditingOrderNumber(null);
       setEditValues({});
-      console.log('✅ [DEBUG] 편집 모드 종료 완료 - 원래 상태로 돌아감');
       
       // 모든 저장 완료 후 한 번만 알림
       alert('수정이 성공적으로 저장되었습니다!');
       
       // 데이터 새로고침 - 편집 모드 종료 후
-      console.log('🔄 [DEBUG] 데이터 새로고침 시작...');
       await refreshData();
-      console.log('✅ [DEBUG] 데이터 새로고침 완료');
       
-      console.log('🎉 [DEBUG] 전체 저장 프로세스 완료!');
     } catch (error) {
-      console.error('❌ [DEBUG] 전체 저장 실패:', error);
       alert(`수정 저장에 실패했습니다: ${error}`);
     }
   };
 
   // 편집 가능 조건 체크 - 발주 요청된 모든 항목 수정 가능
-  const canEditItem = (item: PurchaseTableItem) => {
+  const canEditItem = (_item: PurchaseTableItem) => {
     // 권한 체크만 - app_admin, final_approver, ceo만 수정 가능
     return canEdit;
   };
@@ -283,7 +292,16 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
   // 특정 품목의 편집값 가져오기 (null 방지)
   const getEditValue = (item: PurchaseTableItem) => {
     const editKey = `${item.purchase_order_number}-${item.line_number}`;
-    const values = editValues[editKey] || {};
+    const values = editValues[editKey] || {} as EditableFields;
+    
+    // 현재 vendor_id 찾기 (vendor_name으로부터)
+    const currentVendorId = vendors.find(v => v.vendor_name === item.vendor_name)?.id;
+    
+    // 현재 contacts 찾기 (contact_name으로부터) 
+    const currentContacts = item.contact_name 
+      ? [vendorContacts.find(c => c.contact_name === item.contact_name && c.vendor_id === currentVendorId)?.id?.toString()].filter(Boolean)
+      : [];
+    
     return {
       item_name: values.item_name ?? item.item_name ?? '',
       specification: values.specification ?? item.specification ?? '',
@@ -291,7 +309,9 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
       unit_price_value: values.unit_price_value ?? item.unit_price_value ?? 0,
       remark: values.remark ?? item.remark ?? '',
       delivery_request_date: values.delivery_request_date ?? item.delivery_request_date ?? '',
-      link: values.link ?? item.link ?? ''
+      link: values.link ?? item.link ?? '',
+      vendor_id: values.vendor_id ?? currentVendorId,
+      vendor_contacts: values.vendor_contacts ?? currentContacts
     };
   };
   
@@ -362,7 +382,7 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
       </thead>
       <tbody>
         {/* 아래는 실제 데이터(주문서 목록)를 한 줄씩 표로 그리는 부분입니다. */}
-        {displayData.map((item, index) => {
+        {displayData.map((item) => {
           // 그룹/하위항목 등 표의 구조를 위한 변수들입니다.
           const isGroupHeader = item.isGroupHeader;
           const isSubItem = item.isSubItem;
@@ -616,8 +636,70 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
                   </span>
                 </div>
               </td>
-              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20">{item.vendor_name}</td>
-              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">{item.contact_name || '-'}</td>
+              {/* 구매업체 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-center min-w-20">
+                {isCurrentlyEditing(item) ? (
+                  <ReactSelect
+                    value={vendors.find(v => v.id === getEditValue(item).vendor_id) ? 
+                      { value: getEditValue(item).vendor_id, label: vendors.find(v => v.id === getEditValue(item).vendor_id)?.vendor_name } : 
+                      null
+                    }
+                    onChange={(option: any) => {
+                      const vendorId = option?.value;
+                      updateEditValue(item, 'vendor_id', vendorId);
+                      // vendor 변경시 contacts 초기화
+                      updateEditValue(item, 'vendor_contacts', []);
+                    }}
+                    options={vendors.map(v => ({ value: v.id, label: v.vendor_name }))}
+                    placeholder="업체 선택"
+                    isClearable
+                    isSearchable
+                    styles={{
+                      control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
+                      valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
+                      input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                      indicatorsContainer: (base) => ({ ...base, height: '24px' }),
+                      menu: (base) => ({ ...base, fontSize: '11px' })
+                    }}
+                  />
+                ) : (
+                  item.vendor_name
+                )}
+              </td>
+              {/* 담당자 - 편집 가능 */}
+              <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-20">
+                {isCurrentlyEditing(item) ? (
+                  <ReactSelect
+                    value={getEditValue(item).vendor_contacts?.length > 0 && getEditValue(item).vendor_id ?
+                      vendorContacts
+                        .filter(c => c.vendor_id === getEditValue(item).vendor_id && getEditValue(item).vendor_contacts?.includes(c.id.toString()))
+                        .map(c => ({ value: c.id.toString(), label: c.contact_name }))[0] :
+                      null
+                    }
+                    onChange={(option: any) => {
+                      const contactId = option?.value;
+                      updateEditValue(item, 'vendor_contacts', contactId ? [contactId] : []);
+                    }}
+                    options={vendorContacts
+                      .filter(c => c.vendor_id === getEditValue(item).vendor_id)
+                      .map(c => ({ value: c.id.toString(), label: c.contact_name }))
+                    }
+                    placeholder="담당자 선택"
+                    isClearable
+                    isSearchable
+                    isDisabled={!getEditValue(item).vendor_id}
+                    styles={{
+                      control: (base) => ({ ...base, minHeight: '24px', height: '24px', fontSize: '11px' }),
+                      valueContainer: (base) => ({ ...base, height: '24px', padding: '0 4px' }),
+                      input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                      indicatorsContainer: (base) => ({ ...base, height: '24px' }),
+                      menu: (base) => ({ ...base, fontSize: '11px' })
+                    }}
+                  />
+                ) : (
+                  item.contact_name || '-'
+                )}
+              </td>
               <td className="px-2 py-2 text-xs text-foreground text-center min-w-16 truncate">{formatDate(item.request_date)}</td>
               {/* 입고요청일 - 편집 가능 */}
               <td className="px-2 py-2 text-xs text-foreground text-center min-w-20 truncate">
@@ -705,31 +787,29 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
               {/* 링크 - 편집 가능 (구매현황/전체항목 탭에서만) */}
               {showLinkColumn && (
                 <td className="px-2 py-2 text-xs text-foreground text-left min-w-32">
-                  {isGroupHeader ? (
-                    isCurrentlyEditing(item) ? (
-                      <Input
-                        value={getEditValue(item).link}
-                        onChange={(e) => updateEditValue(item, 'link', e.target.value)}
-                        className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 w-full"
-                        placeholder="URL 입력"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                  {isCurrentlyEditing(item) ? (
+                    <Input
+                      value={getEditValue(item).link}
+                      onChange={(e) => updateEditValue(item, 'link', e.target.value)}
+                      className="h-6 text-xs border-0 p-1 focus:ring-1 focus:ring-blue-500 w-full"
+                      placeholder="URL 입력"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    item.link ? (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800 break-all"
+                        title={item.link}
+                      >
+                        {item.link.length > 30 ? `${item.link.substring(0, 30)}...` : item.link}
+                      </a>
                     ) : (
-                      item.link ? (
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline hover:text-blue-800 break-all"
-                          title={item.link}
-                        >
-                          {item.link.length > 30 ? `${item.link.substring(0, 30)}...` : item.link}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )
+                      <span className="text-gray-400">-</span>
                     )
-                  ) : null}
+                  )}
                 </td>
               )}
               <td className="px-2 py-2 text-xs text-foreground text-center truncate min-w-16">{item.project_vendor}</td>

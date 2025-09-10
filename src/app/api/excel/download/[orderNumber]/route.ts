@@ -84,12 +84,6 @@ export async function GET(
       .eq('purchase_order_number', orderNumber)
       .order('line_number');
 
-    console.log('=== DEBUG START ===');
-    console.log('[DEBUG] orderNumber:', orderNumber);
-    console.log('[DEBUG] orderItems 조회 결과:', orderItems);
-    console.log('[DEBUG] itemsError:', itemsError);
-    console.log('[DEBUG] orderItems.length:', orderItems?.length);
-    console.log('=== DEBUG END ===');
 
     if (itemsError || !orderItems || orderItems.length === 0) {
       return NextResponse.json(
@@ -139,7 +133,6 @@ export async function GET(
         }
       }
     } catch (error) {
-      console.warn('업체 정보 조회 중 오류:', error);
     }
 
     // 엑셀 데이터 준비
@@ -196,12 +189,9 @@ export async function GET(
           });
         
         if (uploadError) {
-          console.error('Storage 업로드 오류:', uploadError);
         } else {
-          console.log('Storage 업로드 성공:', storageFilename);
         }
       } catch (storageErr) {
-        console.error('Storage 처리 오류:', storageErr);
       }
     }
 
@@ -213,12 +203,9 @@ export async function GET(
         .eq('purchase_order_number', orderNumber);
       
       if (updateError) {
-        console.error('is_po_download 업데이트 오류:', updateError);
       } else {
-        console.log('is_po_download updated to true for:', orderNumber);
       }
     } catch (updateErr) {
-      console.error('is_po_download 업데이트 처리 오류:', updateErr);
     }
 
     // HTTP 응답으로 엑셀 파일 반환
@@ -231,7 +218,6 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('엑셀 생성 오류:', error);
     return NextResponse.json(
       { error: '엑셀 파일 생성 중 오류가 발생했습니다.' },
       { status: 500 }

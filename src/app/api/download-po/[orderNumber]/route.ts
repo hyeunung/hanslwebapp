@@ -29,7 +29,6 @@ export async function GET(
       .download(filename);
 
     if (error || !data) {
-      console.error('Storage 다운로드 오류:', error);
       return NextResponse.json(
         { error: '파일을 찾을 수 없습니다.' },
         { status: 404 }
@@ -56,7 +55,6 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('발주서 다운로드 오류:', error);
     return NextResponse.json(
       { error: '다운로드 중 오류가 발생했습니다.' },
       { status: 500 }

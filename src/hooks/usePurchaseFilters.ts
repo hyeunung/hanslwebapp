@@ -64,8 +64,22 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
       if (!matchesSearchAndEmployee(item)) return false;
 
       switch (activeTab) {
-        case 'pending':
-          return ['pending', '대기', '', null].includes(item.final_manager_status as any);
+        case 'pending': {
+          // 기본 대기 상태 체크
+          const isPending = ['pending', '대기', '', null].includes(item.final_manager_status as any);
+          
+          // 최종승인된 경우, 당일 자정까지만 표시
+          const isApprovedToday = item.final_manager_status === 'approved' && item.final_manager_approved_at && (() => {
+            const approvedDate = new Date(item.final_manager_approved_at);
+            const today = new Date();
+            // 승인일과 오늘이 같은 날짜인지 체크
+            return approvedDate.getFullYear() === today.getFullYear() &&
+                   approvedDate.getMonth() === today.getMonth() &&
+                   approvedDate.getDate() === today.getDate();
+          })();
+          
+          return isPending || isApprovedToday;
+        }
         case 'purchase': {
           // 조건: (1) 선진행 & 구매 요청 & 결제 미완료  OR  (2) 일반 & 구매 요청 & 결제 미완료 & 최종승인
           const isRequest = item.payment_category === '구매 요청';
@@ -89,6 +103,44 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
           return true;
       }
     });
+    
+    // 승인대기 탭일 경우 정렬 적용
+    if (activeTab === 'pending') {
+      return filtered.sort((a, b) => {
+        // 1. 승인 상태별 우선순위
+        const getPriority = (item: Purchase) => {
+          // 모두 대기 (중간/최종 모두 대기) - 최우선
+          if (item.middle_manager_status !== '승인' && item.middle_manager_status !== 'approved') {
+            return 1;
+          }
+          // 1차 승인만 (중간 승인, 최종 대기) - 두번째
+          if (item.middle_manager_status === '승인' || item.middle_manager_status === 'approved') {
+            if (item.final_manager_status !== 'approved') {
+              return 2;
+            }
+          }
+          // 최종 승인 (당일만 표시되는 것) - 마지막
+          if (item.final_manager_status === 'approved') {
+            return 3;
+          }
+          return 4; // 기타
+        };
+        
+        const priorityA = getPriority(a);
+        const priorityB = getPriority(b);
+        
+        // 우선순위가 다르면 우선순위로 정렬
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        
+        // 우선순위가 같으면 요청일 기준 내림차순 (최신이 위로)
+        const dateA = new Date(a.request_date).getTime();
+        const dateB = new Date(b.request_date).getTime();
+        return dateB - dateA;
+      });
+    }
+    
     return filtered;
   }, [purchases, activeTab, searchTerm, selectedEmployee]);
 

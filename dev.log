@@ -1,0 +1,22 @@
+
+> hanslwebapp@0.1.0 dev
+> WATCHPACK_POLLING=true next dev
+
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.234:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1344ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.3s (1674 modules)
+ GET / 200 in 2562ms
+ ✓ Compiled in 124ms (791 modules)
+ GET / 200 in 34ms
+ ○ Compiling /purchase/list ...
+ ✓ Compiled /purchase/list in 1579ms (4260 modules)
+ GET /purchase/list 200 in 1721ms
+ GET / 200 in 187ms
+ GET /purchase/list 200 in 13ms
+[?25h

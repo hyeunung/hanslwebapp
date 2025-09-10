@@ -431,15 +431,13 @@ export default function PurchaseNewMain() {
       setError("");
       setLoading(false);
       
-      // 3. 성공 메시지 표시 (선택적)
+      // 3. 성공 메시지 표시
+      alert(`발주 요청이 완료되었습니다.\n발주번호: ${purchaseOrderNumber}`);
       
       // 4. 발주 목록으로 이동
-      try {
-        await router.push('/purchase/list');
-      } catch (routerError) {
-        // 대체 라우팅 방법
-        window.location.href = '/purchase/list';
-      }
+      console.log('발주 목록으로 이동 시도...');
+      // router.replace를 사용하여 히스토리 스택 교체
+      await router.replace('/purchase/list');
       return;
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");

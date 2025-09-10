@@ -301,7 +301,6 @@ export default function PurchaseNewMain() {
             requester_id: currentEmployee.id,
             purchase_order_number: purchaseOrderNumber,
             requester_name: data.requester_name,
-            requester_email: currentEmployee?.email || user.email,
             requester_phone: currentEmployee?.phone,
             requester_fax: null, // fax는 현재 employees 테이블에 없으므로 null
             requester_address: currentEmployee?.adress,

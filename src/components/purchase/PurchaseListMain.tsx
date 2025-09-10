@@ -87,6 +87,8 @@ interface User {
 interface PurchaseListMainProps {
   onEmailToggle?: () => void;
   showEmailButton?: boolean;
+  initialTab?: string;
+  approvalMode?: boolean;
 }
 
 // 화면 상단의 탭(진행상태별) 목록입니다. 예: 승인대기, 구매현황, 입고현황, 전체항목
@@ -98,14 +100,14 @@ const NAV_TABS: { key: string; label: string }[] = [
 ];
 
 // 이 함수가 실제로 '발주 목록' 화면 전체를 만듭니다.
-export default function PurchaseListMain({ onEmailToggle, showEmailButton = true }: PurchaseListMainProps) {
+export default function PurchaseListMain({ onEmailToggle, showEmailButton = true, initialTab = 'pending', approvalMode = false }: PurchaseListMainProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   // 검색어, 직원 선택, 탭(진행상태) 등 화면의 상태를 관리합니다.
   const [searchTerm, setSearchTerm] = useState(""); // 검색창에 입력한 내용
   const [selectedEmployee, setSelectedEmployee] = useState<string>(''); // 선택된 직원. 탭 변경 시 각각 기본값으로 재설정
-  const initialTab = searchParams.get('subtab') || 'pending';
-  const [activeTab, setActiveTab] = useState(initialTab); // 현재 선택된 탭(진행상태)
+  const defaultTab = searchParams.get('subtab') || initialTab;
+  const [activeTab, setActiveTab] = useState(defaultTab); // 현재 선택된 탭(진행상태)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); // 펼쳐진 주문서 그룹(여러 줄짜리)
   const lastTabRef = useRef<HTMLButtonElement>(null); // 탭 UI 위치 계산용
   const [sepLeft, setSepLeft] = useState(0); // 탭 구분선 위치

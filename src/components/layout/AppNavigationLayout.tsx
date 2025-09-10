@@ -11,6 +11,7 @@ import { usePurchaseData } from "@/hooks/usePurchaseData";
 import HeaderBar from "./HeaderBar";
 import HeaderBrand from "./HeaderBrand";
 import EmployeeMain from "@/components/employee/EmployeeMain";
+import ApproveMain from "@/components/approve/ApproveMain";
 
 const navigationItems = [
   { id: 'dashboard', icon: Home, label: '대시보드' },
@@ -46,7 +47,7 @@ export default function AppNavigationLayout({ initialTab = 'dashboard', children
     );
     else if (currentTab === 'new') content = <PurchaseNewMain />;
     else if (currentTab === 'list') content = <PurchaseListMain showEmailButton={false} />;
-    else if (currentTab === 'approval') content = <PurchaseListMain showEmailButton={true} initialTab="pending" approvalMode={true} />;
+    else if (currentTab === 'approval') content = <ApproveMain />;
     else if (currentTab === 'vendors') content = <VendorListMain />;
     else if (currentTab === 'employee') content = <EmployeeMain />;
   }

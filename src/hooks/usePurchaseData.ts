@@ -33,7 +33,7 @@ export interface Purchase {
   vendor_id?: number; // 업체 ID
   vendor_name: string; // 업체명
   vendor_payment_schedule: string; // 업체 결제 조건
-  vendor_contacts?: string[]; // 업체 담당자 ID 목록
+  contact_id?: number; // 업체 담당자 ID
   requester_name: string; // 구매 요청자 이름
   item_name: string; // 품명 (첫 번째 품목)
   specification: string; // 규격 (첫 번째 품목)
@@ -105,7 +105,8 @@ export function usePurchaseData() {
             vendor_name,
             vendor_payment_schedule
           ),
-          vendor_contacts (
+          contact:vendor_contacts!contact_id (
+            id,
             contact_name
           ),
           purchase_request_items (
@@ -143,7 +144,7 @@ export function usePurchaseData() {
           vendor_id: request.vendor_id as number | undefined,
           vendor_name: request.vendors?.vendor_name || '',
           vendor_payment_schedule: request.vendors?.vendor_payment_schedule || '',
-          vendor_contacts: request.vendor_contacts as string[] | undefined,
+          contact_id: request.contact_id as number | undefined,
           requester_name: request.requester_name as string,
           item_name: firstItem.item_name as string || '',
           specification: firstItem.specification as string || '',
@@ -155,7 +156,7 @@ export function usePurchaseData() {
           sales_order_number: request.sales_order_number as string,
           project_item: request.project_item as string,
           line_number: Number(firstItem.line_number) || 1,
-          contact_name: request.vendor_contacts?.contact_name || '',
+          contact_name: request.contact?.contact_name || '',
           middle_manager_status: request.middle_manager_status as string,
           final_manager_status: request.final_manager_status as string,
           is_received: !!request.is_received,

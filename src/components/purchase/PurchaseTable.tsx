@@ -26,7 +26,7 @@ export interface PurchaseTableItem {
   vendor_id?: number;
   vendor_name: string;
   vendor_payment_schedule: string;
-  vendor_contacts?: string[];
+  contact_id?: number;
   requester_name: string;
   item_name: string;
   specification: string;
@@ -296,13 +296,15 @@ const PurchaseTable: React.FC<PurchaseTableProps> = ({
     const editKey = `${item.purchase_order_number}-${item.line_number}`;
     const values = editValues[editKey] || {} as EditableFields;
     
-    // 현재 vendor_id 찾기 (vendor_name으로부터)
-    const currentVendorId = vendors.find(v => v.vendor_name === item.vendor_name)?.id;
+    // 현재 vendor_id 찾기 (vendor_name으로부터 또는 직접 사용)
+    const currentVendorId = item.vendor_id || vendors.find(v => v.vendor_name === item.vendor_name)?.id;
     
-    // 현재 contacts 찾기 (contact_name으로부터) 
-    const currentContacts = item.contact_name 
-      ? [vendorContacts.find(c => c.contact_name === item.contact_name && c.vendor_id === currentVendorId)?.id?.toString()].filter(Boolean)
-      : [];
+    // 현재 contacts 찾기 (contact_id 또는 contact_name으로부터) 
+    const currentContacts = item.contact_id 
+      ? [item.contact_id.toString()]
+      : item.contact_name 
+        ? [vendorContacts.find(c => c.contact_name === item.contact_name && c.vendor_id === currentVendorId)?.id?.toString()].filter(Boolean)
+        : [];
     
     return {
       item_name: values.item_name ?? item.item_name ?? '',

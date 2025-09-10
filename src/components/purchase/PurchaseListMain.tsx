@@ -666,9 +666,11 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
         updateData.vendor_id = editedFields.vendor_id;
       }
       
-      // vendor_contacts가 변경된 경우 추가
-      if (editedFields.vendor_contacts !== undefined) {
-        updateData.vendor_contacts = editedFields.vendor_contacts;
+      // vendor_contacts가 변경된 경우 첫 번째 contact_id를 저장
+      if (editedFields.vendor_contacts !== undefined && editedFields.vendor_contacts.length > 0) {
+        updateData.contact_id = parseInt(editedFields.vendor_contacts[0]);
+      } else if (editedFields.vendor_contacts !== undefined) {
+        updateData.contact_id = null;
       }
 
 

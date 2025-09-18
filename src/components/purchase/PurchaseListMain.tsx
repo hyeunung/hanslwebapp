@@ -464,15 +464,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                 download: downloadFilename
               });
             
-            // Slack 알림 전송 (Storage URL 사용)
-            await fetch('/api/notify-download', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                purchase_order_number: excelData.purchase_order_number,
-                storage_url: urlData.publicUrl
-              }),
-            });
+            // 알림 전송 부분 제거됨 (기존 Slack 연동)
           }
         } catch (storageErr) {
         }

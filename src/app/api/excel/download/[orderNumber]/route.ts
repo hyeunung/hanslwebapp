@@ -13,7 +13,7 @@ const supabaseServiceRole = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// HEAD 요청 처리 (Slack 버튼 검증용)
+// HEAD 요청 처리 (다운로드 가능 여부 검증용)
 export async function HEAD(
   request: NextRequest,
   { params }: { params: Promise<{ orderNumber: string }> }

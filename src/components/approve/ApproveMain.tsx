@@ -34,8 +34,8 @@ interface ApproveRow {
   purchaseOrderNumber: string;
   progressType: string;
   items: ItemDetail[];
-  middleManagerStatus: "approved" | "pending" | "rejected";
-  finalManagerStatus: "approved" | "pending" | "rejected";
+  middleManagerStatus: "approved" | "pending" | "rejected" | "승인" | "대기" | "반려";
+  finalManagerStatus: "approved" | "pending" | "rejected" | "승인" | "대기" | "반려";
   isPaymentCompleted: boolean;
 }
 

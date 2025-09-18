@@ -292,8 +292,8 @@ const ApproveMain: React.FC = () => {
             amountValue: item.amount_value,
             remark: item.remark,
           })).sort((a, b) => a.lineNumber - b.lineNumber),
-          middleManagerStatus: row.middle_manager_status || "pending",
-          finalManagerStatus: row.final_manager_status || "pending",
+          middleManagerStatus: (row.middle_manager_status || "pending") as "approved" | "pending" | "rejected" | "승인" | "대기" | "반려",
+          finalManagerStatus: (row.final_manager_status || "pending") as "approved" | "pending" | "rejected" | "승인" | "대기" | "반려",
           isPaymentCompleted: !!row.is_payment_completed,
         }));
         
@@ -365,8 +365,8 @@ const ApproveMain: React.FC = () => {
           amountValue: item.amount_value,
           remark: item.remark,
         })).sort((a, b) => a.lineNumber - b.lineNumber),
-        middleManagerStatus: row.middle_manager_status || "pending",
-        finalManagerStatus: row.final_manager_status || "pending",
+        middleManagerStatus: (row.middle_manager_status || "pending") as "approved" | "pending" | "rejected" | "승인" | "대기" | "반려",
+        finalManagerStatus: (row.final_manager_status || "pending") as "approved" | "pending" | "rejected" | "승인" | "대기" | "반려",
         isPaymentCompleted: !!row.is_payment_completed,
       }));
       

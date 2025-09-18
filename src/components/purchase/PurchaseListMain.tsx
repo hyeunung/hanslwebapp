@@ -174,12 +174,11 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   // purchase_manager나 app_admin 권한이 있는 사용자는 모든 요청을 볼 수 있습니다.
   const visiblePurchases = useMemo(() => {
+    let result = purchases;
     
-    let result;
-    if (currentUserRoles && (currentUserRoles.includes('purchase_manager') || currentUserRoles.includes('app_admin'))) {
-      result = purchases;
-    } else {
-      result = purchases.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
+    // 기본 필터링 - 정현웅/정희웅 제외
+    if (!currentUserRoles || (!currentUserRoles.includes('purchase_manager') && !currentUserRoles.includes('app_admin'))) {
+      result = result.filter(p => p.requester_name !== '정현웅' && p.requester_name !== '정희웅');
     }
     
     return result;
@@ -187,8 +186,16 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
   const roleCase = useMemo(() => {
     if (!currentUserRoles || currentUserRoles.length === 0) return 1; // null
+    // consumable_manager 단독 권한인 경우 특별 처리
+    if (currentUserRoles.includes('consumable_manager') && 
+        !currentUserRoles.includes('final_approver') && 
+        !currentUserRoles.includes('app_admin') && 
+        !currentUserRoles.includes('ceo')) {
+      return 3; // 관리자 권한이지만 구매 요청만 보기
+    }
+    // 그 다음 다른 관리자 권한 체크
+    if (currentUserRoles.some(r => ['final_approver', 'app_admin', 'ceo', 'middle_manager'].includes(r))) return 3;
     if (currentUserRoles.includes('purchase_manager')) return 2;
-    if (currentUserRoles.some(r => ['middle_manager', 'final_approver', 'app_admin', 'ceo'].includes(r))) return 3;
     return 1;
   }, [currentUserRoles]);
 
@@ -242,6 +249,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
     searchTerm,
     selectedEmployee: selectedEmployee ?? '',
     isToday,
+    currentUserRoles, // 사용자 권한 전달
   });
 
   // 기간 필터 적용
@@ -515,11 +523,23 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
 
       switch (tabKey) {
         case 'pending': {
-          // 기본 대기 상태 체크
-          const isPending = ['pending', '대기', '', null].includes(item.final_manager_status as any);
+          // consumable_manager는 구매 요청만 카운트
+          if (currentUserRoles && currentUserRoles.includes('consumable_manager')) {
+            if (item.payment_category !== '구매 요청') {
+              return false;
+            }
+          }
+          
+          // 중간 승인 대기 상태 체크 (처음 요청된 상태)
+          const isMiddlePending = ['pending', '대기', '', null].includes(item.middle_manager_status as any);
+          
+          // 최종 승인 대기 상태 체크 (중간 승인 완료, 최종 승인 대기)
+          const isFinalPending = (item.middle_manager_status === '승인' || item.middle_manager_status === 'approved') &&
+                                item.final_manager_status !== 'approved' && item.final_manager_status !== '승인';
           
           // 최종승인된 경우, 당일 자정까지만 표시
-          const isApprovedToday = item.final_manager_status === 'approved' && item.final_manager_approved_at && (() => {
+          const isApprovedToday = (item.final_manager_status === 'approved' || item.final_manager_status === '승인') && 
+                                  item.final_manager_approved_at && (() => {
             const approvedDate = new Date(item.final_manager_approved_at);
             const today = new Date();
             // 승인일과 오늘이 같은 날짜인지 체크
@@ -528,7 +548,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
                    approvedDate.getDate() === today.getDate();
           })();
           
-          return isPending || isApprovedToday;
+          return isMiddlePending || isFinalPending || isApprovedToday;
         }
         case 'purchase': {
           // (1) 선진행 & 구매 요청 & 결제 미완료  OR  (2) 일반 & 구매 요청 & 결제 미완료 & 최종승인

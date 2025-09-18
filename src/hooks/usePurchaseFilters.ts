@@ -13,10 +13,11 @@ interface UsePurchaseFiltersProps {
   searchTerm: string; // 검색어
   selectedEmployee: string; // 선택된 직원 이름
   isToday: (dateStr?: string | null) => boolean; // 오늘 날짜인지 판별하는 함수
+  currentUserRoles?: string[]; // 현재 사용자 권한
 }
 
 // [커스텀 훅] 발주 목록을 다양한 조건으로 필터링/가공합니다.
-export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedEmployee, isToday }: UsePurchaseFiltersProps) {
+export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedEmployee, isToday, currentUserRoles }: UsePurchaseFiltersProps) {
   // [useMemo] 필터링된 발주 목록을 계산합니다.
   const tabFilteredOrders = useMemo(() => {
     const matchesSearchAndEmployee = (item: Purchase) => {
@@ -65,11 +66,25 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
 
       switch (activeTab) {
         case 'pending': {
-          // 기본 대기 상태 체크
-          const isPending = ['pending', '대기', '', null].includes(item.final_manager_status as any);
+          // consumable_manager 권한이 있으면 구매 요청만 필터링
+          if (currentUserRoles && currentUserRoles.includes('consumable_manager')) {
+            // 구매 요청이 아니면 표시하지 않음
+            if (item.payment_category !== '구매 요청') {
+              return false;
+            }
+          }
+          
+          // 중간 승인 대기 상태 체크 (처음 요청된 상태)
+          const isMiddlePending = ['pending', '대기', '', null].includes(item.middle_manager_status as any);
+          
+          // 최종 승인 대기 상태 체크 (중간 승인 완료, 최종 승인 대기)
+          // '승인' 상태가 아닌 모든 경우를 대기로 처리 (approved가 아닌 모든 것)
+          const isFinalPending = (item.middle_manager_status === '승인' || item.middle_manager_status === 'approved') &&
+                                item.final_manager_status !== 'approved' && item.final_manager_status !== '승인';
           
           // 최종승인된 경우, 당일 자정까지만 표시
-          const isApprovedToday = item.final_manager_status === 'approved' && item.final_manager_approved_at && (() => {
+          const isApprovedToday = (item.final_manager_status === 'approved' || item.final_manager_status === '승인') && 
+                                  item.final_manager_approved_at && (() => {
             const approvedDate = new Date(item.final_manager_approved_at);
             const today = new Date();
             // 승인일과 오늘이 같은 날짜인지 체크
@@ -78,7 +93,7 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
                    approvedDate.getDate() === today.getDate();
           })();
           
-          return isPending || isApprovedToday;
+          return isMiddlePending || isFinalPending || isApprovedToday;
         }
         case 'purchase': {
           // 조건: (1) 선진행 & 구매 요청 & 결제 미완료  OR  (2) 일반 & 구매 요청 & 결제 미완료 & 최종승인
@@ -142,7 +157,7 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
     }
     
     return filtered;
-  }, [purchases, activeTab, searchTerm, selectedEmployee]);
+  }, [purchases, activeTab, searchTerm, selectedEmployee, currentUserRoles]);
 
   // [useMemo] 발주번호별로 그룹핑된 데이터 생성
   const orderNumberGroups = useMemo(() => {

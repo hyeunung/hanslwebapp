@@ -197,30 +197,31 @@ const ApproveMain: React.FC = () => {
   };
 
   /* ------------------------------------------------------------------
-   * 역할별 요청유형 필터링
-   *  - raw_material_manager  ➜  "원자재" 요청만 표시
-   *  - consumable_manager    ➜  "소모품" 요청만 표시
-   *    (두 역할 모두 가진 경우엔 두 유형 모두 표시)
+   * 역할별 필터링
+   *  - raw_material_manager  ➜  "원자재" (request_type) 요청만 표시
+   *  - consumable_manager    ➜  "구매 요청" (payment_category) 만 표시 (원자재/소모품 무관)
+   *    (두 역할 모두 가진 경우엔 두 조건 중 하나만 만족해도 표시)
    * ------------------------------------------------------------------ */
   const roleFilteredList = useMemo(() => {
-    // 두 역할을 모두 가진 경우엔 전체(요청유형 필터 미적용)
     const hasRawRole = currentUserRoles.includes("raw_material_manager");
     const hasConsumableRole = currentUserRoles.includes("consumable_manager");
 
     // 아무 역할도 없으면 그대로 반환
     if (!hasRawRole && !hasConsumableRole) return approveList;
 
-    // raw_only 또는 consumable_only
+    // raw_only - request_type이 원자재인 것만
     if (hasRawRole && !hasConsumableRole) {
       return approveList.filter((row) => row.requestType === "원자재");
     }
+    
+    // consumable_only - payment_category가 "구매 요청"인 것만 (원자재/소모품 무관)
     if (!hasRawRole && hasConsumableRole) {
-      return approveList.filter((row) => row.requestType === "소모품");
+      return approveList.filter((row) => row.paymentCategory === "구매 요청");
     }
 
-    // 둘 다 있을 땐 둘 다 허용
+    // 둘 다 있을 땐 원자재(request_type) 또는 구매 요청(payment_category)
     return approveList.filter((row) =>
-      row.requestType === "원자재" || row.requestType === "소모품"
+      row.requestType === "원자재" || row.paymentCategory === "구매 요청"
     );
   }, [approveList, currentUserRoles]);
 
@@ -382,6 +383,14 @@ const ApproveMain: React.FC = () => {
   // ------------------------------------------------------------------
   const getFilteredList = () => {
     if (activeTab === "pending") {
+      // consumable_manager는 최종 승인자이므로, 중간 승인 완료 & 최종 승인 대기만 표시
+      if (currentUserRoles.includes("consumable_manager")) {
+        return visibleList.filter(
+          (r) => (r.middleManagerStatus === "approved" || r.middleManagerStatus === "승인") && 
+                 (r.finalManagerStatus === "pending" || r.finalManagerStatus === "대기" || !r.finalManagerStatus)
+        );
+      }
+      // 다른 역할은 기존 로직 유지
       return visibleList.filter(
         (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
       );
@@ -436,9 +445,18 @@ const ApproveMain: React.FC = () => {
   // 통계 (역할 필터 반영)
   // ------------------------------------------------------------------
   const stats = {
-    pending: visibleList.filter(
-      (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
-    ).length,
+    pending: (() => {
+      // consumable_manager는 최종 승인 대기만 카운트
+      if (currentUserRoles.includes("consumable_manager")) {
+        return visibleList.filter(
+          (r) => (r.middleManagerStatus === "approved" || r.middleManagerStatus === "승인") && 
+                 (r.finalManagerStatus === "pending" || r.finalManagerStatus === "대기" || !r.finalManagerStatus)
+        ).length;
+      }
+      return visibleList.filter(
+        (r) => r.middleManagerStatus === "pending" || r.finalManagerStatus === "pending"
+      ).length;
+    })(),
     approved: visibleList.filter(
       (r) => r.middleManagerStatus === "approved" && r.finalManagerStatus === "approved"
     ).length,

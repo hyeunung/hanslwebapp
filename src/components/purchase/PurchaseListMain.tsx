@@ -194,7 +194,7 @@ export default function PurchaseListMain({ onEmailToggle, showEmailButton = true
       return 3; // 관리자 권한이지만 구매 요청만 보기
     }
     // 그 다음 다른 관리자 권한 체크
-    if (currentUserRoles.some(r => ['final_approver', 'app_admin', 'ceo', 'middle_manager'].includes(r))) return 3;
+    if (currentUserRoles.some(r => ['final_approver', 'app_admin', 'ceo', 'middle_manager', 'hr'].includes(r))) return 3;
     if (currentUserRoles.includes('purchase_manager')) return 2;
     return 1;
   }, [currentUserRoles]);

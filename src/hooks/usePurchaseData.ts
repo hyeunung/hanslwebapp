@@ -164,8 +164,8 @@ export function usePurchaseData() {
           is_payment_completed: !!request.is_payment_completed,
           is_po_download: !!request.is_po_download,
           link: firstItem.link as string | undefined,
-          // 전체 품목 리스트 추가
-          items: request.purchase_request_items || []
+          // 전체 품목 리스트 추가 (line_number로 정렬)
+          items: (request.purchase_request_items || []).sort((a: any, b: any) => (a.line_number || 0) - (b.line_number || 0))
         };
       });
       

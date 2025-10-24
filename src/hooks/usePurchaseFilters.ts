@@ -185,7 +185,7 @@ export function usePurchaseFilters({ purchases, activeTab, searchTerm, selectedE
         };
         result.push(headerItem);
         
-        // 나머지 품목들을 하위 항목으로 추가
+        // 나머지 품목들을 하위 항목으로 추가 (line_number 순서 유지)
         purchaseItems.slice(1).forEach((item, index) => {
           result.push({
             ...purchase,
